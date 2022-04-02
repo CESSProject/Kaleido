@@ -21,7 +21,7 @@ SGX_SDK ?= /opt/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
-TOP_DIR := ../..
+TOP_DIR := .
 include $(TOP_DIR)/buildenv.mk
 
 ifeq ($(shell getconf LONG_BIT), 32)
