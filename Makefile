@@ -21,8 +21,8 @@ SGX_SDK ?= /opt/sgxsdk
 SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
-TOP_DIR := ../..
-include $(TOP_DIR)/buildenv.mk
+TOP_DIR := ./
+include $(TOP_DIR)teaclave-sgx-sdk/buildenv.mk
 
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
@@ -60,8 +60,8 @@ SGX_COMMON_CFLAGS += -fstack-protector
 
 CUSTOM_LIBRARY_PATH := ./lib
 CUSTOM_BIN_PATH := ./bin
-CUSTOM_EDL_PATH := ../../edl
-CUSTOM_COMMON_PATH := ../../common
+CUSTOM_EDL_PATH := ./teaclave-sgx-sdk/edl
+CUSTOM_COMMON_PATH := ./teaclave-sgx-sdk/common
 
 ######## EDL Settings ########
 
