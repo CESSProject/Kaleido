@@ -14,6 +14,7 @@ default = []
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"] }
 #sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = {git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 #sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }

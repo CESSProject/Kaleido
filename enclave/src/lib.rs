@@ -25,7 +25,10 @@ extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+extern crate sgx_rand;
 
+use sgx_rand::Rng;
+use sgx_rand::os::SgxRng;
 use sgx_types::*;
 use std::string::String;
 use std::vec::Vec;
@@ -61,4 +64,9 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     println!("{}", &hello_string);
 
     sgx_status_t::SGX_SUCCESS
+}
+
+pub extern "C" fn random_creator() -> i32 {
+    let random = rng.gen_range(0, 10);
+    random
 }

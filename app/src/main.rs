@@ -25,6 +25,7 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 extern {
     fn say_something(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
                      some_string: *const u8, len: usize) -> sgx_status_t;
+    fn random_creator(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> i64;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -70,5 +71,10 @@ fn main() {
         }
     }
     println!("[+] say_something success...");
+    let randnum =unsafe{
+        random_creator(enclave.geteid(),
+                       &mut retval)
+    };
+    println!("rand number is {}",randnum);
     enclave.destroy();
 }
