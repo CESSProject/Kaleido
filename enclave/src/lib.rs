@@ -66,7 +66,11 @@ pub extern "C" fn say_something(some_string: *const u8, some_len: usize) -> sgx_
     sgx_status_t::SGX_SUCCESS
 }
 
-pub extern "C" fn random_creator() -> i32 {
-    let random = rng.gen_range(0, 10);
+pub extern "C" fn random_creator() -> u32 {
+    use sgx_rand::{thread_rng, Rng};
+
+    let mut rng = thread_rng();
+    let random: u32 = rng.gen_range(0, 10);
+    println!("{}", n);
     random
 }

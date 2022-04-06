@@ -25,7 +25,7 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 extern {
     fn say_something(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
                      some_string: *const u8, len: usize) -> sgx_status_t;
-    fn random_creator(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> i64;
+    fn random_creator(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> u32;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
