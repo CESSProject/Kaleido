@@ -31,16 +31,27 @@ use core::convert::TryInto;
 
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
+use std::ptr;
 
 #[no_mangle]
-pub extern "C" fn get_rng(value: &mut [u8; 32]) -> sgx_status_t {
+pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
+    let mut random_vec = vec![0u8; length];
+    let random_slice = &mut random_vec[..];
+
     let mut rng = match StdRng::new() {
         Ok(rng) => rng,
         Err(_) => {
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
-    rng.fill_bytes(value);
-
+    rng.fill_bytes(random_slice);
+    
+    unsafe {
+        ptr::copy_nonoverlapping(
+            random_slice.as_ptr(),
+            value,
+            length
+        );
+    }
     sgx_status_t::SGX_SUCCESS
 }

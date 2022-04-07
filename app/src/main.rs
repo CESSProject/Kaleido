@@ -26,7 +26,8 @@ extern "C" {
     fn get_rng(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
-        value: &mut [u8; 32],
+        length: usize,
+        value: *mut u8,
     ) -> sgx_status_t;
 }
 
@@ -61,10 +62,11 @@ fn main() {
         }
     };
 
-    let mut value = [0; 32];
+    let mut length: usize = 5;
+    let mut random_numbers = vec![0u8; length];
     let mut retval = sgx_status_t::SGX_SUCCESS;
 
-    let result = unsafe { get_rng(enclave.geteid(), &mut retval, &mut value) };
+    let result = unsafe { get_rng(enclave.geteid(), &mut retval, length, random_numbers.as_mut_ptr() as *mut u8) };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
@@ -72,7 +74,7 @@ fn main() {
             return;
         }
     }
-    println!("Random Value: {:?}", &value);
+    println!("Generated Random Numbers: {:?}", random_numbers);
     println!("[+] get_rng success...");
     enclave.destroy();
 }
