@@ -45,7 +45,7 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
         }
     };
     rng.fill_bytes(random_slice);
-    
+
     unsafe {
         ptr::copy_nonoverlapping(
             random_slice.as_ptr(),
@@ -54,13 +54,4 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
         );
     }
     sgx_status_t::SGX_SUCCESS
-}
-
-pub extern "C" fn random_creator() -> u32 {
-    use sgx_rand::{thread_rng, Rng};
-
-    let mut rng = thread_rng();
-    let random: u32 = rng.gen_range(0, 10);
-    println!("{}", n);
-    random
 }

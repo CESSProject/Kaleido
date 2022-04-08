@@ -18,7 +18,7 @@
 ######## SGX SDK Settings ########
 
 SGX_SDK ?= /opt/sgxsdk
-SGX_MODE ?= SW
+SGX_MODE ?= HW
 SGX_ARCH ?= x64
 
 TOP_DIR := ./

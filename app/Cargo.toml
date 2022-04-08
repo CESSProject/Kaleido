@@ -11,4 +11,3 @@ sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
 sgx_urts = { path = "../teaclave-sgx-sdk/sgx_urts" }
-
