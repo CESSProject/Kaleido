@@ -13,19 +13,19 @@ default = []
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["backtrace"] }
-#sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_rand = {git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+# sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
-#sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }
+# sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }
 sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
 sgx_tstd = { path = "../teaclave-sgx-sdk/sgx_tstd" }
-#sgx_trts = { path = "../teaclave-sgx-sdk/sgx_trts" }
+# sgx_trts = { path = "../teaclave-sgx-sdk/sgx_trts" }
+sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
 # sgx_build_helper = { path = "../teaclave-sgx-sdk/sgx_build_helper" }
 # sgx_cov = { path = "../teaclave-sgx-sdk/sgx_cov" }
 # sgx_crypto_helper = { path = "../teaclave-sgx-sdk/sgx_crypto_helper" }
 # sgx_libc = { path = "../teaclave-sgx-sdk/sgx_libc" }
-# sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
 # sgx_rand_derive = { path = "../teaclave-sgx-sdk/sgx_rand_derive" }
 # sgx_serialize = { path = "../teaclave-sgx-sdk/sgx_serialize" }
 # sgx_serialize_derive = { path = "../teaclave-sgx-sdk/sgx_serialize_derive" }
