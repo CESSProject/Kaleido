@@ -1,14 +1,19 @@
 [package]
-name = "Helloworldsampleenclave"
+name = "CESS-Enclave"
 version = "1.0.0"
-authors = ["The Teaclave Authors"]
+links = "pbc"
+authors = ["CESS Labs"]
 
 [lib]
-name = "helloworldsampleenclave"
+name = "cess_enclave"
 crate-type = ["staticlib"]
 
 [features]
 default = []
+
+[build-dependencies]
+bindgen = "0.46"
+cc = "1.0"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
