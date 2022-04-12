@@ -1,5 +1,5 @@
 [package]
-name = "CESS-Enclave"
+name = "cess_enclave"
 version = "1.0.0"
 links = "pbc"
 authors = ["CESS Labs"]

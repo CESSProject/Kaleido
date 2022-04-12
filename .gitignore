@@ -18,3 +18,6 @@ Cargo.lock
 **/*_t.c
 **/*_t.h
 **/bin/app
+
+#vscode
+.vscode
