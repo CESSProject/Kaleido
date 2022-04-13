@@ -29,6 +29,7 @@ extern "C" {
         length: usize,
         value: *mut u8,
     ) -> sgx_status_t;
+    fn test_pbc() -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -66,14 +67,31 @@ fn main() {
     let mut random_numbers = vec![0u8; length];
     let mut retval = sgx_status_t::SGX_SUCCESS;
 
-    let result = unsafe { get_rng(enclave.geteid(), &mut retval, length, random_numbers.as_mut_ptr() as *mut u8) };
+    let result = unsafe {
+        get_rng(
+            enclave.geteid(),
+            &mut retval,
+            length,
+            random_numbers.as_mut_ptr() as *mut u8,
+        )
+    };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
-            println!("[-] ECALL Enclave Failed {}!", result.as_str());
+            println!("[-] ECALL Enclave Failed for get_rng {}!", result.as_str());
             return;
         }
     }
+
+    let result = unsafe { test_pbc() };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!("[-] ECALL Enclave Failed for test_pbc {}!", result.as_str());
+            return;
+        }
+    }
+
     println!("Generated Random Numbers: {:?}", random_numbers);
     println!("[+] get_rng success...");
     enclave.destroy();

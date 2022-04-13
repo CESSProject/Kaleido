@@ -1,5 +1,5 @@
-/* pbc-intf.c -- Interface between Lisp and PBC libs */
-/* DM/Emotiq 03/18 */
+/* pbc-intf.c -- Interface between Rust and PBC libs */
+
 /*
 Copyright (c) 2018 Emotiq AG
 

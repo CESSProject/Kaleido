@@ -1,7 +1,6 @@
 [package]
 name = "cess_enclave"
 version = "1.0.0"
-links = "pbc"
 authors = ["CESS Labs"]
 
 [lib]
@@ -10,10 +9,6 @@ crate-type = ["staticlib"]
 
 [features]
 default = []
-
-[build-dependencies]
-bindgen = "0.46"
-cc = "1.0"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
@@ -46,3 +41,6 @@ sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
 # sgx_ucrypto = { path = "../../../teaclave-sgx-sdk/sgx_ucrypto" }
 # sgx_unwind = { path = "../../../teaclave-sgx-sdk/sgx_unwind" }
 # sgx_urts = { path = "../../../teaclave-sgx-sdk/sgx_urts" }
+
+[dependencies]
+cess_pbc = { path = "../cess_pbc" }

@@ -19,9 +19,12 @@
 #![crate_type = "staticlib"]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![cfg_attr(not(target_env = "cess_pbc"), no_std)]
+#![cfg_attr(target_env = "cess_pbc", feature(rustc_private))]
 
 extern crate sgx_rand;
 extern crate sgx_types;
+extern crate cess_pbc;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -32,6 +35,7 @@ use core::convert::TryInto;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
+use cess_pbc::*;
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -53,5 +57,25 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
             length
         );
     }
+    sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn test_pbc() -> sgx_status_t {
+    println!("Hello, world!");
+    let input = "hello!".as_bytes();
+    let output = vec![0u8; input.len()];
+    unsafe {
+        let echo_out = echo(
+            input.len() as u64,
+            input.as_ptr() as *mut _,
+            output.as_ptr() as *mut _,
+        );
+        assert_eq!(echo_out, input.len() as u64);
+        assert_eq!(input.to_vec(), output);
+    }
+    let out_str: String = std::str::from_utf8(&output).unwrap().to_string();
+    println!("Echo Output: {}", out_str);
+    println!("");
     sgx_status_t::SGX_SUCCESS
 }

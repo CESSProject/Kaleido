@@ -24,5 +24,6 @@ enclave {
         /* define ECALLs here. */
 
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
+        public sgx_status_t test_pbc();
     };
 };
