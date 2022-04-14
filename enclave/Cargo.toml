@@ -1,10 +1,10 @@
 [package]
-name = "Helloworldsampleenclave"
+name = "cess_enclave"
 version = "1.0.0"
-authors = ["The Teaclave Authors"]
+authors = ["CESS Labs"]
 
 [lib]
-name = "helloworldsampleenclave"
+name = "cess_enclave"
 crate-type = ["staticlib"]
 
 [features]
@@ -41,3 +41,6 @@ sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
 # sgx_ucrypto = { path = "../../../teaclave-sgx-sdk/sgx_ucrypto" }
 # sgx_unwind = { path = "../../../teaclave-sgx-sdk/sgx_unwind" }
 # sgx_urts = { path = "../../../teaclave-sgx-sdk/sgx_urts" }
+
+[dependencies]
+cess_pbc = { path = "../cess_pbc" }
