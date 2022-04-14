@@ -7,24 +7,27 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    extern crate alloc;
+    use alloc::vec;
 
-    // #[test]
-    // fn it_works() {
-    //     assert_eq!(2 + 2, 4);
-    // }
-    // #[test]
-    // fn echo_test() {
-    //     let input = "hello!".as_bytes();
-    //     let output = vec![0; input.len()];
-    //     unsafe {
-    //         let echo_out = echo(
-    //             input.len() as u64,
-    //             input.as_ptr() as *mut _,
-    //             output.as_ptr() as *mut _,
-    //         );
-    //         assert_eq!(echo_out, input.len() as u64);
-    //         assert_eq!(input.to_vec(), output);
-    //     }
-    // }
+    use super::*;
+
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+    #[test]
+    fn echo_test() {
+        let input = "hello!".as_bytes();
+        let output = vec![0; input.len()];
+        unsafe {
+            let echo_out = echo(
+                input.len() as u64,
+                input.as_ptr() as *mut _,
+                output.as_ptr() as *mut _,
+            );
+            assert_eq!(echo_out, input.len() as u64);
+            assert_eq!(input.to_vec(), output);
+        }
+    }
 }
