@@ -19,23 +19,20 @@
 #![crate_type = "staticlib"]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![cfg_attr(not(target_env = "cess_pbc"), no_std)]
-#![cfg_attr(target_env = "cess_pbc", feature(rustc_private))]
 
+extern crate cess_pbc;
 extern crate sgx_rand;
 extern crate sgx_types;
-extern crate cess_pbc;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
-use core::convert::TryInto;
-
+use cess_pbc::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
-use cess_pbc::*;
+use std::string::String;
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -49,24 +46,20 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
         }
     };
     rng.fill_bytes(random_slice);
-    
+
     unsafe {
-        ptr::copy_nonoverlapping(
-            random_slice.as_ptr(),
-            value,
-            length
-        );
+        ptr::copy_nonoverlapping(random_slice.as_ptr(), value, length);
     }
     sgx_status_t::SGX_SUCCESS
 }
 
 #[no_mangle]
 pub extern "C" fn test_pbc() -> sgx_status_t {
-    println!("Hello, world!");
-    let input = "hello!".as_bytes();
+    println!("Hello, Testing PBC!");
+    let input = "Hello!".as_bytes();
     let output = vec![0u8; input.len()];
     unsafe {
-        let echo_out = echo(
+        let echo_out = cess_pbc::echo(
             input.len() as u64,
             input.as_ptr() as *mut _,
             output.as_ptr() as *mut _,
@@ -74,8 +67,11 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
         assert_eq!(echo_out, input.len() as u64);
         assert_eq!(input.to_vec(), output);
     }
-    let out_str: String = std::str::from_utf8(&output).unwrap().to_string();
-    println!("Echo Output: {}", out_str);
-    println!("");
+    
+    // Rust style convertion
+    let mut out_str = String::from("");
+    out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
+
+    println!("PBC Echo Output: {}", out_str);
     sgx_status_t::SGX_SUCCESS
 }

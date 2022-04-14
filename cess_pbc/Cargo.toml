@@ -7,12 +7,11 @@ authors = ["CESS Labs"]
 
 [lib]
 name = "cess_pbc"
-crate-type = ["staticlib"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+crate-type = ["rlib"]
 
 [build-dependencies]
-bindgen = "0.46"
+bindgen = "0.59.2"
 cc = "1.0"
 
 [dependencies]
+cty = "0.2.2"
