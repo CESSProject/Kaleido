@@ -1,0 +1,17 @@
+[package]
+name = "cess_pbc"
+version = "0.1.0"
+links = "pbc"
+edition = "2021"
+authors = ["CESS Labs"]
+
+[lib]
+name = "cess_pbc"
+crate-type = ["rlib"]
+
+[build-dependencies]
+bindgen = "0.59.2"
+cc = "1.0"
+
+[dependencies]
+cty = "0.2.2"
