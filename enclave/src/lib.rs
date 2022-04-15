@@ -28,7 +28,6 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 
-use cess_pbc::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
