@@ -102,13 +102,14 @@ fn main() {
     }
     println!("[+] test_pbc success...");
 
-    let file = String::from("This is file data\n");
+    let file_data:Vec<u8> = vec![123, 34, 97, 98, 99, 34, 125];
+    //let file = String::from("This is file data\n");
     let result = unsafe {
         file_chunk(
             enclave.geteid(),
             &mut retval,
-            file.as_ptr() as * const u8,
-            file.len()
+            file_data.as_ptr() as * const u8,
+            file_data.len()
         )
     };
     match result {
