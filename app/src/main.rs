@@ -133,6 +133,7 @@ pub enum proof_generate_status {
 pub fn proof_generate(
     file_data: Vec<u8>,
     enclave:sgx_urts::SgxEnclave,
+    retval:sgx_status_t::SGX_SUCCESS,
 ){
     // let file_data:Vec<u8> = vec![123, 34, 97, 98, 99, 34, 125];
     let result = unsafe {
