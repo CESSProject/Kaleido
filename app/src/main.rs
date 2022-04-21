@@ -29,7 +29,14 @@ extern "C" {
         length: usize,
         value: *mut u8,
     ) -> sgx_status_t;
-    fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn test_pbc(eid: sgx_enclave_id_t,
+                retval: *mut sgx_status_t
+    ) -> sgx_status_t;
+    fn file_chunk( eid: sgx_enclave_id_t,
+                   retval: *mut sgx_status_t,
+                   ptr:*mut u8,
+                   len :size_t,
+    ) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -94,5 +101,21 @@ fn main() {
         }
     }
     println!("[+] test_pbc success...");
+
+    let result = unsafe {
+        file_chunk(
+            enclave.geteid(),
+            &mut retval,
+            random_numbers.as_mut_ptr() as *mut u8,
+            random_numbers.len(),
+        )
+    };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!("[-] ECALL Enclave Failed for file_chunk {}!", result.as_str());
+            return;
+        }
+    }
     enclave.destroy();
 }

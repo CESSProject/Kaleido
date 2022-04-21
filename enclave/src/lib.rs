@@ -33,6 +33,8 @@ use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
 use std::string::String;
+use sgx_types::*;
+use alloc::slice;
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -73,5 +75,17 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
     out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
 
     println!("PBC Echo Output: {}", out_str);
+    sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn file_chunk(ptr:*mut u8,len :size_t) ->sgx_status_t{
+    println!("This is file chunker");
+    let mut file_data = vec![0u8; len];
+    let dst =file_data.as_mut_ptr();
+    unsafe {
+        ptr::copy_nonoverlapping(ptr, dst, len)
+    };
+    println!("File chunker output: {:?}", file_data);
     sgx_status_t::SGX_SUCCESS
 }
