@@ -79,11 +79,15 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
 }
 
 #[no_mangle]
-pub extern "C" fn file_chunk(file_data_ptr: *const u8, length: usize) ->sgx_status_t{
+pub extern "C" fn process_data(file_data_ptr: *const u8, length: usize) ->sgx_status_t{
     let data_slice = unsafe { slice::from_raw_parts(file_data_ptr, length) };
+    file_chunk(data_slice);
+
+    sgx_status_t::SGX_SUCCESS
+}
+
+fn file_chunk(data_slice: &[u8]) {
     data_slice.chunks(4).for_each(|chunk| {
         println!("{:?}", chunk);
     });
-
-    sgx_status_t::SGX_SUCCESS
 }
