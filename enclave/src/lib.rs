@@ -28,10 +28,11 @@ extern crate sgx_types;
 #[macro_use]
 extern crate sgx_tstd as std;
 
+use core::slice;
 use cess_pbc::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::ptr;
+use std::io::{self, Write};
 use std::string::String;
 use sgx_types::*;
 use alloc::slice;
@@ -79,12 +80,11 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
 }
 
 #[no_mangle]
-pub extern "C" fn file_chunk(length: usize, value: *const u8) ->sgx_status_t{
-    let mut file_data = vec![0u8; length];
-    let file_data_slice = &mut file_data[..];
+pub extern "C" fn file_chunk(file_data_ptr: *const u8, length: usize) ->sgx_status_t{
+    let data_slice = unsafe { slice::from_raw_parts(file_data_ptr, length) };
+    data_slice.chunks(4).for_each(|chunk| {
+        println!("{:?}", chunk);
+    });
 
-    unsafe {
-        ptr::copy_nonoverlapping(value, file_data_slice.as_mut_ptr(), length);
-    }
     sgx_status_t::SGX_SUCCESS
 }

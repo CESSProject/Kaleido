@@ -25,6 +25,6 @@ enclave {
 
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
         public sgx_status_t test_pbc();
-        public sgx_status_t file_chunk(size_t len, [out, size=len] uint8_t* value);
+        public sgx_status_t file_chunk([in, size=len] const uint8_t* file_data_ptr, size_t len);
     };
 };
