@@ -120,7 +120,7 @@ fn main() {
     //         return;
     //     }
     // }
-    proof_generate(file_data,enclave.clone());
+    proof_generate(file_data,enclave.clone(), &mut retval);
     enclave.destroy();
 }
 
