@@ -34,8 +34,8 @@ extern "C" {
     ) -> sgx_status_t;
     fn file_chunk( eid: sgx_enclave_id_t,
                    retval: *mut sgx_status_t,
-                   ptr:*mut u8,
-                   len :size_t,
+                   length: usize,
+                   value: *const u8,
     ) -> sgx_status_t;
 }
 
@@ -102,12 +102,14 @@ fn main() {
     }
     println!("[+] test_pbc success...");
 
+    let file_data:vec<u8>=vec![123;123;123;123];
+
     let result = unsafe {
         file_chunk(
             enclave.geteid(),
             &mut retval,
-            random_numbers.as_mut_ptr() as *mut u8,
-            random_numbers.len(),
+            file_data,
+            file_data.as_mut_ptr() as *const u8,
         )
     };
     match result {

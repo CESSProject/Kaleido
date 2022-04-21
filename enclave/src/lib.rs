@@ -79,13 +79,12 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
 }
 
 #[no_mangle]
-pub extern "C" fn file_chunk(ptr:*mut u8,len :size_t) ->sgx_status_t{
-    println!("This is file chunker");
-    let mut file_data = vec![0u8; len];
-    let dst =file_data.as_mut_ptr();
+pub extern "C" fn file_chunk(length: usize, value: *const u8) ->sgx_status_t{
+    let mut file_data = vec![0u8; length];
+    let file_data_slice = &mut file_data[..];
+
     unsafe {
-        ptr::copy_nonoverlapping(ptr, dst, len)
-    };
-    println!("File chunker output: {:?}", file_data);
+        ptr::copy_nonoverlapping(value, file_data_slice.as_mut_ptr(), length);
+    }
     sgx_status_t::SGX_SUCCESS
 }
