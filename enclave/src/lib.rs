@@ -29,13 +29,12 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 
 use core::slice;
-use cess_pbc::*;
+use cess_pbc::*;//
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::io::{self, Write};
 use std::string::String;
-use sgx_types::*;
-use alloc::slice;
+use std::ptr;
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
