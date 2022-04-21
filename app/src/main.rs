@@ -120,20 +120,20 @@ fn main() {
     //         return;
     //     }
     // }
-    proof_generate(file_data,enclave.clone(), &mut retval);
+    proof_generate(file_data, enclave.clone(), (&mut retval).to_owned());
     enclave.destroy();
 }
 
-pub enum proof_generate_status {
-    Proof_Generate_SUCCESS                         = 0x0000_0000,
-    Proof_Generate_INVALID_PARAMETER               = 0x0000_0001,
-    Proof_Generate_INVALID_PROOF_GENERATION_REQUEST = 0x0000_0002,
-    Proof_Generate_INVALID_PROOF_GENERATION_RESPONSE = 0x0000_0003,
-}
+// pub enum proof_generate_status {
+//     Proof_Generate_SUCCESS                         = 0x0000_0000,
+//     Proof_Generate_INVALID_PARAMETER               = 0x0000_0001,
+//     Proof_Generate_INVALID_PROOF_GENERATION_REQUEST = 0x0000_0002,
+//     Proof_Generate_INVALID_PROOF_GENERATION_RESPONSE = 0x0000_0003,
+// }
 pub fn proof_generate(
     file_data: Vec<u8>,
     enclave:sgx_urts::SgxEnclave,
-    retval:sgx_status_t::SGX_SUCCESS,
+    mut retval:sgx_status_t,
 ){
     // let file_data:Vec<u8> = vec![123, 34, 97, 98, 99, 34, 125];
     let result = unsafe {
