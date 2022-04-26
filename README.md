@@ -1,6 +1,6 @@
 # Kaleido
 
-# Prerequisites
+## Prerequisites
 
 * #### Docker
 * #### Intel SGX OOT 2.11.0 Driver or DCAP 1.36.2 Driver
@@ -47,12 +47,12 @@ For testing and development purpose
 docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -ti demochiang/cess_sgx:0.3.1
 ```
 
-# Build the Source Code
+## Build the Source Code
 
-## Install GMP
+### Install GMP
 Follow the instructions at [SGX-enabled GMP library](https://github.com/intel/sgx-gmp) to install GMP library. We recommend you not to set the `--prefix` parameter while configuring the library. This will by default install the library uder `/usr/local/` which is the requirement of Kaleido.
 
-## Build SGX-enabled PBC Library
+### Build SGX-enabled PBC Library
 
 SGX compatible PBC source code can be found under [cess_pbc/pbc](./cess_pbc/pbc). To build the library please follow the instructions below.
 
@@ -70,7 +70,7 @@ make
 make install
 ```
 
-## Build Kaleido
+### Build Kaleido
 
 First `cd` back to Kaleido root directory 
 ```
