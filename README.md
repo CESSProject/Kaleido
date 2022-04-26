@@ -11,7 +11,7 @@
 
 NOTE: Please install sgx-gmp uder default directory i.e. `/usr/local/`
 
-### Pulling a Pre-Built Docker Container
+## Pulling a Pre-Built Docker Container
 We assume that you have [correctly installed docker](https://docs.docker.com/get-docker/):
 
 First, pull the docker container, the below command will download the `latest`:
@@ -19,14 +19,14 @@ First, pull the docker container, the below command will download the `latest`:
 docker pull demochiang/cess_sgx:0.3.1
 ```
 
-### Running with Intel SGX Driver
+## Running with Intel SGX Driver
 
-#### To run the container with OOT SGX driver, run:
+### To run the container with OOT SGX driver, run:
 ```
 docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/isgx -ti demochiang/cess_sgx:0.3.1
 ```
 
-#### To run the container with DCAP SGX driver:
+### To run the container with DCAP SGX driver:
 Check your `/dev/` directory for `/dev/sgx_enclave` and `/dev/sgx_provision` 
 or 
 `/dev/sgx/enclave` and `/dev/sgx/provision`
@@ -41,7 +41,7 @@ for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_pro
 docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/sgx_enclave --device /dev/sgx_provision -ti demochiang/cess_sgx:0.3.1
 ```
 
-#### To run the container in simulation mode:
+### To run the container in simulation mode:
 For testing and development purpose
 ```
 docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -ti demochiang/cess_sgx:0.3.1
