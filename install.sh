@@ -1,7 +1,10 @@
 #!/bin/sh
-cd ..
-git clone https://github.com/blynn/pbc
-cd pbc
+
+echo "********************************************************"
+echo "                 INSTALLING DEPENDENCIES"
+echo "********************************************************"
+
+# install dependencies
 apt update -y && \
     apt upgrade -y && \
     apt dist-upgrade -y && \
@@ -18,14 +21,38 @@ apt install -y autoconf \
         bison \
         flex \
         libgmp3-dev \
-        clang \
-    && rm -rf /var/lib/apt/lists/* \
-    && autoreconf --verbose --install --force \
-    && ./configure \
-    && make \
-    && make install \
-    && cd .. \
-    && rm -rf pbc
+        clang 
 
+
+echo "********************************************************"
+echo "              INSTALLING SGX-GMP LIBRARY"
+echo "********************************************************"
+# install sgx-gmp
+cd .. && \
+git clone https://github.com/intel/sgx-gmp && \
+    cd sgx-gmp && \
+    ./configure --enable-sgx --enable-static --disable-shared --enable-assembly && \
+    make install && \
+    cd .. && rm -rf sgx-gmp
+
+
+
+echo "********************************************************"
+echo "              INSTALLING SGX PBC LIBRARY"
+echo "********************************************************"
+# install pbc
+cd Kaleido/cess_pbc/pbc && \  
+    export SGX_TSTDC_CPPFLAGS=-I/usr/local/include && \
+    ./bootstrap && \
+    ./configure && \
+    make install
+
+echo "********************************************************"
+echo "                  BUILDING KALEIDO"
+echo "********************************************************"
+# Build Kaleido
+cd ../.. && make
+
+# Start AESM
 LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
 /opt/intel/sgx-aesm-service/aesm/aesm_service
