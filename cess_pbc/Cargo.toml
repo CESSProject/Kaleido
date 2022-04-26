@@ -1,7 +1,7 @@
 [package]
 name = "cess_pbc"
 version = "0.1.0"
-links = "pbc"
+links = "sgx_tpbc"
 edition = "2021"
 authors = ["CESS Labs"]
 

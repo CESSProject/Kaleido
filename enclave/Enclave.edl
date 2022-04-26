@@ -21,9 +21,8 @@ enclave {
     from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
     trusted {
-        /* define ECALLs here. */
-
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
-        public sgx_status_t test_pbc();
+        public sgx_status_t echo_pbc();
+        public sgx_status_t process_data();
     };
 };

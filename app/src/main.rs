@@ -19,6 +19,8 @@ extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
+use std::fs;
+use std::str;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -29,7 +31,8 @@ extern "C" {
         length: usize,
         value: *mut u8,
     ) -> sgx_status_t;
-    fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn echo_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn process_data(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -51,18 +54,7 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
     )
 }
 
-fn main() {
-    let enclave = match init_enclave() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-            r
-        }
-        Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
-        }
-    };
-
+fn test_rng(enclave: &SgxEnclave) {
     let length: usize = 5;
     let mut random_numbers = vec![0u8; length];
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -84,8 +76,11 @@ fn main() {
     }
     println!("Generated Random Numbers: {:?}", random_numbers);
     println!("[+] get_rng success...");
+}
 
-    let result = unsafe { test_pbc(enclave.geteid(), &mut retval) };
+fn test_pbc(enclave: &SgxEnclave) {
+    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let result = unsafe { echo_pbc(enclave.geteid(), &mut retval) };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
@@ -94,5 +89,47 @@ fn main() {
         }
     }
     println!("[+] test_pbc success...");
+}
+
+fn test_process_data(enclave: &SgxEnclave) {
+    let filename = "../app/example_file.txt";
+
+    println!("Reading file {}", filename);
+    let data = fs::read(filename).expect("Failed to read file");
+    println!("Read Data Vec<u8>:\n{:?}", data);
+    let s = match str::from_utf8(&data) {
+        Ok(v) => v,
+        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+    println!("String:\n{}", s);
+    println!("[+] Read file success...");
+
+    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let result = unsafe { process_data(enclave.geteid(), &mut retval) };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!("[-] ECALL Enclave Failed for process_data {}!", result.as_str());
+            return;
+        }
+    }
+    println!("[+] process_data success...");
+}
+
+fn main() {
+    let enclave = match init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+            r
+        }
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+            return;
+        }
+    };
+
+    test_rng(&enclave);
+    test_pbc(&enclave);
+    test_process_data(&enclave);
     enclave.destroy();
 }
