@@ -22,16 +22,18 @@
 
 extern crate sgx_rand;
 extern crate sgx_types;
+extern crate sgx_tcrypto;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
+pub use self::bncurve::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
-use std::string::String;
 
+mod bncurve;
 mod pbc;
 
 #[no_mangle]
@@ -53,9 +55,31 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-
 #[no_mangle]
 pub extern "C" fn process_data() -> sgx_status_t {
-    pbc::key_gen();
+    println!("Initializing Pairings");
+    pbc::init_pairings();
+
+    // -------------------------------------
+    // on Secure pairings
+    // test PRNG
+    println!("rand Zr = {}", bncurve::Zr::random().to_str());
+
+    // Test Hash
+    let h = Hash::from_vector(b"");
+    println!("hash(\"\") = {}", h.to_str());
+    assert_eq!(
+        h.to_str(),
+        "H(a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a)"
+    );
+    println!("");
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen();
+    println!("-------RANDOM KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
     sgx_status_t::SGX_SUCCESS
 }
