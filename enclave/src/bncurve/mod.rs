@@ -1,4 +1,5 @@
 mod config;
+mod PBCInfo;
 use sgx_tcrypto::rsgx_sha256_slice;
 
 use super::*;
@@ -446,7 +447,6 @@ pub fn ibe_decrypt(pack: &EncryptedPacket, skey: &SecretKey) -> Option<Vec<u8>> 
 }
 
 pub fn hash(msg: &[u8]) -> Hash {
-    println!("Message to hash: {:?}", msg);
     let result = rsgx_sha256_slice(&msg).unwrap();
     Hash(result)
 }

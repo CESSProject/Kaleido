@@ -57,7 +57,6 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 
 #[no_mangle]
 pub extern "C" fn process_data() -> sgx_status_t {
-    println!("Initializing Pairings");
     pbc::init_pairings();
 
     // -------------------------------------
@@ -66,11 +65,11 @@ pub extern "C" fn process_data() -> sgx_status_t {
     println!("rand Zr = {}", bncurve::Zr::random().to_str());
 
     // Test Hash
-    let h = Hash::from_vector(b"");
+    let h = Hash::from_vector(b" ");
     println!("hash(\"\") = {}", h.to_str());
     assert_eq!(
         h.to_str(),
-        "H(a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a)"
+        "H(36a9e7f1c95b82ffb99743e0c5c4ce95d83c9a430aac59f84ef3cbfab6145068)"
     );
     println!("");
 
@@ -81,5 +80,14 @@ pub extern "C" fn process_data() -> sgx_status_t {
     println!("pkey = {}", pkey);
     println!("sig  = {}", sig);
     assert!(check_keying(&pkey, &sig));
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen_deterministic(b"TestKey");
+    println!("-------DETERMINISTIC KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
+
     sgx_status_t::SGX_SUCCESS
 }

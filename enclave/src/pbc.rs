@@ -64,3 +64,9 @@ pub fn init_pairings() {
 pub fn key_gen() -> (SecretKey, PublicKey, G1) {
     make_random_keys()
 }
+
+/// Generates a Randon keypair based on PBC
+/// Before calling this function make sure you have initialized PBC library by calling init_pairings function
+pub fn key_gen_deterministic(seed: &[u8]) -> (SecretKey, PublicKey, G1) {
+    make_deterministic_keys(&seed)
+}
