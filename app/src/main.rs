@@ -32,7 +32,12 @@ extern "C" {
         value: *mut u8,
     ) -> sgx_status_t;
     fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
-    fn process_data(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn process_data(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        data: *mut u8,
+        length: usize,
+    ) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -105,11 +110,21 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("[+] Read file success...");
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
-    let result = unsafe { process_data(enclave.geteid(), &mut retval) };
+    let result = unsafe {
+        process_data(
+            enclave.geteid(),
+            &mut retval,
+            data.as_ptr() as *mut _,
+            data.len(),
+        )
+    };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
-            println!("[-] ECALL Enclave Failed for process_data {}!", result.as_str());
+            println!(
+                "[-] ECALL Enclave Failed for process_data {}!",
+                result.as_str()
+            );
             return;
         }
     }
