@@ -55,6 +55,8 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+/// The `length` argument is the number of **elements**, not the number of bytes.
+///
 #[no_mangle]
 pub extern "C" fn process_data(data: *mut u8, length: usize) -> sgx_status_t {
     let d;
