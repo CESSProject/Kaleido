@@ -23,6 +23,7 @@
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
+extern crate sgx_tcrypto;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
