@@ -22,16 +22,18 @@
 
 extern crate sgx_rand;
 extern crate sgx_types;
+extern crate sgx_tcrypto;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
+pub use self::bncurve::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::ptr;
-use std::string::String;
 
+mod bncurve;
 mod pbc;
 
 #[no_mangle]
@@ -53,9 +55,11 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-
 #[no_mangle]
 pub extern "C" fn process_data() -> sgx_status_t {
-    pbc::key_gen();
+    pbc::init_pairings();
+
+    let (skey, pkey, sig) = pbc::key_gen();
+
     sgx_status_t::SGX_SUCCESS
 }

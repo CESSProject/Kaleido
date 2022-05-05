@@ -1,56 +1,10 @@
 use sgx_types::*;
 use std::string::String;
 use std::string::ToString;
-
-// -------------------------------------------------------------------
-// Secure BN curves, security approx 2^128
-
-const PBC_CONTEXT_FR256: u8 = 1;
-const NAME_FR256: &str = "FR256";
-const INIT_TEXT_FR256: &str = "type f
-q 115792089237314936872688561244471742058375878355761205198700409522629664518163
-r 115792089237314936872688561244471742058035595988840268584488757999429535617037
-b 3
-beta 76600213043964638334639432839350561620586998450651561245322304548751832163977
-alpha0 82889197335545133675228720470117632986673257748779594473736828145653330099944
-alpha1 66367173116409392252217737940259038242793962715127129791931788032832987594232";
-const ORDER_FR256: &str =
-    "115792089237314936872688561244471742058035595988840268584488757999429535617037";
-const G1_FR256: &str = "ff8f256bbd48990e94d834fba52da377b4cab2d3e2a08b6828ba6631ad4d668500";
-const G2_FR256 : &str = "e20543135c81c67051dc263a2bc882b838da80b05f3e1d7efa420a51f5688995e0040a12a1737c80def47c1a16a2ecc811c226c17fb61f446f3da56c420f38cc01";
-const ZR_SIZE_FR256: usize = 32;
-const G1_SIZE_FR256: usize = 33;
-const G2_SIZE_FR256: usize = 65;
-const GT_SIZE_FR256: usize = 384;
-
-struct PBCInfo {
-    context: u8, // which slot in the gluelib context table
-    name: *const str,
-    text: *const str,
-    g1_size: usize,
-    g2_size: usize,
-    pairing_size: usize,
-    field_size: usize,
-    order: *const str,
-    g1: *const str,
-    g2: *const str,
-}
-
-const CURVES: &[PBCInfo] = &[PBCInfo {
-    context: PBC_CONTEXT_FR256,
-    name: NAME_FR256,
-    text: INIT_TEXT_FR256,
-    g1_size: G1_SIZE_FR256,
-    g2_size: G2_SIZE_FR256,
-    pairing_size: GT_SIZE_FR256,
-    field_size: ZR_SIZE_FR256,
-    order: ORDER_FR256,
-    g1: G1_FR256,
-    g2: G2_FR256,
-}];
+use crate::*;
 
 #[no_mangle]
-pub extern "C" fn echo_pbc() -> sgx_status_t {
+pub extern "C" fn test_pbc() -> sgx_status_t {
     println!("Hello, Testing PBC!");
     let input = "Hello!".as_bytes();
     let output = vec![0u8; input.len()];
@@ -69,30 +23,83 @@ pub extern "C" fn echo_pbc() -> sgx_status_t {
     out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
 
     println!("PBC Echo Output: {}", out_str);
+
+    pbc::init_pairings();
+
+    // -------------------------------------
+    // on Secure pairings
+    // test PRNG
+    println!("rand Zr = {}", bncurve::Zr::random().to_str());
+
+    // Test Hash
+    let h = Hash::from_vector(b" ");
+    println!("hash(\"\") = {}", h.to_str());
+    assert_eq!(
+        h.to_str(),
+        "H(36a9e7f1c95b82ffb99743e0c5c4ce95d83c9a430aac59f84ef3cbfab6145068)"
+    );
+    println!("");
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen();
+    println!("-------RANDOM KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen_deterministic(b"TestKey");
+    println!("-------DETERMINISTIC KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
+    
     sgx_status_t::SGX_SUCCESS
 }
 
-fn init_pairings() {
-    for info in CURVES {
-        let context = info.context as u64;
-        unsafe {
-            println!("Init curve {}", (*info.name).to_string());
-            println!("Context: {}", context);
-            println!("{}", (*info.text).to_string());
+pub fn init_pairings() {
+    let context = BN_CURVE_INFO.context as u64;
+    unsafe {
+        println!("Init curve {}", (*BN_CURVE_INFO.name).to_string());
+        println!("Context: {}", context);
+        println!("{}", (*BN_CURVE_INFO.text).to_string());
 
-            let psize = [0u64; 4];
-            let ans = cess_pbc::init_pairing(
-                context,
-                info.text as *mut _,
-                (*info.text).len() as u64,
-                psize.as_ptr() as *mut _,
-            );
-            println!("Ans: {}", ans);
-        }
+        let psize = [0u64; 4];
+        let ans = cess_pbc::init_pairing(
+            context,
+            BN_CURVE_INFO.text as *mut _,
+            (*BN_CURVE_INFO.text).len() as u64,
+            psize.as_ptr() as *mut _,
+        );
+        println!("Ans: {}", ans);
+
+        let mut g1 = vec![0u8; BN_CURVE_INFO.g1_size];
+        hexstr_to_u8v(&(*BN_CURVE_INFO.g1), &mut g1);
+        println!("G1: {}", u8v_to_hexstr(&g1));
+
+        let len = cess_pbc::set_g1(context, g1.as_ptr() as *mut _);
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g1_size as i64);
+
+        let mut g2 = vec![0u8; BN_CURVE_INFO.g2_size];
+        hexstr_to_u8v(&(*BN_CURVE_INFO.g2), &mut g2);
+        println!("G2: {}", u8v_to_hexstr(&g2));
+        let len = cess_pbc::set_g2(context, g2.as_ptr() as *mut _);
+        // returns nbr bytes read, should equal length of G2
+        assert_eq!(len, BN_CURVE_INFO.g2_size as i64);
     }
 }
 
-pub fn key_gen() {
-    println!("Generating Keys");
-    init_pairings();
+/// Generates a Randon keypair based on PBC
+/// Before calling this function make sure you have initialized PBC library by calling init_pairings function
+pub fn key_gen() -> (SecretKey, PublicKey, G1) {
+    make_random_keys()
+}
+
+/// Generates a Randon keypair based on PBC
+/// Before calling this function make sure you have initialized PBC library by calling init_pairings function
+pub fn key_gen_deterministic(seed: &[u8]) -> (SecretKey, PublicKey, G1) {
+    make_deterministic_keys(&seed)
 }

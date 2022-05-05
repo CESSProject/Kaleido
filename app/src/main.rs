@@ -31,7 +31,7 @@ extern "C" {
         length: usize,
         value: *mut u8,
     ) -> sgx_status_t;
-    fn echo_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
     fn process_data(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
 }
 
@@ -78,9 +78,9 @@ fn test_rng(enclave: &SgxEnclave) {
     println!("[+] get_rng success...");
 }
 
-fn test_pbc(enclave: &SgxEnclave) {
+fn test_pbc_lib(enclave: &SgxEnclave) {
     let mut retval = sgx_status_t::SGX_SUCCESS;
-    let result = unsafe { echo_pbc(enclave.geteid(), &mut retval) };
+    let result = unsafe { test_pbc(enclave.geteid(), &mut retval) };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
@@ -129,7 +129,7 @@ fn main() {
     };
 
     test_rng(&enclave);
-    test_pbc(&enclave);
+    test_pbc_lib(&enclave);
     test_process_data(&enclave);
     enclave.destroy();
 }
