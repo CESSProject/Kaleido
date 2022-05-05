@@ -23,6 +23,6 @@ enclave {
     trusted {
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
         public sgx_status_t test_pbc();
-        public sgx_status_t process_data();
+        public sgx_status_t process_data([in, size=len] uint8_t* data, size_t len);
     };
 };

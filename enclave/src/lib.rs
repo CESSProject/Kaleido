@@ -21,6 +21,7 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 extern crate sgx_rand;
+extern crate sgx_tcrypto;
 extern crate sgx_types;
 extern crate sgx_tcrypto;
 
@@ -31,7 +32,7 @@ extern crate sgx_tstd as std;
 pub use self::bncurve::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::ptr;
+use std::{ptr, slice, str};
 
 mod bncurve;
 mod pbc;
@@ -55,10 +56,17 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+/// The `length` argument is the number of **elements**, not the number of bytes.
+///
 #[no_mangle]
-pub extern "C" fn process_data() -> sgx_status_t {
-    pbc::init_pairings();
+pub extern "C" fn process_data(data: *mut u8, length: usize) -> sgx_status_t {
+    let d;
+    unsafe {
+        d = slice::from_raw_parts(data, length).to_vec();
+    }
+    println!("Data in Enclave Vec<u8>:\n{:?}{}", d, length);
 
+    pbc::init_pairings();
     let (skey, pkey, sig) = pbc::key_gen();
 
     sgx_status_t::SGX_SUCCESS
