@@ -16,14 +16,14 @@ We assume that you have [correctly installed docker](https://docs.docker.com/get
 
 First, pull the docker container, the below command will download the `latest`:
 ```
-docker pull demochiang/cess_sgx:0.3.1
+docker pull cesslab/sgx-rust
 ```
 
 ## Running with Intel SGX Driver
 
 ### To run the container with OOT SGX driver, run:
 ```
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/isgx -ti demochiang/cess_sgx:0.3.1
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/isgx -ti cesslab/sgx-rust
 ```
 
 ### To run the container with DCAP SGX driver:
@@ -33,18 +33,18 @@ or
 and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
 
 ```
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti demochiang/cess_sgx:0.3.1
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
 ```
 
 for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command 
 ```
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/sgx_enclave --device /dev/sgx_provision -ti demochiang/cess_sgx:0.3.1
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
 ```
 
 ### To run the container in simulation mode:
 For testing and development purpose
 ```
-docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -ti demochiang/cess_sgx:0.3.1
+docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -ti cesslab/sgx-rust
 ```
 
 ## Build the Source Code

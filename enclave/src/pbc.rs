@@ -4,7 +4,7 @@ use std::string::ToString;
 use crate::*;
 
 #[no_mangle]
-pub extern "C" fn echo_pbc() -> sgx_status_t {
+pub extern "C" fn test_pbc() -> sgx_status_t {
     println!("Hello, Testing PBC!");
     let input = "Hello!".as_bytes();
     let output = vec![0u8; input.len()];
@@ -23,6 +23,39 @@ pub extern "C" fn echo_pbc() -> sgx_status_t {
     out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
 
     println!("PBC Echo Output: {}", out_str);
+
+    pbc::init_pairings();
+
+    // -------------------------------------
+    // on Secure pairings
+    // test PRNG
+    println!("rand Zr = {}", bncurve::Zr::random().to_str());
+
+    // Test Hash
+    let h = Hash::from_vector(b" ");
+    println!("hash(\"\") = {}", h.to_str());
+    assert_eq!(
+        h.to_str(),
+        "H(36a9e7f1c95b82ffb99743e0c5c4ce95d83c9a430aac59f84ef3cbfab6145068)"
+    );
+    println!("");
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen();
+    println!("-------RANDOM KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
+
+    // test keying...
+    let (skey, pkey, sig) = pbc::key_gen_deterministic(b"TestKey");
+    println!("-------DETERMINISTIC KEY-------");
+    println!("skey = {}", skey);
+    println!("pkey = {}", pkey);
+    println!("sig  = {}", sig);
+    assert!(check_keying(&pkey, &sig));
+    
     sgx_status_t::SGX_SUCCESS
 }
 

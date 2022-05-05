@@ -59,35 +59,7 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 pub extern "C" fn process_data() -> sgx_status_t {
     pbc::init_pairings();
 
-    // -------------------------------------
-    // on Secure pairings
-    // test PRNG
-    println!("rand Zr = {}", bncurve::Zr::random().to_str());
-
-    // Test Hash
-    let h = Hash::from_vector(b" ");
-    println!("hash(\"\") = {}", h.to_str());
-    assert_eq!(
-        h.to_str(),
-        "H(36a9e7f1c95b82ffb99743e0c5c4ce95d83c9a430aac59f84ef3cbfab6145068)"
-    );
-    println!("");
-
-    // test keying...
     let (skey, pkey, sig) = pbc::key_gen();
-    println!("-------RANDOM KEY-------");
-    println!("skey = {}", skey);
-    println!("pkey = {}", pkey);
-    println!("sig  = {}", sig);
-    assert!(check_keying(&pkey, &sig));
-
-    // test keying...
-    let (skey, pkey, sig) = pbc::key_gen_deterministic(b"TestKey");
-    println!("-------DETERMINISTIC KEY-------");
-    println!("skey = {}", skey);
-    println!("pkey = {}", pkey);
-    println!("sig  = {}", sig);
-    assert!(check_keying(&pkey, &sig));
 
     sgx_status_t::SGX_SUCCESS
 }

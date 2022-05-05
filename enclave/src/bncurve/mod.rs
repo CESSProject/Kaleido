@@ -1,5 +1,4 @@
 mod config;
-mod PBCInfo;
 use sgx_tcrypto::rsgx_sha256_slice;
 
 use super::*;
