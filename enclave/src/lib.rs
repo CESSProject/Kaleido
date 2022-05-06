@@ -73,6 +73,15 @@ pub extern "C" fn process_data(data: *mut u8, length: usize,block_size:usize) ->
         println!("{:?}", chunk);
     });
     pbc::init_pairings();
+    println!("{:?}", file_blocks);
+    for block in file_blocks {
+        let s = match str::from_utf8(&block) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+        };
+        println!("Block String:\n{}", s);
+    }
+
     let (skey, pkey, sig) = pbc::key_gen();
 
     sgx_status_t::SGX_SUCCESS
