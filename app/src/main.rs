@@ -37,6 +37,7 @@ extern "C" {
         retval: *mut sgx_status_t,
         data: *mut u8,
         length: usize,
+        block_size: usize,
     ) -> sgx_status_t;
 }
 
@@ -101,6 +102,7 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     println!("Reading file {}", filename);
     let data = fs::read(filename).expect("Failed to read file");
+    let block_size:usize =8;
     println!("Read Data Vec<u8>:\n{:?}", data);
     let s = match str::from_utf8(&data) {
         Ok(v) => v,
@@ -116,6 +118,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             &mut retval,
             data.as_ptr() as *mut _,
             data.len(),
+            block_size,
         )
     };
     match result {
