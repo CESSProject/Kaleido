@@ -79,7 +79,7 @@ pub extern "C" fn process_data(data: *mut u8, length: usize,block_size:usize) ->
             Ok(v) => v,
             Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
         };
-        println!("Block String:\n{}", s);
+        println!("Block String:{}", s);
     }
 
     let (skey, pkey, sig) = pbc::key_gen();
