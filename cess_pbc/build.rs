@@ -52,8 +52,8 @@ fn main() {
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 
+    println!("cargo:rustc-link-search=/usr/local/lib64");
     println!("cargo:rustc-link-search=/usr/local/lib");
-    println!("cargo:rustc-link-search=/usr/lib/x86_64-linux-gnu");
-    println!("cargo:rustc-link-lib=static=pbc");
-    println!("cargo:rustc-link-lib=static=gmp");
+    println!("cargo:rustc-link-lib=static=sgx_tpbc");
+    println!("cargo:rustc-link-lib=static=sgx_tgmp");
 }

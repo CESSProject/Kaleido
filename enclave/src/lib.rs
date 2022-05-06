@@ -20,21 +20,22 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
-extern crate cess_pbc;
 extern crate sgx_rand;
+extern crate sgx_tcrypto;
 extern crate sgx_types;
+extern crate sgx_tcrypto;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 
-use core::slice;
-use cess_pbc::*;//
+pub use self::bncurve::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::io::{self, Write};
-use std::string::String;
-use std::ptr;
+use std::{ptr, slice, str};
+
+mod bncurve;
+mod pbc;
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -55,39 +56,18 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+/// The `length` argument is the number of **elements**, not the number of bytes.
+///
 #[no_mangle]
-pub extern "C" fn test_pbc() -> sgx_status_t {
-    println!("Hello, Testing PBC!");
-    let input = "Hello!".as_bytes();
-    let output = vec![0u8; input.len()];
+pub extern "C" fn process_data(data: *mut u8, length: usize) -> sgx_status_t {
+    let d;
     unsafe {
-        let echo_out = cess_pbc::echo(
-            input.len() as u64,
-            input.as_ptr() as *mut _,
-            output.as_ptr() as *mut _,
-        );
-        assert_eq!(echo_out, input.len() as u64);
-        assert_eq!(input.to_vec(), output);
+        d = slice::from_raw_parts(data, length).to_vec();
     }
-    
-    // Rust style convertion
-    let mut out_str = String::from("");
-    out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
+    println!("Data in Enclave Vec<u8>:\n{:?}{}", d, length);
 
-    println!("PBC Echo Output: {}", out_str);
-    sgx_status_t::SGX_SUCCESS
-}
-
-#[no_mangle]
-pub extern "C" fn process_data(file_data_ptr: *const u8, length: usize) ->sgx_status_t{
-    let data_slice = unsafe { slice::from_raw_parts(file_data_ptr, length) };
-    file_chunk(data_slice);
+    pbc::init_pairings();
+    let (skey, pkey, sig) = pbc::key_gen();
 
     sgx_status_t::SGX_SUCCESS
-}
-
-fn file_chunk(data_slice: &[u8]) {
-    data_slice.chunks(4).for_each(|chunk| {
-        println!("{:?}", chunk);
-    });
 }
