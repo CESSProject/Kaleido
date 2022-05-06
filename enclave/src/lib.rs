@@ -27,7 +27,9 @@ extern crate sgx_types;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+extern crate alloc;
 
+use alloc::vec::Vec;
 pub use self::bncurve::*;
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
@@ -58,14 +60,28 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 /// The `length` argument is the number of **elements**, not the number of bytes.
 ///
 #[no_mangle]
-pub extern "C" fn process_data(data: *mut u8, length: usize) -> sgx_status_t {
+pub extern "C" fn process_data(data: *mut u8, length: usize,block_size:usize) -> sgx_status_t {
+    let mut file_blocks:Vec<Vec<u8>> = Vec::new();
     let d;
     unsafe {
         d = slice::from_raw_parts(data, length).to_vec();
     }
     println!("Data in Enclave Vec<u8>:\n{:?}{}", d, length);
 
+    d.chunks(block_size).for_each(|chunk| {
+        file_blocks.push(chunk.to_vec());
+        println!("{:?}", chunk);
+    });
     pbc::init_pairings();
+    println!("{:?}", file_blocks);
+    for block in file_blocks {
+        let s = match str::from_utf8(&block) {
+            Ok(v) => v,
+            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+        };
+        println!("Block String:{}", s);
+    }
+
     let (skey, pkey, sig) = pbc::key_gen();
 
     sgx_status_t::SGX_SUCCESS
