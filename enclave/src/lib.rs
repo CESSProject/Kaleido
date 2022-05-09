@@ -19,6 +19,7 @@
 #![crate_type = "staticlib"]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![feature(core_intrinsics)]
 
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
@@ -29,14 +30,19 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::vec::Vec;
 pub use self::bncurve::*;
+use alloc::vec::Vec;
+
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::{ptr, slice, str};
 
 mod bncurve;
 mod pbc;
+
+struct Signatures(Vec<G1>, PublicKey);
+
+// static SIGNATURES: Signatures = Signatures(Vec::new(), PublicKey::new(G2::zero()));
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -60,29 +66,34 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 /// The `length` argument is the number of **elements**, not the number of bytes.
 ///
 #[no_mangle]
-pub extern "C" fn process_data(data: *mut u8, length: usize,block_size:usize) -> sgx_status_t {
-    let mut file_blocks:Vec<Vec<u8>> = Vec::new();
+pub extern "C" fn process_data(
+    data: *mut u8,
+    length: usize,
+    block_size: usize,
+    sig_len: &mut usize,
+
+) -> sgx_status_t {
     let d;
     unsafe {
         d = slice::from_raw_parts(data, length).to_vec();
     }
-    println!("Data in Enclave Vec<u8>:\n{:?}{}", d, length);
 
-    d.chunks(block_size).for_each(|chunk| {
-        file_blocks.push(chunk.to_vec());
-        println!("{:?}", chunk);
-    });
     pbc::init_pairings();
-    println!("{:?}", file_blocks);
-    for block in file_blocks {
-        let s = match str::from_utf8(&block) {
-            Ok(v) => v,
-            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        };
-        println!("Block String:{}", s);
-    }
+    let (skey, pkey, _sig) = pbc::key_gen();
 
-    let (skey, pkey, sig) = pbc::key_gen();
+    let mut signatures: Vec<G1> = Vec::new();
+    d.chunks(block_size).for_each(|chunk| {
+        signatures.push(bncurve::sign_message(&chunk.to_vec(), &skey));
+    });
+
+    *sig_len = signatures.len();
+
+    // Print Signatures
+    // let mut i = 0;
+    // for sig in signatures {
+    //     println!("{}: {}", i, sig);
+    //     i += 1;
+    // }
 
     sgx_status_t::SGX_SUCCESS
 }

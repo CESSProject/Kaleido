@@ -1,6 +1,5 @@
 use sgx_types::*;
 use std::string::String;
-use std::string::ToString;
 use crate::*;
 
 #[no_mangle]
@@ -63,7 +62,7 @@ pub fn init_pairings() {
     let context = BN_CURVE_INFO.context as u64;
     unsafe {
         let psize = [0u64; 4];
-        let ans = cess_pbc::init_pairing(
+        cess_pbc::init_pairing(
             context,
             BN_CURVE_INFO.text as *mut _,
             (*BN_CURVE_INFO.text).len() as u64,

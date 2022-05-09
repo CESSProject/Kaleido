@@ -20,6 +20,7 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::fs;
+use std::ptr;
 use std::str;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
@@ -38,6 +39,8 @@ extern "C" {
         data: *mut u8,
         length: usize,
         block_size: usize,
+        // sigs_ptr: *mut u8,
+        sig_len: & usize,
     ) -> sgx_status_t;
 }
 
@@ -102,7 +105,7 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     println!("Reading file {}", filename);
     let data = fs::read(filename).expect("Failed to read file");
-    let block_size:usize =8;
+    let block_size: usize = 32;
     println!("Read Data Vec<u8>:\n{:?}", data);
     let s = match str::from_utf8(&data) {
         Ok(v) => v,
@@ -112,6 +115,9 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("[+] Read file success...");
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
+    let sigs_ptr: *mut u8 = ptr::null::<u8>() as *mut u8;
+    // let mut sig_len: Vec<usize> = vec![0; 1];
+    let sig_len: usize = 0;
     let result = unsafe {
         process_data(
             enclave.geteid(),
@@ -119,6 +125,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             data.as_ptr() as *mut _,
             data.len(),
             block_size,
+            &sig_len,
         )
     };
     match result {
@@ -131,6 +138,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
+    println!("Number of Signatures: {:?}", sig_len);
     println!("[+] process_data success...");
 }
 
