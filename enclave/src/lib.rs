@@ -19,6 +19,7 @@
 #![crate_type = "staticlib"]
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#![feature(core_intrinsics)]
 
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
@@ -29,14 +30,19 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::vec::Vec;
 pub use self::bncurve::*;
+use alloc::vec::Vec;
+
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::{ptr, slice, str};
 
 mod bncurve;
 mod pbc;
+
+struct Signatures(Vec<G1>, PublicKey);
+
+static mut SIGNATURES: Signatures = Signatures(Vec::new(), PublicKey::new(G2::zero()));
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -58,31 +64,56 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 }
 
 /// The `length` argument is the number of **elements**, not the number of bytes.
-///
+/// `sig_len` is the number of signatures generated. This should be used to allocate
+/// memory to call `get_signatures`
 #[no_mangle]
-pub extern "C" fn process_data(data: *mut u8, length: usize,block_size:usize) -> sgx_status_t {
-    let mut file_blocks:Vec<Vec<u8>> = Vec::new();
+pub extern "C" fn process_data(
+    data: *mut u8,
+    length: usize,
+    block_size: usize,
+    sig_len: &mut usize,
+) -> sgx_status_t {
     let d;
     unsafe {
         d = slice::from_raw_parts(data, length).to_vec();
     }
-    println!("Data in Enclave Vec<u8>:\n{:?}{}", d, length);
 
-    d.chunks(block_size).for_each(|chunk| {
-        file_blocks.push(chunk.to_vec());
-        println!("{:?}", chunk);
-    });
     pbc::init_pairings();
-    println!("{:?}", file_blocks);
-    for block in file_blocks {
-        let s = match str::from_utf8(&block) {
-            Ok(v) => v,
-            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        };
-        println!("Block String:{}", s);
+    let (skey, pkey, _sig) = pbc::key_gen();
+
+    let mut signatures: Vec<G1> = Vec::new();
+    d.chunks(block_size).for_each(|chunk| {
+        signatures.push(bncurve::sign_message(&chunk.to_vec(), &skey));
+    });
+
+    *sig_len = signatures.len();
+    // println!("Signatures Reference: {}", sig_ref);
+    // println!("Signatures Address: {:p}", signatures.as_ptr());
+    unsafe {
+        SIGNATURES = Signatures(signatures, pkey);
     }
 
-    let (skey, pkey, sig) = pbc::key_gen();
-
     sgx_status_t::SGX_SUCCESS
+}
+
+/// For public key Enclave EDL requires the length of array to be passed along
+/// Make sure to pass the correct length of publickey being retrieved
+/// 
+#[no_mangle]
+pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
+    unsafe {
+        let signature = &SIGNATURES.0[index];
+        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+    }
+}
+
+/// For public key Enclave EDL requires the length of array to be passed along
+/// Make sure to pass the correct length of publickey being retrieved
+/// 
+#[no_mangle]
+pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
+    unsafe {
+        let public_key = SIGNATURES.1;
+        ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
+    }
 }

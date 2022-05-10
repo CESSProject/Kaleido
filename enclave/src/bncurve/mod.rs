@@ -1,4 +1,4 @@
-mod config;
+pub mod config;
 use sgx_tcrypto::rsgx_sha256_slice;
 
 use super::*;
@@ -78,11 +78,11 @@ impl Zr {
     }
 }
 
-// impl fmt::Display for Zr {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         write!(f, "{}", self.to_str())
-//     }
-// }
+impl fmt::Display for Zr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_str())
+    }
+}
 
 // -----------------------------------------
 #[derive(Copy, Clone)]
@@ -114,7 +114,7 @@ impl fmt::Display for G1 {
 pub struct G2([u8; config::G2_SIZE_FR256]);
 
 impl G2 {
-    pub fn zero() -> G2 {
+    pub const fn zero() -> G2 {
         G2([0u8; config::G2_SIZE_FR256])
     }
 
@@ -182,6 +182,10 @@ impl fmt::Display for SecretKey {
 pub struct PublicKey(G2);
 
 impl PublicKey {
+    pub const fn new(pkey: G2) -> PublicKey {
+        PublicKey(pkey)
+    }
+
     pub fn base_vector(&self) -> &[u8] {
         self.0.base_vector()
     }
@@ -237,13 +241,6 @@ impl fmt::Display for PublicSubKey {
     }
 }
 
-// -----------------------------------------
-#[derive(Copy, Clone)]
-pub struct BlsSignature {
-    sig: G1,
-    pkey: PublicKey,
-}
-
 // ------------------------------------------------------------------------
 // BLS Signature Generation & Checking
 
@@ -275,17 +272,18 @@ pub fn check_hash(h: &Hash, sig: &G1, pkey: &PublicKey) -> bool {
     }
 }
 
-pub fn sign_message(msg: &[u8], skey: &SecretKey, pkey: &PublicKey) -> BlsSignature {
+/// Accepts: a message to be signed and secretKey
+/// Returns: signature
+pub fn sign_message(msg: &[u8], skey: &SecretKey) -> G1 {
     // hash the message and form a BLS signature
-    BlsSignature {
-        sig: sign_hash(&Hash::from_vector(&msg), skey),
-        pkey: pkey.clone(),
-    }
+    sign_hash(&Hash::from_vector(&msg), skey)
 }
 
-pub fn check_message(msg: &[u8], sig: &BlsSignature) -> bool {
+/// Accepts: a message, publicKey and signature
+/// Returns: true if signature is valid, false otherwise
+pub fn check_message(msg: &[u8], pkey: &PublicKey, sig: &G1) -> bool {
     // check the message against the BLS signature, return t/f
-    check_hash(&Hash::from_vector(&msg), &sig.sig, &sig.pkey)
+    check_hash(&Hash::from_vector(&msg), &sig, &pkey)
 }
 
 // ------------------------------------------------------------------

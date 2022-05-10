@@ -38,6 +38,20 @@ extern "C" {
         data: *mut u8,
         length: usize,
         block_size: usize,
+        sig_len: &usize,
+    ) -> sgx_status_t;
+    fn get_public_key(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        pkey_len: usize,
+        pkey: *mut u8,
+    ) -> sgx_status_t;
+    fn get_signature(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        index: usize,
+        sig_len: usize,
+        sigs: *mut u8,
     ) -> sgx_status_t;
 }
 
@@ -102,7 +116,7 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     println!("Reading file {}", filename);
     let data = fs::read(filename).expect("Failed to read file");
-    let block_size:usize =8;
+    let block_size: usize = 32;
     println!("Read Data Vec<u8>:\n{:?}", data);
     let s = match str::from_utf8(&data) {
         Ok(v) => v,
@@ -112,6 +126,8 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("[+] Read file success...");
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
+    let sig_len: usize = 0;
+
     let result = unsafe {
         process_data(
             enclave.geteid(),
@@ -119,6 +135,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             data.as_ptr() as *mut _,
             data.len(),
             block_size,
+            &sig_len,
         )
     };
     match result {
@@ -131,6 +148,55 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
+
+    let mut pkey = vec![0u8; 65];
+    let mut signatures = vec![vec![0u8; 33]; sig_len];
+
+    let result = unsafe {
+        for i in 0..signatures.len() {
+            let res = get_signature(
+                enclave.geteid(),
+                &mut retval,
+                i,
+                signatures[i].len(),
+                signatures[i].as_mut_ptr() as *mut u8,
+            );
+            match res {
+                sgx_status_t::SGX_SUCCESS => {}
+                _ => {
+                    println!(
+                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+                        i,
+                        result.as_str()
+                    );
+                    return;
+                }
+            }
+        }
+        get_public_key(
+            enclave.geteid(),
+            &mut retval,
+            pkey.len(),
+            pkey.as_mut_ptr() as *mut u8,
+        )
+    };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!(
+                "[-] ECALL Enclave Failed to get PublicKey {}!",
+                result.as_str()
+            );
+            return;
+        }
+    }
+
+    println!("Number of Signatures: {}", sig_len);
+    println!("Signatures:");
+    for sig in signatures {
+        println!("{:?}", hex::encode(sig));
+    }
+    println!("PublicKey: {:?}", hex::encode(pkey));
     println!("[+] process_data success...");
 }
 
