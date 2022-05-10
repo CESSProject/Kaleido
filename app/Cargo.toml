@@ -7,6 +7,7 @@ build = "build.rs"
 [dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+hex = "0.4"
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }

@@ -1,4 +1,4 @@
-mod config;
+pub mod config;
 use sgx_tcrypto::rsgx_sha256_slice;
 
 use super::*;
@@ -114,7 +114,7 @@ impl fmt::Display for G1 {
 pub struct G2([u8; config::G2_SIZE_FR256]);
 
 impl G2 {
-    pub fn zero() -> G2 {
+    pub const fn zero() -> G2 {
         G2([0u8; config::G2_SIZE_FR256])
     }
 
@@ -182,7 +182,7 @@ impl fmt::Display for SecretKey {
 pub struct PublicKey(G2);
 
 impl PublicKey {
-    pub fn new(pkey: G2) -> PublicKey {
+    pub const fn new(pkey: G2) -> PublicKey {
         PublicKey(pkey)
     }
 

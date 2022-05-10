@@ -42,7 +42,7 @@ mod pbc;
 
 struct Signatures(Vec<G1>, PublicKey);
 
-// static SIGNATURES: Signatures = Signatures(Vec::new(), PublicKey::new(G2::zero()));
+static mut SIGNATURES: Signatures = Signatures(Vec::new(), PublicKey::new(G2::zero()));
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -64,14 +64,14 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 }
 
 /// The `length` argument is the number of **elements**, not the number of bytes.
-///
+/// `sig_len` is the number of signatures generated. This should be used to allocate
+/// memory to call `get_signatures`
 #[no_mangle]
 pub extern "C" fn process_data(
     data: *mut u8,
     length: usize,
     block_size: usize,
     sig_len: &mut usize,
-
 ) -> sgx_status_t {
     let d;
     unsafe {
@@ -87,13 +87,33 @@ pub extern "C" fn process_data(
     });
 
     *sig_len = signatures.len();
-
-    // Print Signatures
-    // let mut i = 0;
-    // for sig in signatures {
-    //     println!("{}: {}", i, sig);
-    //     i += 1;
-    // }
+    // println!("Signatures Reference: {}", sig_ref);
+    // println!("Signatures Address: {:p}", signatures.as_ptr());
+    unsafe {
+        SIGNATURES = Signatures(signatures, pkey);
+    }
 
     sgx_status_t::SGX_SUCCESS
+}
+
+/// For public key Enclave EDL requires the length of array to be passed along
+/// Make sure to pass the correct length of publickey being retrieved
+/// 
+#[no_mangle]
+pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
+    unsafe {
+        let signature = &SIGNATURES.0[index];
+        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+    }
+}
+
+/// For public key Enclave EDL requires the length of array to be passed along
+/// Make sure to pass the correct length of publickey being retrieved
+/// 
+#[no_mangle]
+pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
+    unsafe {
+        let public_key = SIGNATURES.1;
+        ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
+    }
 }
