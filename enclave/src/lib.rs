@@ -36,7 +36,7 @@ use cess_bncurve::*;
 
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::{ptr, slice};
+use std::{env, ptr, slice};
 
 mod pbc;
 
@@ -63,23 +63,28 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-/// The `length` argument is the number of **elements**, not the number of bytes.
+/// Arguments:
+/// `seed` is used to compute keys
+/// `seed_len` is the number of **elements**, not the number of bytes.
+/// `data` is the data that needs to be processed. It should not exceed SGX max memory size
+/// `data_len` argument is the number of **elements**, not the number of bytes.
+/// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
 /// `sig_len` is the number of signatures generated. This should be used to allocate
 /// memory to call `get_signatures`
 #[no_mangle]
 pub extern "C" fn process_data(
+    seed: *const u8,
+    seed_len: usize,
     data: *mut u8,
-    length: usize,
+    data_len: usize,
     block_size: usize,
     sig_len: &mut usize,
 ) -> sgx_status_t {
-    let d;
-    unsafe {
-        d = slice::from_raw_parts(data, length).to_vec();
-    }
+    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
+    let s = unsafe { slice::from_raw_parts(seed, seed_len) };
 
     pbc::init_pairings();
-    let (skey, pkey, _sig) = pbc::key_gen();
+    let (skey, pkey, _sig) = pbc::key_gen_deterministic(s);
 
     let mut signatures: Vec<G1> = Vec::new();
     d.chunks(block_size).for_each(|chunk| {
@@ -87,8 +92,7 @@ pub extern "C" fn process_data(
     });
 
     *sig_len = signatures.len();
-    // println!("Signatures Reference: {}", sig_ref);
-    // println!("Signatures Address: {:p}", signatures.as_ptr());
+    
     unsafe {
         SIGNATURES = Signatures(signatures, pkey);
     }
