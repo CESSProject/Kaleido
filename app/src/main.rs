@@ -116,14 +116,14 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     println!("Reading file {}", filename);
     let data = fs::read(filename).expect("Failed to read file");
-    let block_size: usize = 32;
-    println!("Read Data Vec<u8>:\n{:?}", data);
-    let s = match str::from_utf8(&data) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-    println!("String:\n{}", s);
-    println!("[+] Read file success...");
+    let block_size: usize = 1024;
+    // println!("Read Data Vec<u8>:\n{:?}", data);
+    // let s = match str::from_utf8(&data) {
+    //     Ok(v) => v,
+    //     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    // };
+    // println!("String:\n{}", s);
+    // println!("[+] Read file success...");
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let sig_len: usize = 0;

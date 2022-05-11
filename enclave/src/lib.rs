@@ -21,6 +21,7 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![feature(core_intrinsics)]
 
+extern crate cess_bncurve;
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
@@ -30,14 +31,13 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-pub use self::bncurve::*;
 use alloc::vec::Vec;
+use cess_bncurve::*;
 
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::{ptr, slice, str};
+use std::{ptr, slice};
 
-mod bncurve;
 mod pbc;
 
 struct Signatures(Vec<G1>, PublicKey);
@@ -83,7 +83,7 @@ pub extern "C" fn process_data(
 
     let mut signatures: Vec<G1> = Vec::new();
     d.chunks(block_size).for_each(|chunk| {
-        signatures.push(bncurve::sign_message(&chunk.to_vec(), &skey));
+        signatures.push(cess_bncurve::sign_message(&chunk.to_vec(), &skey));
     });
 
     *sig_len = signatures.len();
@@ -98,7 +98,7 @@ pub extern "C" fn process_data(
 
 /// For public key Enclave EDL requires the length of array to be passed along
 /// Make sure to pass the correct length of publickey being retrieved
-/// 
+///
 #[no_mangle]
 pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
     unsafe {
@@ -109,7 +109,7 @@ pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
 
 /// For public key Enclave EDL requires the length of array to be passed along
 /// Make sure to pass the correct length of publickey being retrieved
-/// 
+///
 #[no_mangle]
 pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
     unsafe {
