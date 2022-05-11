@@ -28,7 +28,7 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
     // -------------------------------------
     // on Secure pairings
     // test PRNG
-    println!("rand Zr = {}", bncurve::Zr::random().to_str());
+    println!("rand Zr = {}", cess_bncurve::Zr::random().to_str());
 
     // Test Hash
     let h = Hash::from_vector(b" ");
