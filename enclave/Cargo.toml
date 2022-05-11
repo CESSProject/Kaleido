@@ -45,3 +45,4 @@ sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 
 [dependencies]
 cess_pbc = { path = "../cess_pbc" }
+cess_bncurve = { path = "../cess_bncurve" }

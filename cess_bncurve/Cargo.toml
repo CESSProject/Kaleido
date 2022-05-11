@@ -1,0 +1,23 @@
+[package]
+name = "cess_bncurve"
+version = "0.1.0"
+edition = "2021"
+authors = ["CESS Labs"]
+
+[lib]
+name = "cess_bncurve"
+crate-type = ["rlib"]
+
+[dependencies]
+cess_pbc = { path = "../cess_pbc" }
+
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_tstd = { path = "../teaclave-sgx-sdk/sgx_tstd" }
+sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
+sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }

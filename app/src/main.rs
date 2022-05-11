@@ -19,8 +19,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::fs;
-use std::str;
+use std::{str, fs, env};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -35,6 +34,8 @@ extern "C" {
     fn process_data(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
+        seed: *const u8,
+        seed_len: usize,
         data: *mut u8,
         length: usize,
         block_size: usize,
@@ -116,22 +117,24 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     println!("Reading file {}", filename);
     let data = fs::read(filename).expect("Failed to read file");
-    let block_size: usize = 32;
-    println!("Read Data Vec<u8>:\n{:?}", data);
-    let s = match str::from_utf8(&data) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    };
-    println!("String:\n{}", s);
-    println!("[+] Read file success...");
+    let block_size: usize = 1024;
+    // println!("Read Data Vec<u8>:\n{:?}", data);
+    // let s = match str::from_utf8(&data) {
+    //     Ok(v) => v,
+    //     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    // };
+    // println!("String:\n{}", s);
+    // println!("[+] Read file success...");
 
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let sig_len: usize = 0;
-
+    let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
     let result = unsafe {
         process_data(
             enclave.geteid(),
             &mut retval,
+            seed.as_ptr() as * const u8,
+            seed.len(),
             data.as_ptr() as *mut _,
             data.len(),
             block_size,

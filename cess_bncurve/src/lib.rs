@@ -1,7 +1,13 @@
+#![no_std] 
+
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+
 pub mod config;
+
 use sgx_tcrypto::rsgx_sha256_slice;
 
-use super::*;
 use core::fmt;
 use std::string::String;
 use std::vec::Vec;
