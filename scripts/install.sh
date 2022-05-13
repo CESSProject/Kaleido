@@ -12,8 +12,8 @@ Options:
 	sgx				        install sgx driver 
 		<dcap>				(optional) install DCAP driver
 		<isgx>				(optional) install isgx driver
-	uninstall				uninstall your phala scripts
-	build_dep               install Kaleido build dependencies GMP/PBC/etc 
+	build_dep				install Kaleido build dependencies GMP/PBC/etc 
+	uninstall				uninstall sgx
 EOF
 	exit 0
 }
