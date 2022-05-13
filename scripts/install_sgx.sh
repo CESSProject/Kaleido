@@ -167,7 +167,7 @@ function sgx() {
 		install_isgx
 		;;
 	*)
-	  kaleido_help
+		kaleido_help
 		exit 1
 		;;
 	esac
