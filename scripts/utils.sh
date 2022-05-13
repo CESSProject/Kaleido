@@ -1,6 +1,6 @@
 function echo_c()
 {
-	printf "\033[0;$1m$2\033[0m\n"
+	printf "\033[0;$1m******** $2 ********\033[0m\n"
 }
 
 function log_success()
