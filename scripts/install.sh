@@ -1,8 +1,8 @@
 #!/bin/bash
 
 source ./utils.sh
-source ./install_build_dep.sh
-source ./install_sgx.sh
+source ./deps.sh
+source ./sgx.sh
 
 function kaleido_help() {
 	cat <<EOF
