@@ -192,14 +192,14 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-    
+
     let elapsed = now.elapsed();
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("Number of Signatures: {}", sig_len);
-    println!("Signatures:");
-    for sig in signatures {
-        println!("{:?}", hex::encode(sig));
-    }
+    // println!("Signatures:");
+    // for sig in signatures {
+    //     println!("{:?}", hex::encode(sig));
+    // }
     println!("PublicKey: {:?}", hex::encode(pkey));
     println!("[+] process_data success...");
 }
