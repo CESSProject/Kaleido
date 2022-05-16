@@ -19,7 +19,11 @@ extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
+<<<<<<< HEAD
 use std::{env, fs, str, time::Instant};
+=======
+use std::{str, fs, env, time::Instant};
+>>>>>>> Added function execution time
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -119,7 +123,6 @@ fn test_process_data(enclave: &SgxEnclave) {
     let data = fs::read(filename).expect("Failed to read file");
     let elapsed = now.elapsed();
     println!("File read completed in {:.2?}!", elapsed);
-
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
     let block_size: usize = 1024 * 1024;    // 1MB block size gives the best results interms of speed.
