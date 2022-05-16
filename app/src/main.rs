@@ -19,11 +19,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-<<<<<<< HEAD
 use std::{env, fs, str, time::Instant};
-=======
-use std::{str, fs, env, time::Instant};
->>>>>>> Added function execution time
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
