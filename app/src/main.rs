@@ -19,7 +19,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::{str, fs, env};
+use std::{str, fs, env, time::Instant};
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -116,19 +116,18 @@ fn test_process_data(enclave: &SgxEnclave) {
     let filename = "../app/example_file.txt";
 
     println!("Reading file {}", filename);
+    let now = Instant::now();
     let data = fs::read(filename).expect("Failed to read file");
-    let block_size: usize = 1024;
-    // println!("Read Data Vec<u8>:\n{:?}", data);
-    // let s = match str::from_utf8(&data) {
-    //     Ok(v) => v,
-    //     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-    // };
-    // println!("String:\n{}", s);
-    // println!("[+] Read file success...");
-
+    let elapsed = now.elapsed();
+    println!("File read completed in {:.2?}!", elapsed);
+    
+    
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let sig_len: usize = 0;
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
+    let block_size: usize = 1024;
+
+    let now = Instant::now();
     let result = unsafe {
         process_data(
             enclave.geteid(),
@@ -193,7 +192,9 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-
+    
+    let elapsed = now.elapsed();
+    println!("Signatures generated in {:.2?}!", elapsed);
     println!("Number of Signatures: {}", sig_len);
     println!("Signatures:");
     for sig in signatures {
