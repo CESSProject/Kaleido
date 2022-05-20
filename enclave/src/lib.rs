@@ -33,6 +33,7 @@ extern crate serde;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
 
@@ -51,6 +52,8 @@ use std::{
 mod pbc;
 mod podr2_proof_commit;
 mod param;
+
+struct SignatureWithIndex(usize, G1);
 
 struct Signatures(Vec<G1>, PublicKey);
 
