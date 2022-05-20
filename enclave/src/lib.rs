@@ -31,25 +31,24 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
 
-use core::intrinsics::forget;
-use core::time::Duration;
-use core::{convert::TryInto, sync::atomic::AtomicPtr};
+use core::ops::{Index, IndexMut};
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::untrusted::time::SystemTimeEx;
-use std::{env, ptr, slice, sync::mpsc, thread, time};
+use std::{
+    ptr, slice,
+    sync::{Arc, SgxMutex},
+    thread, time,
+};
 
 mod pbc;
 
-struct SignatureWithIndex(usize, G1);
-
 struct Signatures(Vec<G1>, PublicKey);
 
-static mut SIGNATURES: Signatures = Signatures(Vec::new(), PublicKey::new(G2::zero()));
+static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
 
 #[no_mangle]
 pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
@@ -95,48 +94,48 @@ pub extern "C" fn process_data(
     let (skey, pkey, _sig) = pbc::key_gen_deterministic(s);
 
     let mut chunks: Vec<Vec<u8>> = Vec::new();
-    let mut signatures = Vec::<G1>::new();
     d.chunks(block_size).for_each(|chunk| {
         chunks.push(chunk.to_vec());
-        if multi_thread {
-            signatures.push(G1::zero());
-        }
     });
 
     let now = time::SystemTime::now();
+    let mut handles = vec![];
+    let mut signatures = Arc::new(SgxMutex::new(vec![G1::zero(); chunks.len()]));
     if multi_thread {
         println!("Multi-thread");
-        let (tx, rx) = mpsc::channel();
 
         for i in 0..chunks.len() {
             let chunk = chunks[i].to_vec().clone();
-            let tx = tx.clone();
             let skey = skey.clone();
-            thread::spawn(move || {
+            let signatures = Arc::clone(&signatures);
+            let handle = thread::spawn(move || {
                 let sig = cess_bncurve::sign_message(&chunk, &skey);
-                tx.send(SignatureWithIndex(i, sig)).unwrap();
+                let mut signature = signatures.lock().unwrap();
+                *signature.index_mut(i) = sig;
             });
+            handles.push(handle);
         }
-        drop(tx);
 
-        for received in rx {
-            signatures[received.0] = received.1;
+        for handle in handles {
+            handle.join().unwrap();
         }
     } else {
         println!("Single-thread");
+
         for i in 0..chunks.len() {
             let chunk = chunks[i].to_vec().clone();
             let sig = cess_bncurve::sign_message(&chunk, &skey);
-            signatures.push(sig);
+            let mut signature = signatures.lock().unwrap();
+            *signature.index_mut(i) = sig;
         }
     }
     let escaped = now.elapsed().unwrap();
     println!("Sig took {:.2?}", escaped);
 
-    *sig_len = signatures.len();
+    *sig_len = chunks.len();
 
     unsafe {
-        SIGNATURES = Signatures(signatures, pkey);
+        SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey);
     }
 
     sgx_status_t::SGX_SUCCESS

@@ -126,7 +126,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let sig_len: usize = 0;
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
-    let block_size: usize = 8;
+    let block_size: usize = 1024;
 
     let now = Instant::now();
     let result = unsafe {
