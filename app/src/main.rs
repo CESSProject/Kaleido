@@ -40,6 +40,7 @@ extern "C" {
         length: usize,
         block_size: usize,
         sig_len: &usize,
+        multi_thread: bool,
     ) -> sgx_status_t;
     fn get_public_key(
         eid: sgx_enclave_id_t,
@@ -125,7 +126,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let sig_len: usize = 0;
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
-    let block_size: usize = 1024;
+    let block_size: usize = 8;
 
     let now = Instant::now();
     let result = unsafe {
@@ -138,6 +139,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             data.len(),
             block_size,
             &sig_len,
+            true
         )
     };
     match result {
@@ -150,7 +152,8 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-
+    let elapsed = now.elapsed();
+    
     let mut pkey = vec![0u8; 65];
     let mut signatures = vec![vec![0u8; 33]; sig_len];
 
@@ -193,14 +196,14 @@ fn test_process_data(enclave: &SgxEnclave) {
         }
     }
 
-    let elapsed = now.elapsed();
-    println!("Signatures generated in {:.2?}!", elapsed);
-    println!("Number of Signatures: {}", sig_len);
+    
     // println!("Signatures:");
     // for sig in signatures {
     //     println!("{:?}", hex::encode(sig));
     // }
     println!("PublicKey: {:?}", hex::encode(pkey));
+    println!("Number of Signatures: {}", sig_len);
+    println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 }
 

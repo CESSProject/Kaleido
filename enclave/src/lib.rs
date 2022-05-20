@@ -31,14 +31,21 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
 
+use core::intrinsics::forget;
+use core::time::Duration;
+use core::{convert::TryInto, sync::atomic::AtomicPtr};
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::{env, ptr, slice};
+use std::untrusted::time::SystemTimeEx;
+use std::{env, ptr, slice, sync::mpsc, thread, time};
 
 mod pbc;
+
+struct SignatureWithIndex(usize, G1);
 
 struct Signatures(Vec<G1>, PublicKey);
 
@@ -79,6 +86,7 @@ pub extern "C" fn process_data(
     data_len: usize,
     block_size: usize,
     sig_len: &mut usize,
+    multi_thread: bool,
 ) -> sgx_status_t {
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let s = unsafe { slice::from_raw_parts(seed, seed_len) };
@@ -86,13 +94,47 @@ pub extern "C" fn process_data(
     pbc::init_pairings();
     let (skey, pkey, _sig) = pbc::key_gen_deterministic(s);
 
-    let mut signatures: Vec<G1> = Vec::new();
+    let mut chunks: Vec<Vec<u8>> = Vec::new();
+    let mut signatures = Vec::<G1>::new();
     d.chunks(block_size).for_each(|chunk| {
-        signatures.push(cess_bncurve::sign_message(&chunk.to_vec(), &skey));
+        chunks.push(chunk.to_vec());
+        if multi_thread {
+            signatures.push(G1::zero());
+        }
     });
 
+    let now = time::SystemTime::now();
+    if multi_thread {
+        println!("Multi-thread");
+        let (tx, rx) = mpsc::channel();
+
+        for i in 0..chunks.len() {
+            let chunk = chunks[i].to_vec().clone();
+            let tx = tx.clone();
+            let skey = skey.clone();
+            thread::spawn(move || {
+                let sig = cess_bncurve::sign_message(&chunk, &skey);
+                tx.send(SignatureWithIndex(i, sig)).unwrap();
+            });
+        }
+        drop(tx);
+
+        for received in rx {
+            signatures[received.0] = received.1;
+        }
+    } else {
+        println!("Single-thread");
+        for i in 0..chunks.len() {
+            let chunk = chunks[i].to_vec().clone();
+            let sig = cess_bncurve::sign_message(&chunk, &skey);
+            signatures.push(sig);
+        }
+    }
+    let escaped = now.elapsed().unwrap();
+    println!("Sig took {:.2?}", escaped);
+
     *sig_len = signatures.len();
-    
+
     unsafe {
         SIGNATURES = Signatures(signatures, pkey);
     }
