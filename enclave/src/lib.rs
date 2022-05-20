@@ -31,7 +31,6 @@ extern crate sgx_types;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
 
@@ -46,8 +45,6 @@ use std::{
 };
 
 mod pbc;
-
-struct SignatureWithIndex(usize, G1);
 
 struct Signatures(Vec<G1>, PublicKey);
 
