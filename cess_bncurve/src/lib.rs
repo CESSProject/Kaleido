@@ -59,7 +59,7 @@ pub const BN_CURVE_INFO: PBCInfo = PBCInfo {
 };
 
 impl Zr {
-    pub fn zero() -> Zr {
+    pub const fn zero() -> Zr {
         Zr([0u8; config::ZR_SIZE_FR256])
     }
 
@@ -95,7 +95,7 @@ impl fmt::Display for Zr {
 pub struct G1([u8; config::G1_SIZE_FR256]);
 
 impl G1 {
-    pub fn zero() -> G1 {
+    pub const fn zero() -> G1 {
         G1([0u8; config::G1_SIZE_FR256])
     }
 
@@ -168,12 +168,17 @@ impl fmt::Display for GT {
 pub struct SecretKey(Zr);
 
 impl SecretKey {
+
     pub fn base_vector(&self) -> &[u8] {
         self.0.base_vector()
     }
 
     pub fn to_str(&self) -> String {
         u8v_to_typed_str("SKey", &self.base_vector())
+    }
+
+    pub const fn zero() -> SecretKey {
+        SecretKey(Zr::zero())
     }
 }
 
@@ -198,6 +203,10 @@ impl PublicKey {
 
     pub fn to_str(&self) -> String {
         u8v_to_typed_str("PKey", &self.base_vector())
+    }
+
+    pub const fn zero() -> PublicKey {
+        PublicKey(G2::zero())
     }
 }
 
