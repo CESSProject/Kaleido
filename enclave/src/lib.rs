@@ -124,64 +124,57 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
 /// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
 /// `sig_len` is the number of signatures generated. This should be used to allocate
 /// memory to call `get_signatures`
+/// `muilti_thread` if set to true the enclave will use multi thread to compute signatures.
 #[no_mangle]
 pub extern "C" fn process_data(
     data: *mut u8,
     data_len: usize,
-    sig_len: usize,
-    sig: *mut u8,
+    block_size: usize,
+    sig_len: &mut usize,
+    multi_thread: bool,
 ) -> sgx_status_t {
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
-    let signature = cess_bncurve::sign_message(&d, &skey);
-    unsafe {
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+    let mut chunks: Vec<Vec<u8>> = Vec::new();
+    d.chunks(block_size).for_each(|chunk| {
+        chunks.push(chunk.to_vec());
+    });
+    let mut handles = vec![];
+    let mut signatures = Arc::new(SgxMutex::new(vec![G1::zero(); chunks.len()]));
+    if multi_thread {
+        println!("Multi-thread");
+
+        for i in 0..chunks.len() {
+            let chunk = chunks[i].to_vec().clone();
+            let skey = skey.clone();
+            let signatures = Arc::clone(&signatures);
+            let handle = thread::spawn(move || {
+                let sig = cess_bncurve::sign_message(&chunk, &skey);
+                let mut signature = signatures.lock().unwrap();
+                *signature.index_mut(i) = sig;
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    } else {
+        println!("Single-thread");
+
+        for i in 0..chunks.len() {
+            let chunk = chunks[i].to_vec().clone();
+            let sig = cess_bncurve::sign_message(&chunk, &skey);
+            signatures.lock().unwrap()[i] = sig;
+        }
     }
 
-    // let mut chunks: Vec<Vec<u8>> = Vec::new();
-    // d.chunks(block_size).for_each(|chunk| {
-    //     chunks.push(chunk.to_vec());
-    // });
+    *sig_len = chunks.len();
 
-    // let now = time::SystemTime::now();
-    // let mut handles = vec![];
-    // let mut signatures = &mut vec![G1::zero(); chunks.len()];
-    // if multi_thread {
-    //     println!("Multi-thread");
-
-    //     for i in 0..chunks.len() {
-    //         let chunk = chunks[i].to_vec().clone();
-    //         let skey = skey.clone();
-    //         let mut signatures = signatures.clone();
-    //         let handle = thread::spawn(move || {
-    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //             signatures[i] = sig;
-    //         });
-    //         handles.push(handle);
-    //     }
-
-    //     for handle in handles {
-    //         handle.join().unwrap();
-    //     }
-    // } else {
-    //     println!("Single-thread");
-
-    //     for i in 0..chunks.len() {
-    //         let chunk = chunks[i].to_vec().clone();
-    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //         signatures[i] = sig;
-    //     }
-    // }
-    // let escaped = now.elapsed().unwrap();
-    // println!("Sig took {:.2?}", escaped);
-
-    // *sig_len = chunks.len();
-
-    // unsafe {
-    //     SIGNATURES = Signatures(signatures.to_vec(), pkey);
-    // }
+    unsafe {
+        SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey)
+    }
 
     sgx_status_t::SGX_SUCCESS
 }
