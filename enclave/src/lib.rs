@@ -37,6 +37,8 @@ use cess_bncurve::*;
 use core::ops::{Index, IndexMut};
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
+use std::time::Instant;
+use std::untrusted::time::InstantEx;
 use std::untrusted::time::SystemTimeEx;
 use std::{
     ptr, slice,
@@ -133,15 +135,18 @@ pub extern "C" fn process_data(
     sig_len: &mut usize,
     multi_thread: bool,
 ) -> sgx_status_t {
+    let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+    let elapsed = now.elapsed();
+    println!("Data copied to Enclave in {:.2?}!", elapsed);
 
+    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
     let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
 
-    let mut handles = vec![];
     let mut signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
     if multi_thread {
-        println!("Multi-thread");
+        let mut handles = vec![];
+        let now = Instant::now();
         d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
             let chunk = chunk.to_vec().clone();
             let skey = skey.clone();
@@ -156,8 +161,9 @@ pub extern "C" fn process_data(
         for handle in handles {
             handle.join().unwrap();
         }
+        let elapsed = now.elapsed();
+        println!("Signatures computed in {:.2?}!", elapsed);
     } else {
-        println!("Single-thread");
         d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
             let chunk = chunk.to_vec().clone();
             let sig = cess_bncurve::sign_message(&chunk, &skey);
@@ -192,4 +198,30 @@ pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
         let public_key = SIGNATURES.1;
         ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
     }
+}
+
+
+/// Arguments:
+/// `data` is the data that needs to be processed. It should not exceed SGX max memory size
+/// `data_len` argument is the number of **elements**, not the number of bytes.
+/// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
+/// `sig_len` is the number of signatures generated. This should be used to allocate
+/// memory to call `get_signatures`
+#[no_mangle]
+pub extern "C" fn sign_message(
+    data: *mut u8,
+    data_len: usize,
+    sig_len: usize,
+    sig: *mut u8,
+) -> sgx_status_t {
+    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
+
+    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+
+    let signature = cess_bncurve::sign_message(&d, &skey);
+    unsafe {
+        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+    }
+
+    sgx_status_t::SGX_SUCCESS
 }
