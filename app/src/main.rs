@@ -110,11 +110,7 @@ fn test_rng(enclave: &SgxEnclave) {
         }
     }
     println!("Generated Random Numbers: {:?}", random_numbers);
-<<<<<<< HEAD
     println!("[+] get_rng success...\n");
-=======
-    println!("[+] get_rng success...\n");    
->>>>>>> Added multithread and filechunk to enclave
 }
 
 fn test_pbc_lib(enclave: &SgxEnclave) {
@@ -140,7 +136,6 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("File read completed in {:.2?}!", elapsed);
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
-<<<<<<< HEAD
 
     unsafe {
         gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
@@ -241,9 +236,7 @@ fn test_sign_message_multi_thread(enclave: &SgxEnclave) {
 
     let n_sig = (data.len() as f32 / block_size as f32).ceil() as usize;
     let mut signatures = Arc::new(Mutex::new(vec![vec![0u8; 33]; n_sig]));
-=======
     let block_size: usize = 1024 * 1024; // 1MB block size gives the best results interms of speed.
->>>>>>> Added multithread and filechunk to enclave
 
     unsafe {
         gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
@@ -251,7 +244,6 @@ fn test_sign_message_multi_thread(enclave: &SgxEnclave) {
     let sig_len: usize = 0;
 
     let now = Instant::now();
-<<<<<<< HEAD
     let mut handles = vec![];
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         let chunk = chunk.to_vec().clone();
@@ -371,62 +363,14 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
                 );
                 return;
             }
-=======
-    let result = unsafe {
-        process_data(
-            enclave.geteid(),
-            &mut retval,
-            data.as_ptr() as *mut u8,
-            data.len(),
-            block_size,
-            &sig_len,
-            true,
-        )
-    };
-
-    match result {
-        sgx_status_t::SGX_SUCCESS => { }
-        _ => {
-            println!(
-                "[-] ECALL Enclave Failed for process_data {}!",
-                result.as_str()
-            );
-            return;
->>>>>>> Added multithread and filechunk to enclave
         }
     });
 
     let elapsed = now.elapsed();
 
     let mut pkey = vec![0u8; 65];
-<<<<<<< HEAD
 
     let result = unsafe {
-=======
-    let mut signatures = vec![vec![0u8; 33]; sig_len];
-
-    let result = unsafe {
-        for i in 0..signatures.len() {
-            let res = get_signature(
-                enclave.geteid(),
-                &mut retval,
-                i,
-                signatures[i].len(),
-                signatures[i].as_mut_ptr() as *mut u8,
-            );
-            match res {
-                sgx_status_t::SGX_SUCCESS => {}
-                _ => {
-                    println!(
-                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
-                        i,
-                        res.as_str()
-                    );
-                    return;
-                }
-            }
-        }
->>>>>>> Added multithread and filechunk to enclave
         get_public_key(
             enclave.geteid(),
             &mut retval,
@@ -445,20 +389,115 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
         }
     }
 
-<<<<<<< HEAD
     println!("First Signature: {:?}", hex::encode(&signatures[0]));
     println!("Last Signature: {:?}", hex::encode(&signatures[signatures.len() - 1]));
-=======
+
     println!("Signatures:");
     for sig in &signatures {
         println!("{:?}", hex::encode(sig));
     }
->>>>>>> Added multithread and filechunk to enclave
+
+    println!("First Signature: {:?}", hex::encode(&signatures[0]));
+    println!("Last Signature: {:?}", hex::encode(&signatures[signatures.len() - 1]));
+
     println!("PublicKey: {:?}", hex::encode(pkey));
     println!(
         "Number of Signatures: {}",
         &signatures.len()
     );
+    println!("Signatures generated in {:.2?}!", elapsed);
+    println!("[+] process_data success...");
+}
+
+fn test_sign_message(enclave: &SgxEnclave) {
+    let filename = "../app/example_file.txt";
+
+    let now = Instant::now();
+    let data = fs::read(filename).expect("Failed to read file");
+    let elapsed = now.elapsed();
+    println!("File read completed in {:.2?}!", elapsed);
+
+    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
+    let block_size: usize = 1024 * 1024;    // 1MB block size gives the best results interms of speed.
+
+    let n_sig = (data.len() as f32 / block_size as f32).ceil() as usize;
+    let mut signatures = Arc::new(Mutex::new(vec![vec![0u8; 33]; n_sig]));
+
+    unsafe {
+        gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+    }
+
+    let now = Instant::now();
+    let mut handles = vec![];
+    data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+        let chunk = chunk.to_vec().clone();
+        let eid = enclave.geteid().clone();
+        let signatures = Arc::clone(&signatures);
+        let mut retval = retval.clone();
+
+        let handle = thread::spawn(move || {
+            let mut sig = vec![0u8; 33];
+            let result = unsafe {
+                sign_message(
+                    eid,
+                    &mut retval,
+                    chunk.as_ptr() as *mut _,
+                    chunk.len(),
+                    sig.len(),
+                    sig.as_mut_ptr() as *mut u8,
+                )
+            };
+
+            match result {
+                sgx_status_t::SGX_SUCCESS => {
+                   let mut sigs = signatures.lock().unwrap();
+                   *sigs.index_mut(i) = sig;
+                }
+                _ => {
+                    println!(
+                        "[-] ECALL Enclave Failed for process_data {}!",
+                        result.as_str()
+                    );
+                    return;
+                }
+            }
+        });
+        handles.push(handle);
+    });
+    
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let elapsed = now.elapsed();
+
+    let mut pkey = vec![0u8; 65];
+
+    let result = unsafe {
+        get_public_key(
+            enclave.geteid(),
+            &mut retval,
+            pkey.len(),
+            pkey.as_mut_ptr() as *mut u8,
+        )
+    };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!(
+                "[-] ECALL Enclave Failed to get PublicKey {}!",
+                result.as_str()
+            );
+            return;
+        }
+    }
+
+    let sigs  = signatures.lock().unwrap().to_vec();
+    println!("First Signature: {:?}", hex::encode(&sigs[0]));
+    println!("Last Signature: {:?}", hex::encode(&sigs[sigs.len() - 1]));
+    println!("PublicKey: {:?}", hex::encode(pkey));
+    println!("Number of Signatures: {}", &signatures.lock().unwrap().to_vec().len());
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 }
@@ -475,7 +514,7 @@ fn main() {
         }
     };
 
-<<<<<<< HEAD
+
     // println!("*************************** TEST RNG *****************************");
     // test_rng(&enclave);
     // println!("******************************************************************\n");
@@ -494,17 +533,5 @@ fn main() {
     // println!("********************** TEST MULTI SIG MSG ************************");
     // test_sign_message_multi_thread(&enclave);
     // println!("******************************************************************\n");
-
-=======
-    println!("*************************** TEST RNG *****************************");
-    test_rng(&enclave);
-    println!("******************************************************************\n");
-    println!("*************************** TEST PBC *****************************");
-    test_pbc_lib(&enclave);
-    println!("******************************************************************\n");
-    println!("*************************** TEST SIG *****************************");
-    test_process_data(&enclave);
-    println!("******************************************************************\n");
->>>>>>> Added multithread and filechunk to enclave
     enclave.destroy();
 }
