@@ -1,12 +1,36 @@
 <!-- Please refer to User's Guide for the explanation of each field -->
 <EnclaveConfiguration>
-  <ProdID>0</ProdID>  <!-- ISV assigned Product ID -->
-  <ISVSVN>0</ISVSVN>  <!-- ISV assigned SVN -->
-  <StackMaxSize>0x40000</StackMaxSize>  <!-- The stack size per trusted thread (in bytes) -->
-  <HeapMaxSize>0x8000000</HeapMaxSize>   <!-- The heap size for the enclave (in bytes) -->
-  <TCSNum>1000</TCSNum>  <!-- The number of trusted threads -->
-  <TCSPolicy>0</TCSPolicy>  <!-- TCS management policy -->
-  <DisableDebug>0</DisableDebug> <!-- Set it to 1 in production -->
-  <MiscSelect>0</MiscSelect>  <!-- Reserved for future use. Must be 0 -->
-  <MiscMask>0xFFFFFFFF</MiscMask> <!-- Reserved for future use. Must be 0xFFFFFFFF. -->
+  
+  <!-- ISV assigned Product ID -->
+  <ProdID>0</ProdID>  
+  
+  <!-- ISV assigned SVN -->
+  <ISVSVN>0</ISVSVN>  
+  
+  <!-- The stack size per trusted thread (in bytes) --> 
+  <StackMaxSize>0x40000</StackMaxSize>  
+  
+  <!-- 256MB The heap size for the enclave (in bytes)--> 
+  <HeapMaxSize>0x20000000</HeapMaxSize>
+
+  <!-- 3GB The heap size for the enclave (in bytes)--> 
+  <!-- <HeapMaxSize>0xC0000000</HeapMaxSize>   -->
+  
+  <!-- 8GB The heap size for the enclave (in bytes) -->
+  <!-- <HeapMaxSize>0x200000000</HeapMaxSize> -->
+  
+  <!-- The number of trusted threads -->
+  <TCSNum>1000</TCSNum>  
+
+  <!-- TCS management policy -->
+  <TCSPolicy>0</TCSPolicy>  
+
+  <!-- Set it to 1 in production -->
+  <DisableDebug>0</DisableDebug>
+
+  <!-- Reserved for future use. Must be 0 --> 
+  <MiscSelect>0</MiscSelect>  
+
+  <!-- Reserved for future use. Must be 0xFFFFFFFF. -->
+  <MiscMask>0xFFFFFFFF</MiscMask> 
 </EnclaveConfiguration>
