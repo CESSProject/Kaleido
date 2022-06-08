@@ -112,9 +112,10 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
     let s = unsafe { slice::from_raw_parts(seed, seed_len) };
 
-    pbc::init_pairings();
+    // pbc::init_pairings();
     unsafe {
         KEYS.gen_keys(s);
+        println!("KEYS: {:?}", KEYS.get_keys());
     }
 
     sgx_status_t::SGX_SUCCESS
