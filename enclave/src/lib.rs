@@ -115,9 +115,11 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
     // pbc::init_pairings();
     unsafe {
         KEYS.gen_keys(s);
-        println!("KEYS: {:?}", KEYS.get_keys());
     }
-
+    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+    println!("{}", skey);
+    println!("{}", pkey);
+    println!("{}", _sig);
     sgx_status_t::SGX_SUCCESS
 }
 
