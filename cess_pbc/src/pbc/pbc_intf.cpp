@@ -43,7 +43,15 @@ typedef struct pairing_context
   element_t g2_gen;
 } pairing_context_t;
 
+typedef struct Zr_context
+{
+  bool init_flag;   // true if context is initialized
+  pairing_t pairing;//pairing generated from security parameters
+  element_t zr_gen;//element Zr
+} Zr_context_t;
+
 pairing_context_t context[16];
+Zr_context_t zr_context[16];
 
 static inline bool &IsInit(uint64_t ctxt)
 {
@@ -63,6 +71,20 @@ static inline element_t &G1_gen(uint64_t ctxt)
 static inline element_t &G2_gen(uint64_t ctxt)
 {
   return context[ctxt].g2_gen;
+}
+
+
+static inline bool &IsZrInit(uint64_t ctxt)
+{
+  return zr_context[ctxt].init_flag;
+}
+static inline element_t &zr_gen(uint64_t ctxt)
+{
+  return zr_context[ctxt].zr_gen;
+}
+static inline pairing_t &zr_Pairing(uint64_t ctxt)
+{
+  return zr_context[ctxt].pairing;
 }
 
 // -------------------------------------------------
@@ -1056,6 +1078,32 @@ extern "C" void get_Zr_from_hash(uint64_t ctxt,
   element_from_hash(z, phash, nhash);
   element_to_bytes(zr_val, z);
   element_clear(z);
+}
+
+extern "C" void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel)
+{
+  int64_t ans = -1;
+
+    if (IsZrInit(ctxt))
+    {
+      element_clear(zr_gen(ctxt));
+      pairing_clear(zr_Pairing(ctxt));
+      IsZrInit(ctxt) = false;
+    }
+    ans = pairing_init_set_buf(zr_Pairing(ctxt), param_str, nel);
+    if (0 == ans)
+    {
+
+      element_init_Zr(zr_gen, zr_Pairing(ctxt));
+      element_random(zr_gen);
+
+      IsZrInit(ctxt) = true;
+    }
+}
+
+extern "C" uint64_t get_Zr(uint64_t ctxt,uint8_t *pbuf, uint64_t buflen)
+{
+  return get_datum(zr_gen(ctxt), pbuf, buflen);
 }
 
 // -- end of pbc_intf.cpp -- //

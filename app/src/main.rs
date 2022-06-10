@@ -140,6 +140,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     unsafe {
         gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
+    println!("Get KeyGen success!");
     let sig_len: usize = 0;
 
     let now = Instant::now();
@@ -409,24 +410,24 @@ fn main() {
         }
     };
 
-    println!("*************************** TEST RNG *****************************");
-    test_rng(&enclave);
-    println!("******************************************************************\n");
-    println!("*************************** TEST PBC *****************************");
-    test_pbc_lib(&enclave);
-    println!("******************************************************************\n");
-    
-    // println!("*************************** TEST SIG *****************************");
-    // test_process_data(&enclave); // Multi-thread within enclave.
+    // println!("*************************** TEST RNG *****************************");
+    // test_rng(&enclave);
     // println!("******************************************************************\n");
+    // println!("*************************** TEST PBC *****************************");
+    // test_pbc_lib(&enclave);
+    // println!("******************************************************************\n");
+
+    println!("*************************** TEST SIG *****************************");
+    test_process_data(&enclave); // Multi-thread within enclave.
+    println!("******************************************************************\n");
 
     // println!("************************* TEST SIG MSG ***************************");
     // test_sign_message_single_thread(&enclave);
     // println!("******************************************************************\n");
 
-    println!("********************** TEST MULTI SIG MSG ************************");
-    test_sign_message_multi_thread(&enclave);
-    println!("******************************************************************\n");
+    // println!("********************** TEST MULTI SIG MSG ************************");
+    // test_sign_message_multi_thread(&enclave);
+    // println!("******************************************************************\n");
 
     enclave.destroy();
 }

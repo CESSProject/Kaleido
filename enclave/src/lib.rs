@@ -25,6 +25,8 @@ extern crate cess_bncurve;
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
+extern crate serde_json;
+extern crate serde;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -47,6 +49,8 @@ use std::{
 };
 
 mod pbc;
+mod podr2_proof_commit;
+mod param;
 
 struct Signatures(Vec<G1>, PublicKey);
 
@@ -116,7 +120,10 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
     unsafe {
         KEYS.gen_keys(s);
     }
-
+    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+    println!("{}", skey);
+    println!("{}", pkey);
+    println!("{}", _sig);
     sgx_status_t::SGX_SUCCESS
 }
 

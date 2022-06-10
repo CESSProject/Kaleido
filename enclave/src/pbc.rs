@@ -1,3 +1,4 @@
+use core::convert::TryFrom;
 use sgx_types::*;
 use std::string::String;
 use crate::*;
@@ -81,6 +82,40 @@ pub fn init_pairings() {
         // returns nbr bytes read, should equal length of G2
         assert_eq!(len, BN_CURVE_INFO.g2_size as i64);
     }
+}
+
+pub fn init_zr(){
+    let context = BN_CURVE_INFO.context as u64;
+    unsafe {
+        cess_pbc::init_Zr(
+            context,
+            BN_CURVE_INFO.text as *mut _,
+            (*BN_CURVE_INFO.text).len() as u64,
+        );
+    }
+}
+
+pub fn get_zr()-> Zr {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut zr =Zr::zero();
+    unsafe {
+        let len = cess_pbc::get_Zr(context, zr.base_vector().as_ptr() as *mut _ ,BN_CURVE_INFO.field_size);
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.field_size as i64);
+    }
+    zr
+}
+
+pub fn get_g1()-> G1 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g1 =G1::zero();
+    unsafe {
+        let len = cess_pbc::get_g1(context, g1.base_vector().as_ptr() as *mut _ ,BN_CURVE_INFO.g1_size);
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g1_size as i64);
+    }
+    g1
+
 }
 
 /// Generates a Randon keypair based on PBC
