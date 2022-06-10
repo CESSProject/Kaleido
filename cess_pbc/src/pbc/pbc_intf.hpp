@@ -111,6 +111,8 @@ extern "C"
   void get_G1_from_hash(uint64_t ctxt, uint8_t *g1_pt, uint8_t *phash, uint64_t nhash);
   void get_G2_from_hash(uint64_t ctxt, uint8_t *g2_pt, uint8_t *phash, uint64_t nhash);
   void get_Zr_from_hash(uint64_t ctxt, uint8_t *zr_val, uint8_t *phash, uint64_t nhash);
+  void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel);
+  uint64_t get_Zr(uint64_t ctxt,uint8_t *pbuf, uint64_t buflen);
 }
 
 #endif // __pbc_intf_h__

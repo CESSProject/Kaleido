@@ -16,6 +16,7 @@ sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = 
 # sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+serde = { version = "1.0", features = ["derive"] }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 # sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }
@@ -46,3 +47,4 @@ sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 [dependencies]
 cess_pbc = { path = "../cess_pbc" }
 cess_bncurve = { path = "../cess_bncurve" }
+serde_json = "1.0"
