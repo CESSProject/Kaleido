@@ -1,7 +1,7 @@
+use crate::*;
 use core::convert::TryFrom;
 use sgx_types::*;
 use std::string::String;
-use crate::*;
 
 #[no_mangle]
 pub extern "C" fn test_pbc() -> sgx_status_t {
@@ -55,7 +55,7 @@ pub extern "C" fn test_pbc() -> sgx_status_t {
     println!("pkey = {}", pkey);
     println!("sig  = {}", sig);
     assert!(check_keying(&pkey, &sig));
-    
+
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -84,7 +84,7 @@ pub fn init_pairings() {
     }
 }
 
-pub fn init_zr(){
+pub fn init_zr() {
     let context = BN_CURVE_INFO.context as u64;
     unsafe {
         cess_pbc::init_Zr(
@@ -95,27 +95,34 @@ pub fn init_zr(){
     }
 }
 
-pub fn get_zr()-> Zr {
+pub fn get_zr() -> Zr {
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr =Zr::zero();
+    let mut zr = Zr::zero();
     unsafe {
-        let len = cess_pbc::get_Zr(context, zr.base_vector().as_ptr() as *mut _ ,BN_CURVE_INFO.field_size);
+        let len = cess_pbc::get_Zr(
+            context,
+            zr.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.field_size as u64,
+        );
         // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.field_size as i64);
+        assert_eq!(len, BN_CURVE_INFO.field_size as u64);
     }
     zr
 }
 
-pub fn get_g1()-> G1 {
+pub fn get_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 =G1::zero();
+    let mut g1 = G1::zero();
     unsafe {
-        let len = cess_pbc::get_g1(context, g1.base_vector().as_ptr() as *mut _ ,BN_CURVE_INFO.g1_size);
+        let len = cess_pbc::get_g1(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.g1_size as u64,
+        );
         // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.g1_size as i64);
+        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
     }
     g1
-
 }
 
 /// Generates a Randon keypair based on PBC
