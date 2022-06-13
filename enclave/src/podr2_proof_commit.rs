@@ -17,22 +17,22 @@ pub fn podr2_proof_commit(
     let mut matrix:Vec<Vec<u8>> = Vec::new();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
-        &T:T0.n=i as i64;
+        T.t0.n=i as i64;
     });
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     pbc::init_zr();
     let Zr=pbc::get_zr();
-    &T:T0.name=Zr.to_str().into_bytes();
+    T.t0.name=Zr.to_str().into_bytes();
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..block_size as i64 {
         pbc::init_pairings();
         let G1=pbc::get_g1();
-        &T:T0.u.push(G1.to_str().into_bytes());
+        T.t0.u.push(G1.to_str().into_bytes());
     }
     //Choose a random file name name from some sufficiently large domain (e.g., Zp).
     pbc::init_zr();
     let Zr=pbc::get_zr();
-    &T:T0.name=Zr.to_str().into_bytes();
+    T.t0.name=Zr.to_str().into_bytes();
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&T).unwrap();
@@ -42,7 +42,7 @@ pub fn podr2_proof_commit(
     &T.signature= &cess_bncurve::sign_hash(&t_signature, &skey).to_str().into_bytes();
     result.t=T;
     for i in 0..&T:T0.n  {
-        result.sigmas.push(generate_authenticator(i, &(&T: T0),&matrix[i]));
+        result.sigmas.push(generate_authenticator(i, &T.t0,&matrix[i]));
     }
 
     result

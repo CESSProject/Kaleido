@@ -151,6 +151,14 @@ pub extern "C" fn process_data(
     let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
 
     let mut signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
+    let result=podr2_proof_commit::podr2_proof_commit(
+        skey.clone(),
+        pkey.clone(),
+        d.clone(),
+        block_size,
+    );
+    println!("{:?}", result.sigmas);
+    println!("{:?}", result.t.t0.name);
     if multi_thread {
         let mut handles = vec![];
         let now = Instant::now();

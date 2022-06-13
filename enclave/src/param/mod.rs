@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all="PascalCase")]
 pub struct FileTagT {
-    t0: T0,
+    pub(crate) t0: T0,
     pub(crate) signature: Vec<u8>,
 }
 #[derive(Serialize, Deserialize, Debug)]
