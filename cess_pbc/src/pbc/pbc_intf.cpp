@@ -1094,8 +1094,8 @@ extern "C" void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel)
     if (0 == ans)
     {
 
-      element_init_Zr(zr_gen, zr_Pairing(ctxt));
-      element_random(zr_gen);
+      element_init_Zr(zr_gen(ctxt), zr_Pairing(ctxt));
+      element_random(zr_gen(ctxt));
 
       IsZrInit(ctxt) = true;
     }
