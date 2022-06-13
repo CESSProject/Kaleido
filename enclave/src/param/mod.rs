@@ -1,18 +1,20 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use serde::{Serialize, Deserialize};
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all="PascalCase")]
 pub struct FileTagT {
-    pub(crate) t0: T0,
+    pub t0: T0,
     pub(crate) signature: Vec<u8>,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all="PascalCase")]
 pub struct T0 {
     pub(crate) name: Vec<u8>,
-    pub(crate) n:    i64,
+    pub(crate) n:    usize,
     pub(crate) u:    Vec<Vec<u8>>,
 }
 

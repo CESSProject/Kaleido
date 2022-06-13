@@ -27,6 +27,7 @@ extern crate sgx_tcrypto;
 extern crate sgx_types;
 extern crate serde_json;
 extern crate serde;
+extern crate merkletree;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -35,6 +36,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use cess_bncurve::*;
+use merkletree::merkle::MerkleTree;
 
 use core::ops::{Index, IndexMut};
 use sgx_rand::{Rng, StdRng};
@@ -51,6 +53,7 @@ use std::{
 mod pbc;
 mod podr2_proof_commit;
 mod param;
+mod merkletree_generator;
 
 struct Signatures(Vec<G1>, PublicKey);
 
