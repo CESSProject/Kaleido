@@ -104,7 +104,7 @@ pub fn get_zr() -> Zr {
             zr.base_vector().as_ptr() as *mut _,
             BN_CURVE_INFO.field_size as u64,
         );
-        // returns nbr bytes read, should equal length of G1
+        // returns nbr bytes read, should equal length of Zr
         assert_eq!(len, BN_CURVE_INFO.field_size as u64);
     }
     zr
@@ -124,6 +124,81 @@ pub fn get_g1() -> G1 {
     }
     g1
 }
+
+pub fn get_g1_from_hash(h: &Hash)-> G1 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g1 = G1::zero();
+    unsafe {
+        cess_pbc::get_G1_from_hash(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            h.base_vector().as_ptr() as *mut _,
+            config::HASH_SIZE as u64,
+        );
+    }
+    g1
+}
+
+pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g1 = G1::zero();
+    unsafe {
+        cess_pbc::get_G1_from_byte(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            byte.as_ptr() as *mut _,
+        );
+    }
+    g1
+}
+
+pub fn get_zr_from_hash(h: &Hash)->Zr{
+    let context = BN_CURVE_INFO.context as u64;
+    let mut zr = Zr::zero();
+    unsafe {
+        cess_pbc::get_Zr_from_hash(
+            context,
+            zr.base_vector().as_ptr() as *mut _,
+            h.base_vector().as_ptr() as *mut _,
+            config::HASH_SIZE as u64,
+        );
+    }
+    zr
+}
+
+pub fn get_zr_from_byte(byte: &Vec<u8>)->Zr{
+    let context = BN_CURVE_INFO.context as u64;
+    let mut zr = Zr::zero();
+    unsafe {
+        cess_pbc::get_Zr_from_byte(
+            context,
+            zr.base_vector().as_ptr() as *mut _,
+            byte.as_ptr() as *mut _,
+        );
+    }
+    zr
+}
+
+pub fn g1_pow_zn(g1:&G1,zr:&Zr){
+    let context = BN_CURVE_INFO.context as u64;
+    unsafe {
+        cess_pbc::exp_G1z(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            zr.base_vector().as_ptr() as *mut _,
+        );
+    }
+}
+
+pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1){
+    let context = BN_CURVE_INFO.context as u64;
+    unsafe {
+        cess_pbc::mul_G1_pts(
+            context,
+            g1_f.base_vector().as_ptr() as *mut _,
+            g1_s.base_vector().as_ptr() as *mut _,
+        );
+    }
 
 pub fn get_random_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
