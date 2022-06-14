@@ -211,7 +211,7 @@ pub fn get_random_g1() -> G1 {
             BN_CURVE_INFO.g1_size as u64,
         );
         // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
+        //assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
     }
     g1
 }
