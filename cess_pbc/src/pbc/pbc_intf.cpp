@@ -1111,7 +1111,7 @@ extern "C" void get_Zr_from_byte(uint64_t ctxt,
 
   element_init_Zr(z, Pairing(ctxt));
   element_from_bytes(z, pbyte);
-  element_to_bytes(zr_val, z);
+  element_to_bytes(zr_pt, z);
   element_clear(z);
 }
 
