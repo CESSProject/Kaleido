@@ -129,14 +129,12 @@ pub fn get_g1_from_hash(h: &Hash)-> G1 {
     let context = BN_CURVE_INFO.context as u64;
     let mut g1 = G1::zero();
     unsafe {
-        let len = cess_pbc::get_G1_from_hash(
+        cess_pbc::get_G1_from_hash(
             context,
             g1.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
             config::HASH_SIZE as u64,
         );
-        // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
     }
     g1
 }
@@ -145,29 +143,25 @@ pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
     let context = BN_CURVE_INFO.context as u64;
     let mut g1 = G1::zero();
     unsafe {
-        let len = cess_pbc::get_G1_from_byte(
+        cess_pbc::get_G1_from_byte(
             context,
             g1.base_vector().as_ptr() as *mut _,
             byte.as_ptr() as *mut _,
         );
-        // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
     }
     g1
 }
 
-pub fn get_zr_from_hash(h: &Vec<u8>)->Zr{
+pub fn get_zr_from_hash(h: &Hash)->Zr{
     let context = BN_CURVE_INFO.context as u64;
     let mut zr = Zr::zero();
     unsafe {
-        let len = cess_pbc::get_Zr_from_hash(
+        cess_pbc::get_Zr_from_hash(
             context,
             zr.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
             h.len() as u64,
         );
-        // returns nbr bytes read, should equal length of G1
-        assert_eq!(len, BN_CURVE_INFO.field_size as u64);
     }
     zr
 }
