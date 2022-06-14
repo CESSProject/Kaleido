@@ -46,6 +46,7 @@ extern "C"
 
   uint64_t get_g2(uint64_t ctxt, uint8_t *pbuf, uint64_t buflen);
   uint64_t get_g1(uint64_t ctxt, uint8_t *pbuf, uint64_t buflen);
+  uint64_t get_random_g1(uint64_t ctxt, uint8_t *pbuf, uint64_t buflen);
 
   void make_key_pair(uint64_t ctxt, uint8_t *pskey, uint8_t *ppkey,
                      uint8_t *phash, uint64_t nhash);

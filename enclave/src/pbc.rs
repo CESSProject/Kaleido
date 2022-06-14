@@ -125,6 +125,21 @@ pub fn get_g1() -> G1 {
     g1
 }
 
+pub fn get_random_g1() -> G1 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g1 = G1::zero();
+    unsafe {
+        let len = cess_pbc::get_random_g1(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.g1_size as u64,
+        );
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
+    }
+    g1
+}
+
 /// Generates a Randon keypair based on PBC
 /// Before calling this function make sure you have initialized PBC library by calling init_pairings function
 pub fn key_gen() -> (SecretKey, PublicKey, G1) {

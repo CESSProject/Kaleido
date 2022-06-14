@@ -23,11 +23,10 @@ pub fn podr2_proof_commit(
     //'Choose a random file name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
-    println!("{}", zr.to_str());
 
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..block_size as i64 {
-        let g1 = pbc::get_g1();
+        let g1: G1 = pbc::get_random_g1();
         t.t0.u.push(g1.to_str().into_bytes());
     }
 
