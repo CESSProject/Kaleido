@@ -361,7 +361,6 @@ extern "C" uint64_t get_random_g1(uint64_t ctxt,
   element_random(g1);
   element_to_bytes_compressed(pbuf, g1);
   element_clear(g1);
-  return len;
 }
 
 // ------------------------------------------------
