@@ -81,7 +81,8 @@ pub fn generate_authenticator(i: usize, t0: & mut T0, piece: &Vec<u8>,alpha:&ces
     }
     //H(name||i) · uj^mij
     pbc::g1_mul_g1(&productory,&hash_name_i);
-    pbc::g1_pow_zn(&productory,alpha as &cess_bncurve::Zr);
+
+    pbc::g1_pow_zn(&productory,&pbc::get_zr_from_byte(&alpha.to_str().into_bytes()));
     productory
         .to_str()
         .into_bytes()
