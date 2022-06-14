@@ -55,10 +55,10 @@ pub fn podr2_proof_commit(
     result
 }
 
-pub fn generate_authenticator(i: usize, t0: & mut T0, piece: &Vec<u8>,alpha:&cess_bncurve::SecretKey) -> Vec<u8> {
+pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess_bncurve::SecretKey) -> Vec<u8> {
     //H(name||i)
     let mut name=&t0.name;
-    let hash_name_i=hash_name_i(&name,i);
+    let hash_name_i=hash_name_i(&mut name,i);
 
     let productory=G1::zero();
     let s =t0.u.len();
@@ -88,7 +88,7 @@ pub fn generate_authenticator(i: usize, t0: & mut T0, piece: &Vec<u8>,alpha:&ces
         .into_bytes()
 }
 
-pub fn hash_name_i(mut name:&Vec<u8>, i:usize) -> G1 {
+pub fn hash_name_i(name :&mut Vec<u8>, i:usize) -> G1 {
     G1::zero();
     name.push(i as u8);
     let hash_array= hash(name.as_slice());
