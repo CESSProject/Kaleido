@@ -57,7 +57,7 @@ pub fn podr2_proof_commit(
 
 pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess_bncurve::SecretKey) -> Vec<u8> {
     //H(name||i)
-    let mut name=&t0.name;
+    let mut name=t0.clone().name;
     let hash_name_i=hash_name_i(&mut name,i);
     println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
