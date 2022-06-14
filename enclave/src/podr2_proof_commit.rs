@@ -24,12 +24,21 @@ pub fn podr2_proof_commit(
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr =cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
+    println!("t0.name is {:?}", t.t0.name);
 
+    let mut u_num:usize=0;
+    if block_size>data.len(){
+        u_num=data.len();
+    }else {
+        u_num=block_size;
+    }
     //'Choose s random elements u1,...,us<——R——G'
-    for i in 0..block_size as i64 {
+    for i in 0..u_num as i64 {
         pbc::init_pairings();
         let G1 = pbc::get_g1();
-        t.t0.u.push(G1.to_str().into_bytes());
+        let G1byte=G1.to_str().into_bytes();
+        println!("G1byte is {:?}", G1byte.clone());
+        t.t0.u.push(G1byte);
     }
 
     //the file tag t is t0 together with a signature
