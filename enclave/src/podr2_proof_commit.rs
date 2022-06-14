@@ -38,6 +38,7 @@ pub fn podr2_proof_commit(
         let G1 = pbc::get_g1();
         let G1byte=G1.to_str().into_bytes();
         println!("G1byte is {:?}", G1byte.clone());
+        t.t0.u.push(G1byte);
     }
     println!("end create G1");
 
