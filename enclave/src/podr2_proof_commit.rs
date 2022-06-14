@@ -18,9 +18,10 @@ pub fn podr2_proof_commit(
     let mut matrix: Vec<Vec<u8>> = Vec::new();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
+        println!("{}", i);
         t.t0.n = i;
     });
-
+    println!("t0.n={}",t.t0.n);
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
@@ -52,7 +53,7 @@ pub fn podr2_proof_commit(
     let ref_size: &usize = &t.t0.n;
     let cpy_size = *ref_size;
     println!("start to generate_authenticator");
-    println!("t0.n={}",t.t0.n);
+
     println!("cpy_size = {}", cpy_size);
     for i in 0..cpy_size {
         result
