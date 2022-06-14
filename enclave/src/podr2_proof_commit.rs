@@ -20,22 +20,16 @@ pub fn podr2_proof_commit(
         t.t0.n = i;
     });
 
-    //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    pbc::init_zr();
-    let Zr = pbc::get_zr();
-    t.t0.name = Zr.to_str().into_bytes();
+    //'Choose a random file name from some sufficiently large domain (e.g., Zp).'
+    let zr = cess_bncurve::Zr::random();
+    t.t0.name = zr.to_str().into_bytes();
+    println!("{}", zr.to_str());
 
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..block_size as i64 {
-        pbc::init_pairings();
-        let G1 = pbc::get_g1();
-        t.t0.u.push(G1.to_str().into_bytes());
+        let g1 = pbc::get_g1();
+        t.t0.u.push(g1.to_str().into_bytes());
     }
-
-    //Choose a random file name name from some sufficiently large domain (e.g., Zp).
-    pbc::init_zr();
-    let Zr = pbc::get_zr();
-    t.t0.name = Zr.to_str().into_bytes();
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t).unwrap();
