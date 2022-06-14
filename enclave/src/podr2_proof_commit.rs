@@ -80,6 +80,7 @@ pub fn generate_authenticator(
 
     let productory = G1::zero();
     let s = t0.u.len();
+    println!("s = {}", s);
     for j in 0..s {
         if j == s - 1 {
             //mij
@@ -91,9 +92,11 @@ pub fn generate_authenticator(
             continue;
         }
         //mij
+        println!("start get_zr_from_byte,j={}",j);;
         let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
-        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         println!("piece_sigle = {:?}", piece_sigle.to_str().into_bytes());
+        println!("start get_g1_from_byte",);
+        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
         pbc::g1_mul_g1(&productory, &g1);
