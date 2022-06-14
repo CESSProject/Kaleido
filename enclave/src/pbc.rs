@@ -190,7 +190,7 @@ pub fn g1_pow_zn(g1:&G1,zr:&Zr){
     }
 }
 
-pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1){
+pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1) {
     let context = BN_CURVE_INFO.context as u64;
     unsafe {
         cess_pbc::mul_G1_pts(
@@ -199,6 +199,21 @@ pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1){
             g1_s.base_vector().as_ptr() as *mut _,
         );
     }
+}
+
+pub fn get_random_g1() -> G1 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g1 = G1::zero();
+    unsafe {
+        let len = cess_pbc::get_random_g1(
+            context,
+            g1.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.g1_size as u64,
+        );
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
+    }
+    g1
 }
 
 /// Generates a Randon keypair based on PBC

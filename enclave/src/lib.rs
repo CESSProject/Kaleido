@@ -22,12 +22,12 @@
 #![feature(core_intrinsics)]
 
 extern crate cess_bncurve;
+extern crate merkletree;
+extern crate serde;
+extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
-extern crate serde_json;
-extern crate serde;
-extern crate merkletree;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -50,10 +50,12 @@ use std::{
     thread, time,
 };
 
+use crate::podr2_proof_commit::podr2_proof_commit;
+
+mod merkletree_generator;
+mod param;
 mod pbc;
 mod podr2_proof_commit;
-mod param;
-mod merkletree_generator;
 
 struct Signatures(Vec<G1>, PublicKey);
 
@@ -217,7 +219,6 @@ pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
         ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
     }
 }
-
 
 /// Arguments:
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
