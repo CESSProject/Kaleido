@@ -3,6 +3,7 @@ use cess_bncurve::*;
 use param::*;
 use pbc;
 use serde::{Deserialize, Serialize};
+use sgx_types::uint64_t;
 use std::slice;
 
 pub fn podr2_proof_commit(
@@ -21,21 +22,25 @@ pub fn podr2_proof_commit(
     });
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    pbc::init_zr();
-    let Zr = pbc::get_zr();
-    t.t0.name = Zr.to_str().into_bytes();
+    let zr =cess_bncurve::Zr::random();
+    t.t0.name = zr.to_str().into_bytes();
+    println!("t0.name is {:?}", t.t0.name);
 
+    let mut u_num:usize=0;
+    if block_size>data.len(){
+        u_num=data.len();
+    }else {
+        u_num=block_size;
+    }
     //'Choose s random elements u1,...,us<——R——G'
-    for i in 0..block_size as i64 {
+    for i in 0..u_num as i64 {
         pbc::init_pairings();
         let G1 = pbc::get_g1();
-        t.t0.u.push(G1.to_str().into_bytes());
+        let G1byte=G1.to_str().into_bytes();
+        println!("G1byte is {:?}", G1byte.clone());
+        t.t0.u.push(G1byte);
     }
-
-    //Choose a random file name name from some sufficiently large domain (e.g., Zp).
-    pbc::init_zr();
-    let Zr = pbc::get_zr();
-    t.t0.name = Zr.to_str().into_bytes();
+    println!("end create G1");
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t).unwrap();
@@ -45,10 +50,11 @@ pub fn podr2_proof_commit(
     
     let ref_size: &usize = &t.t0.n;
     let cpy_size = *ref_size;
+    println!("start to generate_authenticator");
     for i in 0..cpy_size {
         result
             .sigmas
-            .push(generate_authenticator(i, &(&t.t0), &matrix[i]));
+            .push(generate_authenticator(i, &mut t.t0, &matrix[i],&skey));
     }
     
     let t_signature = hash(&t_serialized_bytes);
@@ -60,12 +66,46 @@ pub fn podr2_proof_commit(
     result
 }
 
-pub fn generate_authenticator(i: usize, t0: &T0, piece: &Vec<u8>) -> Vec<u8> {
+pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess_bncurve::SecretKey) -> Vec<u8> {
     //H(name||i)
+    let mut name=t0.clone().name;
+    println!("start hash_name_i");
+    let hash_name_i=hash_name_i(&mut name,i);
+    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
-    Vec::new()
+    let productory=G1::zero();
+    let s =t0.u.len();
+    for j in 0..s {
+        if j==s-1{
+            //mij
+            let piece_sigle=pbc::get_zr_from_byte(&vec![piece[j..][0]]);
+            let g1=pbc::get_g1_from_byte(&t0.u[j]);
+            //uj^mij
+            pbc::g1_pow_zn(&g1,&piece_sigle);
+            pbc::g1_mul_g1(&productory,&g1);
+            continue;
+        }
+        //mij
+        let piece_sigle=pbc::get_zr_from_byte(&vec![piece[j..][0]]);
+        let g1=pbc::get_g1_from_byte(&t0.u[j]);
+        println!("piece_sigle = {:?}", piece_sigle.to_str().into_bytes());
+        //uj^mij
+        pbc::g1_pow_zn(&g1,&piece_sigle);
+        pbc::g1_mul_g1(&productory,&g1);
+    }
+    //H(name||i) · uj^mij
+    pbc::g1_mul_g1(&productory,&hash_name_i);
+
+    pbc::g1_pow_zn(&productory,&pbc::get_zr_from_byte(&alpha.to_str().into_bytes()));
+    let res=productory
+        .to_str()
+        .into_bytes();
+    println!("authenticator = {:?}", res);
+    res
 }
 
-pub fn hash_name_i() -> G1 {
-    G1::zero()
+pub fn hash_name_i(name :&mut Vec<u8>, i:usize) -> G1 {
+    name.push(i as u8);
+    let hash_array= hash(name.as_slice());
+    pbc::get_g1_from_hash(&hash_array)
 }
