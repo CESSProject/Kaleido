@@ -5,11 +5,11 @@
 // use merkletree::hash::Algorithm;
 // use sgx_types::sgx_sha256_hash_t;
 
-// pub struct Sha256Algorithm(sgx_sha256_hash_t);
+// pub struct Sha256Algorithm(SgxShaHandle);
 
 // impl Sha256Algorithm {
 //   pub fn new() -> Sha256Algorithm {
-//       Sha256Algorithm(Sha3::new(Sha3Mode::Sha3_256))
+//       Sha256Algorithm(SgxShaHandle::new())
 //   }
 // }
 
@@ -22,7 +22,7 @@
 // impl Hasher for Sha256Algorithm {
 //   #[inline]
 //   fn write(&mut self, msg: &[u8]) {
-//       self.0.input(msg)
+//       self.0.get_hash(msg)
 //   }
 
 //   #[inline]

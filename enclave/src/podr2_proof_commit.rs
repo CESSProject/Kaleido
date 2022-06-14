@@ -21,6 +21,7 @@ pub fn podr2_proof_commit(
         t.t0.n = i;
     });
 
+
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr =cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
@@ -95,7 +96,6 @@ pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess
     }
     //H(name||i) · uj^mij
     pbc::g1_mul_g1(&productory,&hash_name_i);
-
     pbc::g1_pow_zn(&productory,&pbc::get_zr_from_byte(&alpha.to_str().into_bytes()));
     let res=productory
         .to_str()
@@ -108,4 +108,10 @@ pub fn hash_name_i(name :&mut Vec<u8>, i:usize) -> G1 {
     name.push(i as u8);
     let hash_array= hash(name.as_slice());
     pbc::get_g1_from_hash(&hash_array)
+
+    Vec::new()
+}
+
+pub fn hash_name_i() -> G1 {
+    G1::zero()
 }

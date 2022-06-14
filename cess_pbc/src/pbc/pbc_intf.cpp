@@ -351,6 +351,19 @@ extern "C" uint64_t get_g1(uint64_t ctxt,
   return get_datum(G1_gen(ctxt), pbuf, buflen);
 }
 
+
+extern "C" uint64_t get_random_g1(uint64_t ctxt,
+                           uint8_t *pbuf, uint64_t buflen)
+{
+  element_t g1;
+  uint64_t len;
+  element_init_G1(g1, Pairing(ctxt));
+  element_random(g1);
+  len = get_datum(g1, pbuf, buflen);
+  element_clear(g1);
+  return len;
+}
+
 // ------------------------------------------------
 
 extern "C" int64_t check_signature(uint64_t ctxt,
