@@ -1091,6 +1091,17 @@ extern "C" void get_Zr_from_hash(uint64_t ctxt,
   element_clear(z);
 }
 
+extern "C" void get_Zr_from_byte(uint64_t ctxt,
+                                 uint8_t *zr_pt, uint8_t *pbyte)
+{
+  element_t z;
+
+  element_init_Zr(z, Pairing(ctxt));
+  element_from_bytes(z, pbyte);
+  element_to_bytes_compressed(zr_pt, z);
+  element_clear(z);
+}
+
 extern "C" void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel)
 {
   int64_t ans = -1;

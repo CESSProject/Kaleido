@@ -65,7 +65,7 @@ pub fn generate_authenticator(i: usize, t0: & mut T0, piece: &Vec<u8>,alpha:&ces
     for j in 0..s {
         if j==s-1{
             //mij
-            let piece_sigle=pbc::get_zr_from_hash(&vec![piece[j..][0]]);
+            let piece_sigle=pbc::get_zr_from_byte(&vec![piece[j..][0]]);
             let g1=pbc::get_g1_from_byte(&t0.u[j]);
             //uj^mij
             pbc::g1_pow_zn(&g1,&piece_sigle);
@@ -73,7 +73,7 @@ pub fn generate_authenticator(i: usize, t0: & mut T0, piece: &Vec<u8>,alpha:&ces
             continue;
         }
         //mij
-        let piece_sigle=pbc::get_zr_from_hash(&vec![piece[j..][0]]);
+        let piece_sigle=pbc::get_zr_from_byte(&vec![piece[j..][0]]);
         let g1=pbc::get_g1_from_byte(&t0.u[j]);
         //uj^mij
         pbc::g1_pow_zn(&g1,&piece_sigle);

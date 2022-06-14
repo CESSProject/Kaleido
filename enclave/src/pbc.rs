@@ -160,7 +160,20 @@ pub fn get_zr_from_hash(h: &Hash)->Zr{
             context,
             zr.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
-            h.len() as u64,
+            config::HASH_SIZE as u64,
+        );
+    }
+    zr
+}
+
+pub fn get_zr_from_byte(byte: &Vec<u8>)->Zr{
+    let context = BN_CURVE_INFO.context as u64;
+    let mut zr = Zr::zero();
+    unsafe {
+        cess_pbc::get_Zr_from_byte(
+            context,
+            zr.base_vector().as_ptr() as *mut _,
+            byte.as_ptr() as *mut _,
         );
     }
     zr
