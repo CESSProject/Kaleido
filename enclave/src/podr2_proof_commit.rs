@@ -40,6 +40,7 @@ pub fn podr2_proof_commit(
         println!("G1byte is {:?}", G1byte.clone());
         t.t0.u.push(G1byte);
     }
+    println!("end create G1");
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t).unwrap();
@@ -49,6 +50,7 @@ pub fn podr2_proof_commit(
     
     let ref_size: &usize = &t.t0.n;
     let cpy_size = *ref_size;
+    println!("start to generate_authenticator");
     for i in 0..cpy_size {
         result
             .sigmas
@@ -67,6 +69,7 @@ pub fn podr2_proof_commit(
 pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess_bncurve::SecretKey) -> Vec<u8> {
     //H(name||i)
     let mut name=t0.clone().name;
+    println!("start hash_name_i");
     let hash_name_i=hash_name_i(&mut name,i);
     println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
