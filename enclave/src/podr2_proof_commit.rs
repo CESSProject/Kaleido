@@ -52,6 +52,7 @@ pub fn podr2_proof_commit(
     let ref_size: &usize = &t.t0.n;
     let cpy_size = *ref_size;
     println!("start to generate_authenticator");
+    println!("cpy_size = {}", cpy_size);
     for i in 0..cpy_size {
         result
             .sigmas
