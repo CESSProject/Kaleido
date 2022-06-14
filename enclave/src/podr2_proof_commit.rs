@@ -18,10 +18,11 @@ pub fn podr2_proof_commit(
     let mut matrix: Vec<Vec<u8>> = Vec::new();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
-        println!("{}", i);
+        println!("i={}", i);
         t.t0.n = i;
     });
     println!("t0.n={}",t.t0.n);
+    println!("length of matrix={}", matrix.len());
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
