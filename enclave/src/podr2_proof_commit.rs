@@ -59,6 +59,7 @@ pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess
     //H(name||i)
     let mut name=&t0.name;
     let hash_name_i=hash_name_i(&mut name,i);
+    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
     let productory=G1::zero();
     let s =t0.u.len();
@@ -75,6 +76,7 @@ pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess
         //mij
         let piece_sigle=pbc::get_zr_from_byte(&vec![piece[j..][0]]);
         let g1=pbc::get_g1_from_byte(&t0.u[j]);
+        println!("piece_sigle = {:?}", piece_sigle.to_str().into_bytes());
         //uj^mij
         pbc::g1_pow_zn(&g1,&piece_sigle);
         pbc::g1_mul_g1(&productory,&g1);
@@ -83,13 +85,14 @@ pub fn generate_authenticator(i: usize, t0: &mut T0, piece: &Vec<u8>,alpha:&cess
     pbc::g1_mul_g1(&productory,&hash_name_i);
 
     pbc::g1_pow_zn(&productory,&pbc::get_zr_from_byte(&alpha.to_str().into_bytes()));
-    productory
+    let res=productory
         .to_str()
-        .into_bytes()
+        .into_bytes();
+    println!("authenticator = {:?}", res);
+    res
 }
 
 pub fn hash_name_i(name :&mut Vec<u8>, i:usize) -> G1 {
-    G1::zero();
     name.push(i as u8);
     let hash_array= hash(name.as_slice());
     pbc::get_g1_from_hash(&hash_array)
