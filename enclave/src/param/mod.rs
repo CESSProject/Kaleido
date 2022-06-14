@@ -10,7 +10,6 @@ pub struct FileTagT {
     pub(crate) signature: Vec<u8>,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all="PascalCase")]
 pub struct T0 {
