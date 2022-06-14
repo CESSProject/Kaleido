@@ -11,7 +11,7 @@ pub struct FileTagT {
 }
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all="PascalCase")]
 pub struct T0 {
     pub(crate) name: Vec<u8>,

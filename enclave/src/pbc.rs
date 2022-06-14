@@ -190,7 +190,7 @@ pub fn g1_pow_zn(g1:&G1,zr:&Zr){
     }
 }
 
-pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1){
+pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1) {
     let context = BN_CURVE_INFO.context as u64;
     unsafe {
         cess_pbc::mul_G1_pts(
@@ -199,6 +199,7 @@ pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1){
             g1_s.base_vector().as_ptr() as *mut _,
         );
     }
+}
 
 pub fn get_random_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
