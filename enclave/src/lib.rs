@@ -30,6 +30,9 @@ extern crate sgx_tcrypto;
 extern crate sgx_types;
 
 #[cfg(not(target_env = "sgx"))]
+extern crate crypto;
+
+#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate alloc;
@@ -153,17 +156,14 @@ pub extern "C" fn process_data(
     println!("Data copied to Enclave in {:.2?}!", elapsed);
 
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-    let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-
-    let mut signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    let result=podr2_proof_commit::podr2_proof_commit(
-        skey.clone(),
-        pkey.clone(),
-        d.clone(),
-        block_size,
-    );
+    
+    let result =
+    podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
     println!("{:?}", result.sigmas);
     println!("{:?}", result.t.t0.name);
+
+    let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
+    let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
     if multi_thread {
         let mut handles = vec![];
         let now = Instant::now();
