@@ -166,6 +166,9 @@ pub extern "C" fn process_data(
     println!("result.t.t0.name:{:?}", result.t.t0.name);
     println!("result.t.t0.u:{:?}", result.t.t0.u);
     println!("result.t.t0.n:{:}", result.t.t0.n);
+    println!("result.t.signature:{:?}", result.t.signature);
+    println!("skey:{:?}",skey.clone().to_str().into_bytes());
+    println!("pkey:{:?}",pkey.clone().to_str().into_bytes());
     if multi_thread {
         let mut handles = vec![];
         let now = Instant::now();
