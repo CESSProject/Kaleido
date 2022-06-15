@@ -162,10 +162,10 @@ pub extern "C" fn process_data(
         d.clone(),
         block_size,
     );
-    println!("{:?}", result.sigmas);
-    println!("{:?}", result.t.t0.name);
-    println!("{:?}", result.t.t0.u);
-    println!("{:?}", result.t.t0.n);
+    println!("result.sigmas:{:?}", result.sigmas);
+    println!("result.t.t0.name:{:?}", result.t.t0.name);
+    println!("result.t.t0.u:{:?}", result.t.t0.u);
+    println!("result.t.t0.n:{:}", result.t.t0.n);
     if multi_thread {
         let mut handles = vec![];
         let now = Instant::now();
