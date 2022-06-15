@@ -20,11 +20,9 @@ pub fn podr2_proof_commit(
         matrix.push(chunk.to_vec());
         t.t0.n = i;
     });
-
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
-    println!("t0.name is {:?}", t.t0.name);
 
     let mut u_num: usize = 0;
     if block_size > data.len() {
@@ -33,15 +31,12 @@ pub fn podr2_proof_commit(
         u_num = block_size;
     }
 
-    println!("n G1 {}", u_num);
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
         let g1 = pbc::get_random_g1();
         let g1byte = g1.to_str().into_bytes();
-        println!("{} {}", i, g1.to_str());
         t.t0.u.push(g1byte);
     }
-    println!("end create G1");
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t).unwrap();
@@ -49,9 +44,7 @@ pub fn podr2_proof_commit(
 
     println!("serialized = {:?}", t_serialized_bytes);
 
-    let ref_size: &usize = &t.t0.n;
-    let cpy_size = *ref_size;
-    println!("start to generate_authenticator");
+    let cpy_size = matrix.len();
     for i in 0..cpy_size {
         result
             .sigmas
@@ -75,12 +68,11 @@ pub fn generate_authenticator(
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
-    println!("start hash_name_i");
     let hash_name_i = hash_name_i(&mut name, i);
-    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
     let productory = G1::zero();
     let s = t0.u.len();
+    println!("s = {}", s);
     for j in 0..s {
         if j == s - 1 {
             //mij
@@ -93,8 +85,8 @@ pub fn generate_authenticator(
         }
         //mij
         let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
-        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         println!("piece_sigle = {:?}", piece_sigle.to_str().into_bytes());
+        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
         pbc::g1_mul_g1(&productory, &g1);
