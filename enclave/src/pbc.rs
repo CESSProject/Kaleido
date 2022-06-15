@@ -79,6 +79,7 @@ pub fn init_pairings() {
         let mut g2 = vec![0u8; BN_CURVE_INFO.g2_size];
         hexstr_to_u8v(&(*BN_CURVE_INFO.g2), &mut g2);
         let len = cess_pbc::set_g2(context, g2.as_ptr() as *mut _);
+        println!("g2 = {}",get_g2().to_str().into_bytes());
         // returns nbr bytes read, should equal length of G2
         assert_eq!(len, BN_CURVE_INFO.g2_size as i64);
     }
@@ -123,6 +124,21 @@ pub fn get_g1() -> G1 {
         assert_eq!(len, BN_CURVE_INFO.g1_size as u64);
     }
     g1
+}
+
+pub fn get_g2() -> G2 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g2 = G2::zero();
+    unsafe {
+        let len = cess_pbc::get_g2(
+            context,
+            g2.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.g2_size as u64,
+        );
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g2_size as u64);
+    }
+    g2
 }
 
 pub fn get_g1_from_hash(h: &Hash)-> G1 {
