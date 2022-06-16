@@ -233,14 +233,14 @@ pub fn get_random_g1() -> G1 {
     g1
 }
 
-pub fn get_byte_from_element(el_pt:&[u8],pbyte:&Vec<u8>){
-    unsafe {
-        cess_pbc::get_byte_from_element(
-            el_pt.as_ptr() as *mut _,
-            pbyte.as_ptr() as *mut _,
-        );
-    }
-}
+// pub fn get_byte_from_element(el_pt:&[u8],pbyte:&Vec<u8>){
+//     unsafe {
+//         cess_pbc::get_byte_from_element(
+//             el_pt.as_ptr() as *mut _,
+//             pbyte.as_ptr() as *mut _,
+//         );
+//     }
+// }
 
 /// Generates a Randon keypair based on PBC
 /// Before calling this function make sure you have initialized PBC library by calling init_pairings function

@@ -167,12 +167,8 @@ pub extern "C" fn process_data(
     println!("result.t.t0.u:{:?}", result.t.t0.u);
     println!("result.t.t0.n:{:}", result.t.t0.n);
     println!("result.t.signature:{:?}", result.t.signature);
-    let secret_key:Vec<u8>=Vec::new();
-    let public_key:Vec<u8>=Vec::new();
-    pbc::get_byte_from_element(skey.base_vector(),&secret_key);
-    pbc::get_byte_from_element(pkey.base_vector(),&public_key);
-    println!("skey:{:?}",secret_key);
-    println!("pkey:{:?}",public_key);
+    println!("skey:{:?}",skey.base_vector());
+    println!("pkey:{:?}",pkey.base_vector());
     // if multi_thread {
     //     let mut handles = vec![];
     //     let now = Instant::now();
