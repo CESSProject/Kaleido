@@ -75,6 +75,7 @@ pub fn init_pairings() {
         let len = cess_pbc::set_g1(context, g1.as_ptr() as *mut _);
         // returns nbr bytes read, should equal length of G1
         assert_eq!(len, BN_CURVE_INFO.g1_size as i64);
+        println!("g2 = {:?}", get_g1().base_vector());
 
         let mut g2 = vec![0u8; BN_CURVE_INFO.g2_size];
         hexstr_to_u8v(&(*BN_CURVE_INFO.g2), &mut g2);
