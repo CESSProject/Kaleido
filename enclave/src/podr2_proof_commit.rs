@@ -39,7 +39,7 @@ pub fn podr2_proof_commit(
     }
 
     //the file tag t is t0 together with a signature
-    let t_serialized = serde_json::to_string(&t).unwrap();
+    let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.into_bytes();
 
     println!("serialized = {:?}", t_serialized_bytes);
