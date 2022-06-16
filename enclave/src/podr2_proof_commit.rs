@@ -1,10 +1,17 @@
 use alloc::vec::Vec;
 use cess_bncurve::*;
+use core::convert::TryInto;
+use crypto::digest::Digest;
+use merkletree::merkle::MerkleTree;
 use param::*;
 use pbc;
 use serde::{Deserialize, Serialize};
+use sgx_tcrypto::rsgx_sha256_slice;
 use sgx_types::uint64_t;
+use std::iter::FromIterator;
 use std::slice;
+
+use crate::merkletree_generator::Sha256Algorithm;
 
 pub fn podr2_proof_commit(
     skey: cess_bncurve::SecretKey,
@@ -20,15 +27,14 @@ pub fn podr2_proof_commit(
         matrix.push(chunk.to_vec());
         t.t0.n = i;
     });
+
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.to_str().into_bytes();
 
-    let mut u_num: usize = 0;
+    let mut u_num: usize = block_size;
     if block_size > data.len() {
         u_num = data.len();
-    } else {
-        u_num = block_size;
     }
 
     //'Choose s random elements u1,...,us<——R——G'
@@ -44,13 +50,26 @@ pub fn podr2_proof_commit(
 
     println!("serialized = {:?}", t_serialized_bytes);
 
+    // let mut leaves_hashes = vec![vec![0u8; 32]; matrix.len()];
     let cpy_size = matrix.len();
     for i in 0..cpy_size {
         result
             .sigmas
             .push(generate_authenticator(i, &mut t.t0, &matrix[i], &skey));
+
+        // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
 
+    // // Generate MHT
+    // let tree: MerkleTree<[u8; 32], Sha256Algorithm> = MerkleTree::from_data(
+    //     leaves_hashes,
+    // );
+    // let root_hash = Hash::new(&tree.root());
+    // let mth_root_sig = cess_bncurve::sign_hash(&root_hash, &skey);
+    
+    // println!("MHT Root: {:?}", tree.root());
+    // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
+    
     let t_signature = hash(&t_serialized_bytes);
     t.signature = cess_bncurve::sign_hash(&t_signature, &skey)
         .to_str()
@@ -69,6 +88,7 @@ pub fn generate_authenticator(
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i);
+    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
     let productory = G1::zero();
     let s = t0.u.len();

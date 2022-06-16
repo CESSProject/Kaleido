@@ -47,5 +47,6 @@ sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 cess_pbc      = { path = "../cess_pbc" }
 cess_bncurve  = { path = "../cess_bncurve" }
 serde         = { git = "https://github.com/mesalock-linux/serde-sgx", features = ["derive"] }
+rust-crypto   = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
 serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
-merkletree    = { git = "https://github.com/tehsunnliu/merkletree.git", package="merkle_light" }
+merkletree    = { git = "https://github.com/tehsunnliu/merkletree.git", package = "merkle_light" }
