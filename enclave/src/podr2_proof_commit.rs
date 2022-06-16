@@ -40,10 +40,10 @@ pub fn podr2_proof_commit(
 
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
-    let t_serialized_bytes = t_serialized.into_bytes();
+    let t_serialized_bytes = t_serialized.clone().into_bytes();
 
     println!("serialized = {:?}", t_serialized_bytes);
-    println!("{}",t_serialized);
+    println!("{}",t_serialized.clone());
 
     let cpy_size = matrix.len();
     for i in 0..cpy_size {
