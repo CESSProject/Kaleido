@@ -53,7 +53,7 @@ pub fn podr2_proof_commit(
     }
 
     let t_signature = hash(&t_serialized_bytes);
-    t.signature = cess_bncurve::sign_hash(&t_signature, &skey).base_vector()
+    t.signature = cess_bncurve::sign_hash(&t_signature, &skey)
         .to_str()
         .into_bytes();
     result.t = t;
