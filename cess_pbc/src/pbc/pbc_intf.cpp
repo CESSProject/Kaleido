@@ -1082,7 +1082,7 @@ extern "C" void get_G1_from_byte(uint64_t ctxt,
   element_clear(g1);
 }
 
-extern "C" void get_byte_from_element(uint8_t *el_pt, uint8_t *pbyte)
+extern "C" void get_byte_from_element(uint8_t *el_pt, char *pbyte)
 {
   element_to_bytes(pbyte,el_pt);
 }

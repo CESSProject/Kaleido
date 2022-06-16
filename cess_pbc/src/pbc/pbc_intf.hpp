@@ -111,7 +111,7 @@ extern "C"
 
   void get_G1_from_hash(uint64_t ctxt, uint8_t *g1_pt, uint8_t *phash, uint64_t nhash);
   void get_G1_from_byte(uint64_t ctxt,uint8_t *g1_pt, uint8_t *pbyte);
-  void get_byte_from_element(uint8_t *el_pt, uint8_t *pbyte);
+  void get_byte_from_element(uint8_t *el_pt, char *pbyte);
   void get_G2_from_hash(uint64_t ctxt, uint8_t *g2_pt, uint8_t *phash, uint64_t nhash);
   void get_Zr_from_hash(uint64_t ctxt, uint8_t *zr_val, uint8_t *phash, uint64_t nhash);
   void get_Zr_from_byte(uint64_t ctxt,uint8_t *zr_pt, uint8_t *pbyte);
