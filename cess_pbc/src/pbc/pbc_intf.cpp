@@ -1082,17 +1082,10 @@ extern "C" void get_G1_from_byte(uint64_t ctxt,
   element_clear(g1);
 }
 
-//extern "C" void get_byte_from_element(uint64_t ctxt,
-//                                 uint8_t *g1_pt, uint8_t *pbyte)
-//{
-//  element_t g1;
-//
-//  element_init_G1(g1, Pairing(ctxt));
-//  element_to_bytes(g1_pt, pbyte);
-//  element_from_bytes(g1, pbyte);
-//  element_to_bytes_compressed(g1_pt, g1);
-//  element_clear(g1);
-//}
+extern "C" void get_byte_from_element(uint8_t *el_pt, uint8_t *pbyte)
+{
+  element_to_bytes(pbyte,el_pt);
+}
 
 extern "C" void get_G2_from_hash(uint64_t ctxt,
                                  uint8_t *g2_pt, uint8_t *phash, uint64_t nhash)
