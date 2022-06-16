@@ -162,11 +162,11 @@ pub extern "C" fn process_data(
         d.clone(),
         block_size,
     );
-    // println!("result.sigmas:{:?}", result.sigmas);
-    // println!("result.t.t0.name:{:?}", result.t.t0.name);
-    // println!("result.t.t0.u:{:?}", result.t.t0.u);
-    // println!("result.t.t0.n:{:}", result.t.t0.n);
-    // println!("result.t.signature:{:?}", result.t.signature);
+    println!("result.sigmas:{:?}", result.sigmas);
+    println!("result.t.t0.name:{:?}", result.t.t0.name);
+    println!("result.t.t0.u:{:?}", result.t.t0.u);
+    println!("result.t.t0.n:{:}", result.t.t0.n);
+    println!("result.t.signature:{:?}", result.t.signature);
     println!("skey:{:?}",skey.base_vector());
     println!("pkey:{:?}",pkey.base_vector());
     // if multi_thread {
