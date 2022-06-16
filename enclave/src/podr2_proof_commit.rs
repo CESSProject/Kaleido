@@ -43,7 +43,6 @@ pub fn podr2_proof_commit(
     let t_serialized_bytes = t_serialized.clone().into_bytes();
 
     println!("serialized = {:?}", t_serialized_bytes);
-    println!("{}",t_serialized.clone());
 
     let cpy_size = matrix.len();
     for i in 0..cpy_size {
