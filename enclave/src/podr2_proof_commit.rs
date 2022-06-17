@@ -91,7 +91,6 @@ pub fn generate_authenticator(
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i);
-    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
 
     let productory = G1::zero();
     let s = t0.u.len();
@@ -116,9 +115,9 @@ pub fn generate_authenticator(
     pbc::g1_mul_g1(&productory, &hash_name_i);
     pbc::g1_pow_zn(
         &productory,
-        &pbc::get_zr_from_byte(&alpha.to_str().into_bytes()),
+        &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
     );
-    let res = productory.to_str().into_bytes();
+    let res = productory.base_vector().to_vec();
     res
 }
 

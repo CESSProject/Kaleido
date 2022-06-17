@@ -160,10 +160,16 @@ pub extern "C" fn process_data(
     let result =
     podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
     println!("sigmas:{:?}", result.sigmas);
+    println!("");
     println!("t.t0.name:{:?}", result.t.t0.name);
+    println!("");
     println!("t.t0.u:{:?}",result.t.t0.u);
+    println!("");
     println!("t.t0.n:{:?}",result.t.t0.n);
+    println!("");
     println!("t.signature:{:?}",result.t.signature);
+    println!("");
+    println!("pkey:{:?}",pkey.base_vector());
 
 
     let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
