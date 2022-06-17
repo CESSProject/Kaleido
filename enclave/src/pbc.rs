@@ -98,7 +98,7 @@ pub fn init_zr() {
 
 pub fn get_zr() -> Zr {
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         let len = cess_pbc::get_Zr(
             context,
@@ -113,7 +113,7 @@ pub fn get_zr() -> Zr {
 
 pub fn get_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         let len = cess_pbc::get_g1(
             context,
@@ -143,7 +143,7 @@ pub fn get_g2() -> G2 {
 
 pub fn get_g1_from_hash(h: &Hash)-> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         cess_pbc::get_G1_from_hash(
             context,
@@ -157,7 +157,7 @@ pub fn get_g1_from_hash(h: &Hash)-> G1 {
 
 pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         cess_pbc::get_G1_from_byte(
             context,
@@ -170,7 +170,7 @@ pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
 
 pub fn get_zr_from_hash(h: &Hash)->Zr{
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         cess_pbc::get_Zr_from_hash(
             context,
@@ -184,7 +184,7 @@ pub fn get_zr_from_hash(h: &Hash)->Zr{
 
 pub fn get_zr_from_byte(byte: &Vec<u8>)->Zr{
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         cess_pbc::get_Zr_from_byte(
             context,
@@ -219,7 +219,7 @@ pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1) {
 
 pub fn get_random_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         let len = cess_pbc::get_random_g1(
             context,
