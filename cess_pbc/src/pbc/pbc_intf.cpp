@@ -171,7 +171,7 @@ extern "C" void sign_hash(uint64_t ctxt,
   element_from_hash(sig, phash, nhash);
   element_from_bytes(skey, pskey);
   element_pow_zn(sig, sig, skey);
-  element_to_bytes(psig, sig);
+  element_to_bytes_compressed(psig, sig);
   element_clear(sig);
   element_clear(skey);
 }
