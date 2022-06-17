@@ -1,4 +1,4 @@
-#![no_std] 
+#![cfg_attr(not(target_env = "sgx"), no_std)]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -19,6 +19,10 @@ pub struct Zr([u8; config::ZR_SIZE_FR256]);
 pub struct Hash([u8; config::HASH_SIZE]);
 
 impl Hash {
+    pub fn new(hash: &[u8; 32]) -> Hash {
+        Hash(*hash)
+    }
+
     pub fn base_vector(&self) -> &[u8] {
         &self.0
     }
@@ -275,6 +279,7 @@ pub fn sign_hash(h: &Hash, skey: &SecretKey) -> G1 {
 }
 
 pub fn check_hash(h: &Hash, sig: &G1, pkey: &PublicKey) -> bool {
+    println!("-------------------------------------------------------{:?}",h.base_vector());
     // check a hash with a raw signature, return t/f
     unsafe {
         0 == cess_pbc::check_signature(

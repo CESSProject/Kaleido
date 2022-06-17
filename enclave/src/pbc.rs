@@ -79,6 +79,7 @@ pub fn init_pairings() {
         let mut g2 = vec![0u8; BN_CURVE_INFO.g2_size];
         hexstr_to_u8v(&(*BN_CURVE_INFO.g2), &mut g2);
         let len = cess_pbc::set_g2(context, g2.as_ptr() as *mut _);
+        println!("g2' = {:?}",get_g2().base_vector());
         // returns nbr bytes read, should equal length of G2
         assert_eq!(len, BN_CURVE_INFO.g2_size as i64);
     }
@@ -97,7 +98,7 @@ pub fn init_zr() {
 
 pub fn get_zr() -> Zr {
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         let len = cess_pbc::get_Zr(
             context,
@@ -112,7 +113,7 @@ pub fn get_zr() -> Zr {
 
 pub fn get_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         let len = cess_pbc::get_g1(
             context,
@@ -125,9 +126,24 @@ pub fn get_g1() -> G1 {
     g1
 }
 
+pub fn get_g2() -> G2 {
+    let context = BN_CURVE_INFO.context as u64;
+    let mut g2 = G2::zero();
+    unsafe {
+        let len = cess_pbc::get_g2(
+            context,
+            g2.base_vector().as_ptr() as *mut _,
+            BN_CURVE_INFO.g2_size as u64,
+        );
+        // returns nbr bytes read, should equal length of G1
+        assert_eq!(len, BN_CURVE_INFO.g2_size as u64);
+    }
+    g2
+}
+
 pub fn get_g1_from_hash(h: &Hash)-> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         cess_pbc::get_G1_from_hash(
             context,
@@ -141,7 +157,7 @@ pub fn get_g1_from_hash(h: &Hash)-> G1 {
 
 pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         cess_pbc::get_G1_from_byte(
             context,
@@ -154,7 +170,7 @@ pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
 
 pub fn get_zr_from_hash(h: &Hash)->Zr{
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         cess_pbc::get_Zr_from_hash(
             context,
@@ -168,7 +184,7 @@ pub fn get_zr_from_hash(h: &Hash)->Zr{
 
 pub fn get_zr_from_byte(byte: &Vec<u8>)->Zr{
     let context = BN_CURVE_INFO.context as u64;
-    let mut zr = Zr::zero();
+    let zr = Zr::zero();
     unsafe {
         cess_pbc::get_Zr_from_byte(
             context,
@@ -203,7 +219,7 @@ pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1) {
 
 pub fn get_random_g1() -> G1 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g1 = G1::zero();
+    let g1 = G1::zero();
     unsafe {
         let len = cess_pbc::get_random_g1(
             context,
@@ -215,6 +231,15 @@ pub fn get_random_g1() -> G1 {
     }
     g1
 }
+
+// pub fn get_byte_from_element(el_pt:&[u8],pbyte:&Vec<u8>){
+//     unsafe {
+//         cess_pbc::get_byte_from_element(
+//             el_pt.as_ptr() as *mut _,
+//             pbyte.as_ptr() as *mut _,
+//         );
+//     }
+// }
 
 /// Generates a Randon keypair based on PBC
 /// Before calling this function make sure you have initialized PBC library by calling init_pairings function
