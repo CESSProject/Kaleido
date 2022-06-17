@@ -58,7 +58,7 @@ pub fn podr2_proof_commit(
         .to_str()
         .into_bytes();
 
-    let verify=cess_bncurve::check_keying(&pkey,&sigG1);
+    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sigG1);
     println!("verify signature:{}",verify);
     result.t = t;
 
