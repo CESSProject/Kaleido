@@ -73,9 +73,7 @@ pub fn podr2_proof_commit(
     let t_signature = hash(&t_serialized_bytes);
     println!("t_signature:{:?}",t_signature.base_vector());
     let sigG1 =cess_bncurve::sign_hash(&t_signature, &skey);
-    t.signature = sigG1.clone()
-        .to_str()
-        .into_bytes();
+    t.signature = sigG1.clone().base_vector().to_vec();
 
     let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sigG1);
     println!("verify signature:{}",verify);
