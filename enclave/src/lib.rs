@@ -159,8 +159,12 @@ pub extern "C" fn process_data(
     
     let result =
     podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
-    println!("{:?}", result.sigmas);
-    println!("{:?}", result.t.t0.name);
+    println!("sigmas:{:?}", result.sigmas);
+    println!("t.t0.name:{:?}", result.t.t0.name);
+    println!("t.t0.u:{:?}",result.t.t0.u);
+    println!("t.t0.n:{:?}",result.t.t0.n);
+    println!("t.signature:{:?}",result.t.signature);
+
 
     let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
