@@ -29,8 +29,9 @@ pub fn podr2_proof_commit(
     });
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    let zr = cess_bncurve::Zr::random();
-    t.t0.name = zr.to_str().into_bytes();
+    // let zr = cess_bncurve::Zr::random();
+    let zr = pbc::get_zr_from_byte(&vec![100,100,100]);
+    t.t0.name = zr.base_vector().to_vec();
 
     let mut u_num: usize = block_size;
     if block_size > data.len() {
@@ -40,7 +41,7 @@ pub fn podr2_proof_commit(
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
         let g1 = pbc::get_random_g1();
-        let g1byte = g1.to_str().into_bytes();
+        let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
 
