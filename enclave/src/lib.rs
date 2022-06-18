@@ -161,21 +161,21 @@ pub extern "C" fn process_data(
     //get pkey byte
     println!("pkey:{:?}",pkey.base_vector().to_vec());
     //get zr by byte
-    let mut byte1 =vec![0u8; 32];
-    byte1[0]=100;
-    byte1[1]=100;
-    byte1[2]=100;
+    // let mut byte1 =vec![0u8; 32];
+    // byte1[0]=100;
+    // byte1[1]=100;
+    // byte1[2]=100;
 
-    let zr = pbc::get_zr_from_byte(&byte1);
+    let zr = pbc::get_zr_from_byte(&vec![100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]);
     println!("Zr byte:{:?}",zr.base_vector().to_vec());
     //get G1 from random
     let g1_rand = pbc::get_random_g1();
     println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
     //get G1 from hash
-    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
+    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]));
     println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
     //get G1 from byte
-    let g1_byte = pbc::get_g1_from_byte(&byte1);
+    let g1_byte = pbc::get_g1_from_byte(&vec![100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]);
     println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
     //test g1_byte pow zr
     let g1=pbc::g1_pow_zn_t(&g1_byte, &zr);
