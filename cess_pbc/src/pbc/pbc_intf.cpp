@@ -885,15 +885,9 @@ extern "C" void exp_G1z(uint64_t ctxt,
       element_pow_zn(g, g, z);
       printf("1111111111111111111111111111");
       if (element_is0(g))
-      {
-        printf("22222222222222222222222222222");
         memset(g1, 0, nelg);
-      }
       else
-      {
-        printf("3333333333333333333333");
         element_to_bytes_compressed(g1, g);
-      }
     }
     else
       memset(g1, 0, nelg);
