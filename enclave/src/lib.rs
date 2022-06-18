@@ -161,7 +161,12 @@ pub extern "C" fn process_data(
     //get pkey byte
     println!("pkey:{:?}",pkey.base_vector().to_vec());
     //get zr by byte
-    let zr = pbc::get_zr_from_byte(&vec![100,100,100]);
+    let mut byte1 =vec![0u8; 32];
+    byte1[0]=100;
+    byte1[1]=100;
+    byte1[2]=100;
+
+    let zr = pbc::get_zr_from_byte(&byte1);
     println!("Zr byte:{:?}",zr.base_vector().to_vec());
     //get G1 from random
     let g1_rand = pbc::get_random_g1();
