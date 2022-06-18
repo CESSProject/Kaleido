@@ -178,8 +178,8 @@ pub extern "C" fn process_data(
     let g1_byte = pbc::get_g1_from_byte(&byte1);
     println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
     //test g1_byte pow zr
-    pbc::g1_pow_zn(&g1_byte, &zr);
-    println!("'G1 from byte' pow 'zr':{:?}",g1_byte.base_vector().to_vec());
+    let g1=pbc::g1_pow_zn_t(&g1_byte, &zr);
+    println!("'G1 from byte' pow 'zr':{:?}",g1.base_vector().to_vec());
     //test g1_zero mul zr
     let result = G1::zero();
     pbc::g1_mul_g1(&result, &g1_byte);
