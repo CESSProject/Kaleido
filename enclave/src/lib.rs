@@ -156,54 +156,78 @@ pub extern "C" fn process_data(
     println!("Data copied to Enclave in {:.2?}!", elapsed);
 
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-    
-    let result =
-    podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
-    println!("sigmas:{:?}", result.sigmas);
-    println!("");
-    println!("t.t0.name:{:?}", result.t.t0.name);
-    println!("");
-    println!("t.t0.u:{:?}",result.t.t0.u);
-    println!("");
-    println!("t.t0.n:{:?}",result.t.t0.n);
-    println!("");
-    println!("t.signature:{:?}",result.t.signature);
-    println!("");
-    println!("pkey:{:?}",pkey.base_vector());
+    //get skey byte
+    println!("skey:{:?}",skey.base_vector().to_vec());
+    //get pkey byte
+    println!("pkey:{:?}",pkey.base_vector().to_vec());
+    //get zr by byte
+    let zr = pbc::get_zr_from_byte(&vec![100,100,100]);
+    println!("Zr byte:{:?}",zr.base_vector().to_vec());
+    //get G1 from random
+    let g1_rand = pbc::get_random_g1();
+    println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
+    //get G1 from hash
+    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
+    println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
+    //get G1 from byte
+    let g1_byte = pbc::get_g1_from_byte(&vec![100,100,100]);
+    println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
+    //test g1_byte pow zr
+    pbc::g1_pow_zn(&g1_byte, &zr);
+    println!("'G1 from byte' pow 'zr':{:?}",g1_byte.base_vector().to_vec());
+    //test g1_zero mul zr
+    let result = G1::zero();
+    pbc::g1_mul_g1(&result, &g1_byte);
+    println!("G1 from zero mul g1_byte:{:?}",result.base_vector().to_vec());
 
 
-    let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-    let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    if multi_thread {
-        let mut handles = vec![];
-        let now = Instant::now();
-        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-            let chunk = chunk.to_vec().clone();
-            let skey = skey.clone();
-            let signatures = Arc::clone(&signatures);
-            let handle = thread::spawn(move || {
-                let sig = cess_bncurve::sign_message(&chunk, &skey);
-                let mut signature = signatures.lock().unwrap();
-                *signature.index_mut(i) = sig;
-            });
-            handles.push(handle);
-        });
-        for handle in handles {
-            handle.join().unwrap();
-        }
-        let elapsed = now.elapsed();
-        println!("Signatures computed in {:.2?}!", elapsed);
-    } else {
-        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-            let chunk = chunk.to_vec().clone();
-            let sig = cess_bncurve::sign_message(&chunk, &skey);
-            signatures.lock().unwrap()[i] = sig;
-        });
-    }
+    // let result =
+    // podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
+    // println!("sigmas:{:?}", result.sigmas);
+    // println!("");
+    // println!("t.t0.name:{:?}", result.t.t0.name);
+    // println!("");
+    // println!("t.t0.u:{:?}",result.t.t0.u);
+    // println!("");
+    // println!("t.t0.n:{:?}",result.t.t0.n);
+    // println!("");
+    // println!("t.signature:{:?}",result.t.signature);
+    // println!("");
+    // println!("pkey:{:?}",pkey.base_vector());
 
-    *sig_len = n_sig;
 
-    unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
+    // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
+    // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
+    // if multi_thread {
+    //     let mut handles = vec![];
+    //     let now = Instant::now();
+    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //         let chunk = chunk.to_vec().clone();
+    //         let skey = skey.clone();
+    //         let signatures = Arc::clone(&signatures);
+    //         let handle = thread::spawn(move || {
+    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
+    //             let mut signature = signatures.lock().unwrap();
+    //             *signature.index_mut(i) = sig;
+    //         });
+    //         handles.push(handle);
+    //     });
+    //     for handle in handles {
+    //         handle.join().unwrap();
+    //     }
+    //     let elapsed = now.elapsed();
+    //     println!("Signatures computed in {:.2?}!", elapsed);
+    // } else {
+    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //         let chunk = chunk.to_vec().clone();
+    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
+    //         signatures.lock().unwrap()[i] = sig;
+    //     });
+    // }
+    //
+    // *sig_len = n_sig;
+    //
+    // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
     sgx_status_t::SGX_SUCCESS
 }
