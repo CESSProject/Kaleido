@@ -108,7 +108,7 @@ pub fn generate_authenticator(
         let piece_sigle = pbc::get_zr_from_hash(&hash(&vec![piece[j]]));
         println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
-        println!("index:{},get_g1_from_byte:{:?}",j,g1.base_vector().to_vec());
+        println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
         println!("index:{},g1_pow_zn:{:?}",j,g1.base_vector().to_vec());
