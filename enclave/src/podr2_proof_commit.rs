@@ -125,6 +125,7 @@ pub fn generate_authenticator(
 
 pub fn hash_name_i(name: &mut Vec<u8>, i: usize) -> G1 {
     name.push(i as u8);
+    println!("name:{:?}",name);
     let hash_array = hash(name.as_slice());
     pbc::get_g1_from_hash(&hash_array)
 }
