@@ -111,9 +111,9 @@ pub fn generate_authenticator(
         println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
-        println!("index:{},g1_pow_zn:{:?}",j,g1.base_vector().to_vec());
+        println!("index:{},g1_pow_zn:{:?}",j,g1.clone().base_vector().to_vec());
         pbc::g1_mul_g1(&productory, &g1);
-        println!("index:{},g1_mul_g1:{:?}",j,productory.base_vector().to_vec());
+        println!("index:{},g1_mul_g1:{:?}",j,productory.clone().base_vector().to_vec());
     }
     //H(name||i) · uj^mij
     println!("productory value1:{:?}",productory.base_vector().to_vec());
