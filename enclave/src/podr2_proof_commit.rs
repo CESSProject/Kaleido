@@ -30,7 +30,8 @@ pub fn podr2_proof_commit(
     println!("111111");
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     // let zr = cess_bncurve::Zr::random();
-    let zr = pbc::get_zr_from_byte(&vec![100,100,100]);
+    let zr = pbc::get_zr_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+                                         100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,]);
     t.t0.name = zr.base_vector().to_vec();
     println!("222222222");
     let mut u_num: usize = block_size;
@@ -97,17 +98,17 @@ pub fn generate_authenticator(
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
-        if j == s - 1 {
-            //mij
-            let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
-            let g1 = pbc::get_g1_from_byte(&t0.u[j]);
-            //uj^mij
-            pbc::g1_pow_zn(&g1, &piece_sigle);
-            pbc::g1_mul_g1(&productory, &g1);
-            continue;
-        }
+        // if j == s - 1 {
+        //     //mij
+        //     let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
+        //     let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+        //     //uj^mij
+        //     pbc::g1_pow_zn(&g1, &piece_sigle);
+        //     pbc::g1_mul_g1(&productory, &g1);
+        //     continue;
+        // }
         //mij
-        let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
+        let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j]]);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
