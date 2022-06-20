@@ -175,7 +175,7 @@ pub extern "C" fn process_data(
     let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
     println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
     //get G1 from byte
-    let g1_byte = pbc::get_g1_from_byte(&vec![250,163,242,126,204,231,186,56,145,3,68,202,99,201,153,98,100,85,234,89,229,73,24,174,18,62,210,215,18,245,235,166,1]);
+    let g1_byte = pbc::get_g1_from_byte(&vec![228,251,1,115,98,189,37,119,232,193,128,51,99,199,184,157,56,229,224,220,90,96,239,218,220,195,179,111,183,24,77,244,0]);
     println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
     //test g1_byte pow zr
     pbc::g1_pow_zn(&g1_byte, &zr);
