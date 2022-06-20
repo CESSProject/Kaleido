@@ -105,8 +105,10 @@ pub fn generate_authenticator(
         //     continue;
         // }
         //mij
-        let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j]]);
-        println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
+        let mut piece_one:Vec<u8>=Vec::new();
+        piece_one.push(piece[j]);
+        let piece_sigle = pbc::get_zr_from_byte(&piece_one);
+        println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),&piece_one);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         println!("index:{},get_g1_from_byte:{:?}",j,g1.base_vector().to_vec());
         //uj^mij
