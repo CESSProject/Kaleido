@@ -166,39 +166,45 @@ pub extern "C" fn process_data(
     // byte1[1]=100;
     // byte1[2]=100;
 
-    let zr = pbc::get_zr_from_byte(&vec![100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]);
-    println!("Zr byte:{:?}",zr.base_vector().to_vec());
-    //get G1 from random
-    let g1_rand = pbc::get_random_g1();
-    println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
-    //get G1 from hash
-    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
-    println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
-    //get G1 from byte
-    let g1_byte = pbc::get_g1_from_byte(&g1_rand.base_vector().to_vec());
-    println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
-    //test g1_byte pow zr
-    let g1=pbc::g1_pow_zn_t(&g1_byte, &zr);
-    println!("'G1 from byte' pow 'zr':{:?}",g1.base_vector().to_vec());
-    //test g1_zero mul zr
-    let result = G1::zero();
-    pbc::g1_mul_g1(&result, &g1_byte);
-    println!("G1 from zero mul g1_byte:{:?}",result.base_vector().to_vec());
+    // let zr = pbc::get_zr_from_byte(&vec![100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,100]);
+    // println!("Zr byte:{:?}",zr.base_vector().to_vec());
+    // //get G1 from random
+    // let g1_rand = pbc::get_random_g1();
+    // println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
+    // //get G1 from hash
+    // let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
+    // println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
+    // //get G1 from byte
+    // let g1_byte = pbc::get_g1_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    //                                           100, 100, 100, 100]);
+    // println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
+    // //test g1_byte pow zr
+    // let g1=pbc::g1_pow_zn_t(&g1_byte, &zr);
+    // println!("'G1 from byte' pow 'zr':{:?}",g1.base_vector().to_vec());
+    // //test g1_zero mul zr
+    // let result = G1::zero();
+    // pbc::g1_mul_g1(&result, &g1_byte);
+    // println!("G1 from zero mul g1_byte:{:?}",result.base_vector().to_vec());
 
 
-    // let result =
-    // podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
-    // println!("sigmas:{:?}", result.sigmas);
-    // println!("");
-    // println!("t.t0.name:{:?}", result.t.t0.name);
-    // println!("");
-    // println!("t.t0.u:{:?}",result.t.t0.u);
-    // println!("");
-    // println!("t.t0.n:{:?}",result.t.t0.n);
-    // println!("");
-    // println!("t.signature:{:?}",result.t.signature);
-    // println!("");
-    // println!("pkey:{:?}",pkey.base_vector());
+    let result =
+    podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
+    println!("sigmas:{:?}", result.sigmas);
+    println!("");
+    println!("t.t0.name:{:?}", result.t.t0.name);
+    println!("");
+    println!("t.t0.u:{:?}",result.t.t0.u);
+    println!("");
+    println!("t.t0.n:{:?}",result.t.t0.n);
+    println!("");
+    println!("t.signature:{:?}",result.t.signature);
+    println!("");
+    println!("pkey:{:?}",pkey.base_vector());
 
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;

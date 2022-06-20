@@ -866,7 +866,7 @@ extern "C" void mul_G1z(uint64_t ctxt,
   element_clear(g);
 }
 
-extern "C" void exp_G1z(uint64_t ctxt,uint8_t *g11,
+extern "C" void exp_G1z(uint64_t ctxt,
                         uint8_t *g1, uint8_t *zr)
 {
   element_t z, g;
@@ -886,7 +886,7 @@ extern "C" void exp_G1z(uint64_t ctxt,uint8_t *g11,
       if (element_is0(g))
         memset(g1, 0, nelg);
       else
-        element_to_bytes_compressed(g11, g);
+        element_to_bytes_compressed(g1, g);
     }
     else
       memset(g1, 0, nelg);
@@ -1077,7 +1077,7 @@ extern "C" void get_G1_from_byte(uint64_t ctxt,
   element_t g1;
 
   element_init_G1(g1, Pairing(ctxt));
-  element_from_bytes(g1, pbyte);
+  element_from_bytes_compressed(g1, pbyte);
   element_to_bytes_compressed(g1_pt, g1);
   element_clear(g1);
 }

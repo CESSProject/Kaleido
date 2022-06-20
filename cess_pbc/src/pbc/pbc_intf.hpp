@@ -84,7 +84,7 @@ extern "C"
   void sub_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void mul_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void div_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
-  void exp_G1z(uint64_t ctxt,uint8_t *g11, uint8_t *g1, uint8_t *zr);
+  void exp_G1z(uint64_t ctxt, uint8_t *g1, uint8_t *zr);
   void neg_G1_pt(uint64_t ctxt, uint8_t *pt);
   void inv_G1_pt(uint64_t ctxt, uint8_t *pt);
 
