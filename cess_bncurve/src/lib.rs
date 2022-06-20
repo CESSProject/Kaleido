@@ -279,7 +279,6 @@ pub fn sign_hash(h: &Hash, skey: &SecretKey) -> G1 {
 }
 
 pub fn check_hash(h: &Hash, sig: &G1, pkey: &PublicKey) -> bool {
-    println!("-------------------------------------------------------{:?}",h.base_vector());
     // check a hash with a raw signature, return t/f
     unsafe {
         0 == cess_pbc::check_signature(

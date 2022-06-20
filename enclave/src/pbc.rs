@@ -197,14 +197,30 @@ pub fn get_zr_from_byte(byte: &Vec<u8>)->Zr{
 
 pub fn g1_pow_zn(g1:&G1,zr:&Zr){
     let context = BN_CURVE_INFO.context as u64;
+    //let g11 = G1::zero();
     unsafe {
         cess_pbc::exp_G1z(
             context,
+
             g1.base_vector().as_ptr() as *mut _,
             zr.base_vector().as_ptr() as *mut _,
         );
     }
 }
+
+// pub fn g1_pow_zn_t(g1:&G1,zr:&Zr)->G1{
+//     let context = BN_CURVE_INFO.context as u64;
+//     let g11 = G1::zero();
+//     unsafe {
+//         cess_pbc::exp_G1z(
+//             context,
+//             g11.base_vector().as_ptr() as *mut _,
+//             g1.base_vector().as_ptr() as *mut _,
+//             zr.base_vector().as_ptr() as *mut _,
+//         );
+//     }
+//     g11
+// }
 
 pub fn g1_mul_g1(g1_f:&G1,g1_s:&G1) {
     let context = BN_CURVE_INFO.context as u64;

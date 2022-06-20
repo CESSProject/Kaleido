@@ -27,28 +27,24 @@ pub fn podr2_proof_commit(
         matrix.push(chunk.to_vec());
         t.t0.n = i+1;
     });
-
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    let zr = cess_bncurve::Zr::random();
-    t.t0.name = zr.to_str().into_bytes();
-
+    // let zr = cess_bncurve::Zr::random();
+    let zr = pbc::get_zr_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+                                         100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,]);
+    t.t0.name = zr.base_vector().to_vec();
     let mut u_num: usize = block_size;
     if block_size > data.len() {
         u_num = data.len();
     }
-
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
         let g1 = pbc::get_random_g1();
-        let g1byte = g1.to_str().into_bytes();
+        let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
-
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
-
-    println!("serialized = {:?}", t_serialized_bytes);
 
     // let mut leaves_hashes = vec![vec![0u8; 32]; matrix.len()];
     let cpy_size = matrix.len();
@@ -71,13 +67,10 @@ pub fn podr2_proof_commit(
     // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
     
     let t_signature = hash(&t_serialized_bytes);
-    println!("t_signature:{:?}",t_signature.base_vector());
-    let sigG1 =cess_bncurve::sign_hash(&t_signature, &skey);
-    t.signature = sigG1.clone()
-        .to_str()
-        .into_bytes();
+    let sig_g1 =cess_bncurve::sign_hash(&t_signature, &skey);
+    t.signature = sig_g1.clone().base_vector().to_vec();
 
-    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sigG1);
+    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sig_g1);
     println!("verify signature:{}",verify);
     result.t = t;
 
@@ -92,40 +85,37 @@ pub fn generate_authenticator(
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
-    let hash_name_i = hash_name_i(&mut name, i);
-    println!("hash_name_i = {:?}", hash_name_i.to_str().into_bytes());
-
+    let hash_name_i = hash_name_i(&mut name, i+1);
+    println!("hash_name_i:{:?}",hash_name_i.base_vector().to_vec());
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
-        if j == s - 1 {
-            //mij
-            let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
-            let g1 = pbc::get_g1_from_byte(&t0.u[j]);
-            //uj^mij
-            pbc::g1_pow_zn(&g1, &piece_sigle);
-            pbc::g1_mul_g1(&productory, &g1);
-            continue;
-        }
         //mij
-        let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
+        let piece_sigle = pbc::get_zr_from_hash(&hash(&vec![piece[j]]));
+        // println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+        // println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
+        // println!("index:{},g1_pow_zn:{:?}",j,g1.clone().base_vector().to_vec());
         pbc::g1_mul_g1(&productory, &g1);
+        // println!("index:{},g1_mul_g1:{:?}",j,productory.clone().base_vector().to_vec());
     }
     //H(name||i) · uj^mij
+    // println!("productory value1:{:?}",productory.base_vector().to_vec());
     pbc::g1_mul_g1(&productory, &hash_name_i);
+    // println!("productory value2:{:?}",productory.base_vector().to_vec());
     pbc::g1_pow_zn(
         &productory,
-        &pbc::get_zr_from_byte(&alpha.to_str().into_bytes()),
+        &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
     );
-    let res = productory.to_str().into_bytes();
+    let res = productory.base_vector().to_vec();
     res
 }
 
 pub fn hash_name_i(name: &mut Vec<u8>, i: usize) -> G1 {
     name.push(i as u8);
+    println!("name:{:?}",name);
     let hash_array = hash(name.as_slice());
     pbc::get_g1_from_hash(&hash_array)
 }
