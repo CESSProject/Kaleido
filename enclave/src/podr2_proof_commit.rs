@@ -90,7 +90,7 @@ pub fn generate_authenticator(
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
-    let hash_name_i = hash_name_i(&mut name, i);
+    let hash_name_i = hash_name_i(&mut name, i+1);
     println!("hash_name_i:{:?}",hash_name_i.base_vector().to_vec());
     let productory = G1::zero();
     let s = t0.u.len();
