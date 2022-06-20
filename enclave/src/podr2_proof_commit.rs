@@ -51,8 +51,6 @@ pub fn podr2_proof_commit(
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
 
-    println!("serialized = {:?}", t_serialized_bytes);
-
     // let mut leaves_hashes = vec![vec![0u8; 32]; matrix.len()];
     let cpy_size = matrix.len();
     for i in 0..cpy_size {
@@ -74,11 +72,10 @@ pub fn podr2_proof_commit(
     // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
     
     let t_signature = hash(&t_serialized_bytes);
-    println!("t_signature:{:?}",t_signature.base_vector());
-    let sigG1 =cess_bncurve::sign_hash(&t_signature, &skey);
-    t.signature = sigG1.clone().base_vector().to_vec();
+    let sig_g1 =cess_bncurve::sign_hash(&t_signature, &skey);
+    t.signature = sig_g1.clone().base_vector().to_vec();
 
-    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sigG1);
+    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sig_g1);
     println!("verify signature:{}",verify);
     result.t = t;
 
@@ -94,7 +91,7 @@ pub fn generate_authenticator(
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i);
-
+    println!("hash_name_i:{:?}",hash_name_i.base_vector().to_vec());
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
@@ -115,7 +112,9 @@ pub fn generate_authenticator(
         pbc::g1_mul_g1(&productory, &g1);
     }
     //H(name||i) · uj^mij
+    println!("productory value1:{:?}",productory.base_vector().to_vec());
     pbc::g1_mul_g1(&productory, &hash_name_i);
+    println!("productory value2:{:?}",productory.base_vector().to_vec());
     pbc::g1_pow_zn(
         &productory,
         &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
