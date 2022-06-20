@@ -166,8 +166,8 @@ pub extern "C" fn process_data(
     // byte1[1]=100;
     // byte1[2]=100;
 
-    let zr = pbc::get_zr_from_byte(&vec![168 106 109 17 209 43 212 51 189 243 94 89 7 200 86 44 104 3 211 184 34 222 193 134 155 140 241 165 74 13 226 136]);
-    println!("Zr byte:{:?}",zr.base_vector().to_vec());
+    let zr = pbc::get_zr_from_byte(&vec![168,106,109,17,209,43,212,51,189,243,94,89,7,200,86,44,104,3,211,184,34,222,193,134,155,140,241,165,74,13,226,136]);
+   println!("Zr byte:{:?}",zr.base_vector().to_vec());
     //get G1 from random
     let g1_rand = pbc::get_random_g1();
     println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
@@ -175,7 +175,7 @@ pub extern "C" fn process_data(
     let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
     println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
     //get G1 from byte
-    let g1_byte = pbc::get_g1_from_byte(&vec![250 163 242 126 204 231 186 56 145 3 68 202 99 201 153 98 100 85 234 89 229 73 24 174 18 62 210 215 18 245 235 166 1]);
+    let g1_byte = pbc::get_g1_from_byte(&vec![250,163,242,126,204,231,186,56,145,3,68,202,99,201,153,98,100,85,234,89,229,73,24,174,18,62,210,215,18,245,235,166,1]);
     println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
     //test g1_byte pow zr
     pbc::g1_pow_zn(&g1_byte, &zr);
