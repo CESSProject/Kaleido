@@ -27,26 +27,21 @@ pub fn podr2_proof_commit(
         matrix.push(chunk.to_vec());
         t.t0.n = i+1;
     });
-    println!("111111");
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     // let zr = cess_bncurve::Zr::random();
     let zr = pbc::get_zr_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
                                          100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,]);
     t.t0.name = zr.base_vector().to_vec();
-    println!("222222222");
     let mut u_num: usize = block_size;
     if block_size > data.len() {
         u_num = data.len();
     }
-    println!("3333333333333");
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
         let g1 = pbc::get_random_g1();
-        println!("4444444444444");
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
-    println!("5555555555555");
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
@@ -95,30 +90,21 @@ pub fn generate_authenticator(
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
-        // if j == s - 1 {
-        //     //mij
-        //     let piece_sigle = pbc::get_zr_from_byte(&vec![piece[j..][0]]);
-        //     let g1 = pbc::get_g1_from_byte(&t0.u[j]);
-        //     //uj^mij
-        //     pbc::g1_pow_zn(&g1, &piece_sigle);
-        //     pbc::g1_mul_g1(&productory, &g1);
-        //     continue;
-        // }
         //mij
         let piece_sigle = pbc::get_zr_from_hash(&hash(&vec![piece[j]]));
-        println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
+        // println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
-        println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
+        // println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
-        println!("index:{},g1_pow_zn:{:?}",j,g1.clone().base_vector().to_vec());
+        // println!("index:{},g1_pow_zn:{:?}",j,g1.clone().base_vector().to_vec());
         pbc::g1_mul_g1(&productory, &g1);
-        println!("index:{},g1_mul_g1:{:?}",j,productory.clone().base_vector().to_vec());
+        // println!("index:{},g1_mul_g1:{:?}",j,productory.clone().base_vector().to_vec());
     }
     //H(name||i) · uj^mij
-    println!("productory value1:{:?}",productory.base_vector().to_vec());
+    // println!("productory value1:{:?}",productory.base_vector().to_vec());
     pbc::g1_mul_g1(&productory, &hash_name_i);
-    println!("productory value2:{:?}",productory.base_vector().to_vec());
+    // println!("productory value2:{:?}",productory.base_vector().to_vec());
     pbc::g1_pow_zn(
         &productory,
         &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
