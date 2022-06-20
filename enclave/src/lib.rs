@@ -172,7 +172,7 @@ pub extern "C" fn process_data(
     let g1_rand = pbc::get_random_g1();
     println!("G1 random byte:{:?}",g1_rand.base_vector().to_vec());
     //get G1 from hash
-    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]));
+    let g1_hash=pbc::get_g1_from_hash(&hash(&vec![100,100,100]));
     println!("G1 from hash256:{:?}",g1_hash.base_vector().to_vec());
     //get G1 from byte
     let g1_byte = pbc::get_g1_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
