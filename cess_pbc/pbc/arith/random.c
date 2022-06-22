@@ -2,6 +2,7 @@
 #include <stdint.h> // for intptr_t
 #include <stdlib.h>
 #include <sgx_tgmp.h>
+#include <sgx_trts.h>
 #include "pbc_random.h"
 #include "pbc_utils.h"
 #include "pbc_memory.h"
@@ -28,6 +29,31 @@ static gmp_randstate_t *get_rs(void) {
 static void deterministic_mpz_random(mpz_t z, mpz_t limit, void *data) {
   UNUSED_VAR (data);
   mpz_urandomm(z, *get_rs(), limit);
+}
+
+static void sgx_mpz_random(mpz_t r, mpz_t limit, void *data) {
+  UNUSED_VAR (data);
+  
+  int n, bytecount, leftover;
+  unsigned char *bytes;
+  mpz_t z;
+  mpz_init(z);
+  n = mpz_sizeinbase(limit, 2);
+  bytecount = (n + 7) / 8;
+  leftover = n % 8;
+  bytes = (unsigned char *) pbc_malloc(bytecount);
+  
+  for (;;) {
+    sgx_read_rand((unsigned char *) bytes, 1);
+    if (leftover) {
+      *bytes = *bytes % (1 << leftover);
+    }
+    mpz_import(z, bytecount, 1, 1, 0, 0, bytes);
+    if (mpz_cmp(z, limit) < 0) break;
+  }
+  mpz_set(r, z);
+  mpz_clear(z);
+  pbc_free(bytes);
 }
 
 // static void file_mpz_random(mpz_t r, mpz_t limit, void *data) {
@@ -98,3 +124,7 @@ void pbc_random_set_deterministic(unsigned int seed) {
 // void pbc_random_set_file(char *filename) {
 //   pbc_random_set_function(file_mpz_random, filename);
 // }
+
+void pbc_random_set_sgx() {
+  pbc_random_set_function(sgx_mpz_random, NULL);
+}

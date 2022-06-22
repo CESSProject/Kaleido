@@ -39,6 +39,7 @@ pub fn podr2_proof_commit(
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
         let g1 = pbc::get_random_g1();
+        println!("{}, {}", g1.to_str(), i);
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
