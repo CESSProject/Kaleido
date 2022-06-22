@@ -15,6 +15,11 @@ Uses a determinstic random number generator, seeded with 'seed'.
 void pbc_random_set_deterministic(unsigned int seed);
 
 /*@manual pbcrandom
+Uses a sgx (sgx_read_rand) random number generator.
+*/
+void pbc_random_set_sgx(void);
+
+/*@manual pbcrandom
 Uses given function as a random number generator.
 */
 void pbc_random_set_function(void (*fun)(mpz_t, mpz_t, void *), void *data);

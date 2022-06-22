@@ -20,9 +20,10 @@ void pbc_init_random(void) {
   // fp = fopen("/dev/urandom", "rb");
   // if (!fp) {
   //   pbc_warn("could not open /dev/urandom, using deterministic random number generator");
-    pbc_random_set_deterministic(0);
+  //   pbc_random_set_deterministic(0);
   // } else {
   //   pbc_random_set_file("/dev/urandom");
   //   fclose(fp);
   // }
+  pbc_random_set_sgx();
 }
