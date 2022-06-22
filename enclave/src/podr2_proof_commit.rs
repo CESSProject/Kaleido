@@ -25,12 +25,14 @@ pub fn podr2_proof_commit(
     let mut matrix: Vec<Vec<u8>> = Vec::new();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
-        t.t0.n = i+1;
+        t.t0.n = i + 1;
     });
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     // let zr = cess_bncurve::Zr::random();
-    let zr = pbc::get_zr_from_byte(&vec![100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-                                         100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,]);
+    let zr = pbc::get_zr_from_byte(&vec![
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
+    ]);
     t.t0.name = zr.base_vector().to_vec();
     let mut u_num: usize = block_size;
     if block_size > data.len() {
@@ -39,8 +41,8 @@ pub fn podr2_proof_commit(
     let g1 = pbc::get_random_g1();
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
-        let zr_rand =Zr::random();
-        pbc::g1_pow_zn(&g1,&zr_rand);
+        let zr_rand = Zr::random();
+        pbc::g1_pow_zn(&g1, &zr_rand);
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
@@ -64,16 +66,16 @@ pub fn podr2_proof_commit(
     // );
     // let root_hash = Hash::new(&tree.root());
     // let mth_root_sig = cess_bncurve::sign_hash(&root_hash, &skey);
-    
+
     // println!("MHT Root: {:?}", tree.root());
     // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
-    
+
     let t_signature = hash(&t_serialized_bytes);
-    let sig_g1 =cess_bncurve::sign_hash(&t_signature, &skey);
+    let sig_g1 = cess_bncurve::sign_hash(&t_signature, &skey);
     t.signature = sig_g1.clone().base_vector().to_vec();
 
-    let verify=cess_bncurve::check_message(&t_serialized_bytes,&pkey,&sig_g1);
-    println!("verify signature:{}",verify);
+    let verify = cess_bncurve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
+    println!("verify signature:{}", verify);
     result.t = t;
 
     result
@@ -87,8 +89,8 @@ pub fn generate_authenticator(
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
-    let hash_name_i = hash_name_i(&mut name, i+1);
-    println!("hash_name_i:{:?}",hash_name_i.base_vector().to_vec());
+    let hash_name_i = hash_name_i(&mut name, i + 1);
+    println!("hash_name_i:{:?}", hash_name_i.base_vector().to_vec());
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
@@ -117,7 +119,7 @@ pub fn generate_authenticator(
 
 pub fn hash_name_i(name: &mut Vec<u8>, i: usize) -> G1 {
     name.push(i as u8);
-    println!("name:{:?}",name);
+    println!("name:{:?}", name);
     let hash_array = hash(name.as_slice());
     pbc::get_g1_from_hash(&hash_array)
 }
