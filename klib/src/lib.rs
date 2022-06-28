@@ -33,7 +33,7 @@ impl Default for PoDR2Response {
 }
 
 #[no_mangle]
-pub extern "C" fn file_cutter(path: *const libc::c_char) ->*mut PoDR2Response{
+pub extern "C" fn proof_generate_api(path: *const libc::c_char) ->*mut PoDR2Response{
     let cstr_path = unsafe { CStr::from_ptr(path) };
     let str_path = cstr_path.to_str().unwrap().to_string();
     println!("Rust get file path:  \"{}\"", str_path);
@@ -54,21 +54,6 @@ pub extern "C" fn file_cutter(path: *const libc::c_char) ->*mut PoDR2Response{
             panic!("The error happened when read file error:{:?}",error)
         }
     }
-    let mut block_slice :Vec<Vec<u8>>=Vec::new();
-    let block_size=2;
-    let mut block_num =data.len()/block_size;
-    if block_num==0{
-        block_num=1
-    }else if data.len()%block_size!=0 {
-        block_num=block_num+1
-    }
-    for i in 0..block_num{
-        if i==block_num-1{
-            block_slice.push(Vec::from(& data[i* block_size..]));
-        }else {
-            block_slice.push(Vec::from(& data[i* block_size..(i + 1) * block_size]));
-        }
-    };
     let vec_ptr=data.as_ptr();
     let vec_len=data.len();
     let vec_cap=data.capacity();

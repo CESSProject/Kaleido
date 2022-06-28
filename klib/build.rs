@@ -9,4 +9,4 @@ fn main() {
     cbindgen::generate_with_config(&crate_dir, config)
         .unwrap()
         .write_to_file("./kaleido.h");
-} 
+}
