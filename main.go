@@ -1,7 +1,7 @@
 package main
 
 /*
-#cgo LDFLAGS: ./klib/libkaleido.a -ldl -ludev -lrt -lm
+#cgo LDFLAGS: ./klib/libkaleido.a
 //#cgo LDFLAGS: -L./klib -lkaleido
 #include "./klib/kaleido.h"
 */
