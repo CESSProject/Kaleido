@@ -2,7 +2,7 @@ package main
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/klib
-#cgo LDFLAGS: -L${SRCDIR}/klib -lkaleido -lstdc++
+#cgo LDFLAGS: -L${SRCDIR}/klib -lkaleido
 #include <stdio.h>
 #include <stdlib.h>
 #include "kaleido.h"
