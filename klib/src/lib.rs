@@ -94,7 +94,8 @@ static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 //     Box::into_raw(Box::new(thing))
 // }
 
-fn init_enclave() -> SgxResult<SgxEnclave> {
+#[no_mangle]
+pub extern "C" fn init_enclave() -> SgxResult<SgxEnclave> {
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
     // call sgx_create_enclave to initialize an enclave instance
