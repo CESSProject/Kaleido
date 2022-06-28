@@ -70,14 +70,14 @@ pub extern "C" fn proof_generate_api(path: *const libc::c_char) ->*mut PoDR2Resp
 
     mem::forget(data);
 
-    let _ = match init_enclave() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-        }
-        Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
-        }
-    };
+    // let _ = match init_enclave() {
+    //     Ok(r) => {
+    //         println!("[+] Init Enclave Successful {}!", r.geteid());
+    //     }
+    //     Err(x) => {
+    //         println!("[-] Init Enclave Failed {}!", x.as_str());
+    //     }
+    // };
 
     raw_ptr(response)
 }
