@@ -1,8 +1,8 @@
 package main
 
 /*
-#cgo CFLAGS: -I ./klib
-#cgo LDFLAGS: -L ./klib -lkaleido
+#cgo CFLAGS: -I${SRCDIR}/klib
+#cgo LDFLAGS: -L${SRCDIR}/klib -lkaleido -lstdc++
 #include <stdio.h>
 #include <stdlib.h>
 #include "kaleido.h"
