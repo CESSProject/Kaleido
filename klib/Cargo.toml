@@ -6,7 +6,7 @@ edition = "2021"
 [lib]
 name = "kaleido"
 path = "src/lib.rs"
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
 
 [build-dependencies]
 cbindgen = "0.21.0"
@@ -14,9 +14,9 @@ cbindgen = "0.21.0"
 [dependencies]
 libc = "0.2"
 fs= "0.0.5"
-sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-
-[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
-sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
-sgx_urts = { path = "../teaclave-sgx-sdk/sgx_urts" }
+#sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+#sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+#
+#[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+#sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
+#sgx_urts = { path = "../teaclave-sgx-sdk/sgx_urts" }
