@@ -3,9 +3,9 @@ package main
 /*
 //#cgo LDFLAGS: ./Kaleido/lib/libenclave.a -ldl -ludev -lrt -lm
 
-#cgo LDFLAGS: -L./Kaleido/klib -lkaleido
+#cgo LDFLAGS: -L./klib -lkaleido
 #include <stdlib.h>
-#include "./Kaleido/klib/kaleido.h"
+#include "./klib/kaleido.h"
 */
 import "C"
 
