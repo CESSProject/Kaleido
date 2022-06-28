@@ -1,0 +1,16 @@
+[package]
+name = "klib"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "kaleido"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+cbindgen = "0.21.0"
+
+[dependencies]
+libc = "0.2"
+fs= "0.0.5"
