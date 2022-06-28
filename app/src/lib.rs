@@ -70,7 +70,7 @@ extern "C" {
     ) -> sgx_status_t;
 }
 
-fn init_enclave() -> SgxResult<SgxEnclave> {
+pub fn init_enclave() -> SgxResult<SgxEnclave> {
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
     // call sgx_create_enclave to initialize an enclave instance
@@ -126,7 +126,7 @@ fn test_pbc_lib(enclave: &SgxEnclave) {
     println!("[+] test_pbc success...");
 }
 
-fn test_process_data(enclave: &SgxEnclave) {
+pub fn test_process_data(enclave: &SgxEnclave) {
     let filename = "../app/example_file.txt";
 
     println!("Reading file {}", filename);
@@ -505,6 +505,11 @@ fn test_sign_message(enclave: &SgxEnclave) {
     println!("[+] process_data success...");
 }
 
+extern "C" fn sum(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+/*
 fn main() {
     let enclave = match init_enclave() {
         Ok(r) => {
@@ -538,3 +543,4 @@ fn main() {
     // println!("******************************************************************\n");
     enclave.destroy();
 }
+ */

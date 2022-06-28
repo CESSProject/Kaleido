@@ -4,6 +4,9 @@ version = "1.0.0"
 authors = ["CESS Labs"]
 build = "build.rs"
 
+[lib]
+crate-type = ["staticlib"]
+
 [dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
