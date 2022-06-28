@@ -1,8 +1,8 @@
 package main
 
 /*
-//#cgo LDFLAGS: ./Kaleido/lib/libenclave.a -ldl -ludev -lrt -lm
-#cgo LDFLAGS: -L./klib -lkaleido
+#cgo LDFLAGS: ./klib/libkaleido.a -ldl -ludev -lrt -lm
+//#cgo LDFLAGS: -L./klib -lkaleido
 #include "./klib/kaleido.h"
 */
 import "C"
