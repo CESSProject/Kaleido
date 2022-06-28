@@ -8,6 +8,8 @@ use std::mem;
 use sgx_urts::SgxEnclave;
 use sgx_types::*;
 
+#[no_mangle]
+static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
 #[no_mangle]
 pub extern "C" fn rustdemo(name: *const libc::c_char) -> *const libc::c_char {
