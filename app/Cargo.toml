@@ -4,6 +4,14 @@ version = "1.0.0"
 authors = ["CESS Labs"]
 build = "build.rs"
 
+[lib]
+name = "kaleido"
+path = "src/main.rs"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+cbindgen = "0.21.0"
+
 [dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
