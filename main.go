@@ -1,17 +1,10 @@
 package main
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/klib
-#cgo LDFLAGS: -L${SRCDIR}/klib -lkaleido
-#include <stdio.h>
-#include <stdlib.h>
-#include "kaleido.h"
+#cgo LDFLAGS: ./lib/libkaleido.a -ldl
+#include "./klib/kaleido.h"
 */
 import "C"
-
-import (
-	"fmt"
-)
 
 //type PoDR2Response struct {
 //	data       []byte
@@ -26,11 +19,12 @@ import (
 //}
 
 func main() {
-	path := C.CString("/root/app.txt")
-	tmp := C.rustdemo(path)
-	output := C.GoString(tmp)
-
-	fmt.Printf("%s\n", output)
+	C.hello(C.CString("Demo Chiang"))
+	//path := C.CString("/root/app.txt")
+	//tmp := C.rustdemo(path)
+	//output := C.GoString(tmp)
+	//
+	//fmt.Printf("%s\n", output)
 	//defer C.free(unsafe.Pointer(path))
 	//ret := C.proof_generate_api(path)
 	//resp := NewResponseRef(unsafe.Pointer(ret))
