@@ -1,8 +1,12 @@
 extern crate libc;
+extern crate sgx_types;
+extern crate sgx_urts;
 use std::ffi::{CStr, CString};
 use std::fs;
 use std::io::Read;
 use std::mem;
+use sgx_urts::SgxEnclave;
+use sgx_types::*;
 
 
 #[no_mangle]
@@ -63,6 +67,16 @@ pub extern "C" fn proof_generate_api(path: *const libc::c_char) ->*mut PoDR2Resp
     response.cap=vec_cap;
 
     mem::forget(data);
+
+    let _ = match init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+        }
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+        }
+    };
+
     raw_ptr(response)
 }
 
@@ -76,4 +90,23 @@ pub unsafe extern "C" fn destroy_PoDR2_response(
 
 pub fn raw_ptr<T>(thing: T) -> *mut T {
     Box::into_raw(Box::new(thing))
+}
+
+fn init_enclave() -> SgxResult<SgxEnclave> {
+    let mut launch_token: sgx_launch_token_t = [0; 1024];
+    let mut launch_token_updated: i32 = 0;
+    // call sgx_create_enclave to initialize an enclave instance
+    // Debug Support: set 2nd parameter to 1
+    let debug = 1;
+    let mut misc_attr = sgx_misc_attribute_t {
+        secs_attr: sgx_attributes_t { flags: 0, xfrm: 0 },
+        misc_select: 0,
+    };
+    SgxEnclave::create(
+        ENCLAVE_FILE,
+        debug,
+        &mut launch_token,
+        &mut launch_token_updated,
+        &mut misc_attr,
+    )
 }

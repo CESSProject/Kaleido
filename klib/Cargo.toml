@@ -14,3 +14,9 @@ cbindgen = "0.21.0"
 [dependencies]
 libc = "0.2"
 fs= "0.0.5"
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
+sgx_urts = { path = "../teaclave-sgx-sdk/sgx_urts" }
