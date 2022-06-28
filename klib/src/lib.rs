@@ -2,10 +2,10 @@
 extern crate libc;
 extern crate sgx_types;
 extern crate sgx_urts;
-use std::ffi::{CStr, CString};
-use std::fs;
-use std::io::Read;
-use std::mem;
+use std::ffi::{CStr};
+// use std::fs;
+// use std::io::Read;
+// use std::mem;
 use sgx_urts::SgxEnclave;
 use sgx_types::*;
 
