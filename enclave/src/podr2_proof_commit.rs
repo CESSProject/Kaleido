@@ -36,9 +36,11 @@ pub fn podr2_proof_commit(
     if block_size > data.len() {
         u_num = data.len();
     }
+    let g1 = pbc::get_random_g1();
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
-        let g1 = pbc::get_random_g1();
+        let zr_rand =Zr::random();
+        pbc::g1_pow_zn(&g1,&zr_rand);
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
