@@ -49,8 +49,7 @@ pub fn podr2_proof_commit(
 
     // Stores MHT leaves.
     // let mut leaves_hashes = vec![vec![0u8; 32]; t.t0.n];
-    let cpy_size = t.t0.n;
-    for i in 0..cpy_size {
+    for i in 0..t.t0.n {
         result
             .sigmas
             .push(generate_authenticator(i, &mut t.t0, &matrix[i], &skey));
