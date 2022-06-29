@@ -20,7 +20,7 @@
   <!-- <HeapMaxSize>0x200000000</HeapMaxSize> -->
   
   <!-- The number of trusted threads -->
-  <TCSNum>1000</TCSNum>  
+  <TCSNum>10</TCSNum>  
 
   <!-- TCS management policy -->
   <TCSPolicy>0</TCSPolicy>  
