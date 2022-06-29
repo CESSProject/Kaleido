@@ -156,59 +156,20 @@ pub extern "C" fn process_data(
     println!("Data copied to Enclave in {:.2?}!", elapsed);
 
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-    //get skey byte
-    println!("skey:{:?}",skey.base_vector().to_vec());
-    //get pkey byte
-    println!("pkey:{:?}",pkey.base_vector().to_vec());
-    //get zr by byte
-    // let mut byte1 =vec![0u8; 32];
-    // byte1[0]=100;
-    // byte1[1]=100;
-    // byte1[2]=100;
-
-    // let zr = pbc::get_zr_from_byte(&vec![
-    //     100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-    //     100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-    // ]);
-    // println!("{}", zr.to_str());
-    // //get G1 from random
-    // let g1_rand = pbc::get_random_g1();
-    // println!("g1_rand {}", g1_rand.to_str());
-    // let g1_rand_clone = g1_rand.clone();
-    // println!("g1_rand_clone: {}", g1_rand_clone.to_str());
-    //
-    // //get G1 from hash
-    // let g1_hash = pbc::get_g1_from_hash(&hash(&vec![100, 100, 100]));
-    // println!("g1_hash {}", g1_hash.to_str());
-    //
-    // //get G1 from byte
-    // let g1_byte = pbc::get_g1_from_byte(&vec![250 163 242 126 204 231 186 56 145 3 68 202 99 201 153 98 100 85 234 89 229 73 24 174 18 62 210 215 18 245 235 166 1]);
-    // println!("G1 from byte:{:?}",g1_byte.base_vector().to_vec());
-    //
-    // // test g1_byte pow zr
-    // pbc::g1_pow_zn(&g1_rand, &zr);
-    // println!("g1_rand POW zr:{:?}", g1_rand.to_str());
-    //
-    // //test g1_zero mul zr
-    // let result = G1::zero();
-    // pbc::g1_mul_g1(&result, &g1_rand_clone);
-    // println!("G1 zero MUL g1_byte:{:?}", result.to_str());
-
 
     let result =
-    podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
+        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
     println!("sigmas:{:?}", result.sigmas);
     println!("");
     println!("t.t0.name:{:?}", result.t.t0.name);
     println!("");
-    println!("t.t0.u:{:?}",result.t.t0.u);
+    println!("t.t0.u:{:?}", result.t.t0.u);
     println!("");
-    println!("t.t0.n:{:?}",result.t.t0.n);
+    println!("t.t0.n:{:?}", result.t.t0.n);
     println!("");
-    println!("t.signature:{:?}",result.t.signature);
+    println!("t.signature:{:?}", result.t.signature);
     println!("");
-    println!("pkey:{:?}",pkey.base_vector());
-
+    println!("pkey:{:?}", pkey.base_vector());
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));

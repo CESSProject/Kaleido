@@ -25,14 +25,11 @@ pub fn podr2_proof_commit(
     let mut matrix: Vec<Vec<u8>> = Vec::new();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
-        t.t0.n = i + 1;
     });
+    t.t0.n = matrix.len();
+
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    // let zr = cess_bncurve::Zr::random();
-    let zr = pbc::get_zr_from_byte(&vec![
-        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-        100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-    ]);
+    let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.base_vector().to_vec();
     let mut u_num: usize = block_size;
     if block_size > data.len() {
@@ -50,8 +47,9 @@ pub fn podr2_proof_commit(
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
 
-    // let mut leaves_hashes = vec![vec![0u8; 32]; matrix.len()];
-    let cpy_size = matrix.len();
+    // Stores MHT leaves.
+    // let mut leaves_hashes = vec![vec![0u8; 32]; t.t0.n];
+    let cpy_size = t.t0.n;
     for i in 0..cpy_size {
         result
             .sigmas
@@ -60,7 +58,7 @@ pub fn podr2_proof_commit(
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
 
-    // // Generate MHT
+    // Generate MHT
     // let tree: MerkleTree<[u8; 32], Sha256Algorithm> = MerkleTree::from_data(
     //     leaves_hashes,
     // );
