@@ -44,6 +44,7 @@ extern "C" {
         data: *mut u8,
         data_len: usize,
         block_size: usize,
+        segment_size:usize,
         sig_len: &usize,
         multi_thread: bool,
     ) -> sgx_status_t;
@@ -151,6 +152,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             data.as_ptr() as *mut u8,
             data.len(),
             1024 * 1024, // 1MB block size gives the best results interms of speed.
+            1,
             &sig_len,
             true,
         )

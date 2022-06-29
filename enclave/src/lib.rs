@@ -147,6 +147,7 @@ pub extern "C" fn process_data(
     data: *mut u8,
     data_len: usize,
     block_size: usize,
+    segment_size:usize,
     sig_len: &mut usize,
     multi_thread: bool,
 ) -> sgx_status_t {
@@ -158,7 +159,7 @@ pub extern "C" fn process_data(
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
     let result =
-        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
+        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size,segment_size);
     println!("sigmas:{:?}", result.sigmas);
     println!("");
     println!("t.t0.name:{:?}", result.t.t0.name);

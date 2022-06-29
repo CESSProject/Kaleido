@@ -18,6 +18,7 @@ pub fn podr2_proof_commit(
     pkey: cess_bncurve::PublicKey,
     data: Vec<u8>,
     block_size: usize,
+    segment_size: usize,
 ) -> PoDR2CommitResponse {
     let mut result = PoDR2CommitResponse::new();
 
@@ -31,9 +32,14 @@ pub fn podr2_proof_commit(
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.base_vector().to_vec();
-    let mut u_num: usize = block_size;
+    let mut s: usize = block_size;
     if block_size > data.len() {
-        u_num = data.len();
+        s = data.len();
+    }
+    let mut u_num:usize=0;
+    u_num=s/segment_size;
+    if s%segment_size!=0{
+        u_num=u_num+1
     }
     let g1 = pbc::get_random_g1();
     //'Choose s random elements u1,...,us<——R——G'
