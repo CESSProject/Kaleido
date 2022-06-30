@@ -45,8 +45,10 @@ extern "C" {
         data_len: usize,
         block_size: usize,
         segment_size:usize,
-        sig_len: &usize,
-        multi_thread: bool,
+        sigmas_len:usize,
+        sigmas_ptr: *mut u8,
+        u_len:usize,
+        u_ptr: *mut u8,
     ) -> sgx_status_t;
     fn sign_message(
         eid: sgx_enclave_id_t,
@@ -142,19 +144,39 @@ fn test_process_data(enclave: &SgxEnclave) {
         gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
     println!("Get KeyGen success!");
+    let block_size:usize=1024*1024;
+    let segment_size:usize=1;
     let sig_len: usize = 0;
 
     let now = Instant::now();
+    let mut n =data.len()/block_size;
+    if data.len()%segment_size!=0{
+        n=n+1
+    }
+    let mut s: usize = block_size;
+    if block_size > data.len() {
+        s = data.len();
+    }
+    let mut u_num:usize=0;
+    u_num=s/segment_size;
+    if s%segment_size!=0{
+        u_num=u_num+1
+    }
+    let sigmas_ptr_index=vec![0u8,n];
+    let u_ptr_index=vec![0u8,u_num];
+
     let result = unsafe {
         process_data(
             enclave.geteid(),
             &mut retval,
             data.as_ptr() as *mut u8,
             data.len(),
-            1024 * 1024, // 1MB block size gives the best results interms of speed.
-            1,
-            &sig_len,
-            true,
+            block_size, // 1MB block size gives the best results interms of speed.
+            segment_size,
+            n,
+            sigmas_ptr_index.as_ptr() as *mut u8,
+            u_num,
+            u_ptr_index.as_ptr() as *mut u8,
         )
     };
 
@@ -168,58 +190,60 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
+    println!("outside sigmas_ptr_index is {:?}",sigmas_ptr_index.as_ptr());
+    println!("outside sigmas_ptr_index is {:?}",u_ptr_index.as_ptr());
 
     let elapsed = now.elapsed();
 
-    let mut pkey = vec![0u8; 65];
-    let mut signatures = vec![vec![0u8; 33]; sig_len];
+    // let mut pkey = vec![0u8; 65];
+    // let mut signatures = vec![vec![0u8; 33]; sig_len];
+    //
+    // let result = unsafe {
+    //     for i in 0..signatures.len() {
+    //         let res = get_signature(
+    //             enclave.geteid(),
+    //             &mut retval,
+    //             i,
+    //             signatures[i].len(),
+    //             signatures[i].as_mut_ptr() as *mut u8,
+    //         );
+    //         match res {
+    //             sgx_status_t::SGX_SUCCESS => {}
+    //             _ => {
+    //                 println!(
+    //                     "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+    //                     i,
+    //                     res.as_str()
+    //                 );
+    //                 return;
+    //             }
+    //         }
+    //     }
+    //     get_public_key(
+    //         enclave.geteid(),
+    //         &mut retval,
+    //         pkey.len(),
+    //         pkey.as_mut_ptr() as *mut u8,
+    //     )
+    // };
+    // match result {
+    //     sgx_status_t::SGX_SUCCESS => {}
+    //     _ => {
+    //         println!(
+    //             "[-] ECALL Enclave Failed to get PublicKey {}!",
+    //             result.as_str()
+    //         );
+    //         return;
+    //     }
+    // }
 
-    let result = unsafe {
-        for i in 0..signatures.len() {
-            let res = get_signature(
-                enclave.geteid(),
-                &mut retval,
-                i,
-                signatures[i].len(),
-                signatures[i].as_mut_ptr() as *mut u8,
-            );
-            match res {
-                sgx_status_t::SGX_SUCCESS => {}
-                _ => {
-                    println!(
-                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
-                        i,
-                        res.as_str()
-                    );
-                    return;
-                }
-            }
-        }
-        get_public_key(
-            enclave.geteid(),
-            &mut retval,
-            pkey.len(),
-            pkey.as_mut_ptr() as *mut u8,
-        )
-    };
-    match result {
-        sgx_status_t::SGX_SUCCESS => {}
-        _ => {
-            println!(
-                "[-] ECALL Enclave Failed to get PublicKey {}!",
-                result.as_str()
-            );
-            return;
-        }
-    }
-
-    println!("First Signature: {:?}", hex::encode(&signatures[0]));
-    println!(
-        "Last Signature: {:?}",
-        hex::encode(&signatures[signatures.len() - 1])
-    );
-    println!("PublicKey: {:?}", hex::encode(pkey));
-    println!("Number of Signatures: {}", &signatures.len());
+    // println!("First Signature: {:?}", hex::encode(&signatures[0]));
+    // println!(
+    //     "Last Signature: {:?}",
+    //     hex::encode(&signatures[signatures.len() - 1])
+    // );
+    // println!("PublicKey: {:?}", hex::encode(pkey));
+    // println!("Number of Signatures: {}", &signatures.len());
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 }
