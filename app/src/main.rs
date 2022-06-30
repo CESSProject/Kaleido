@@ -210,47 +210,47 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     let elapsed = now.elapsed();
 
-    let mut pkey = vec![0u8; 65];
-    let mut signatures = vec![vec![0u8; 33]; sig_len];
-
-    let result = unsafe {
-        for i in 0..signatures.len() {
-            let res = get_signature(
-                enclave.geteid(),
-                &mut retval,
-                i,
-                signatures[i].len(),
-                signatures[i].as_mut_ptr() as *mut u8,
-            );
-            match res {
-                sgx_status_t::SGX_SUCCESS => {}
-                _ => {
-                    println!(
-                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
-                        i,
-                        res.as_str()
-                    );
-                    return;
-                }
-            }
-        }
-        get_public_key(
-            enclave.geteid(),
-            &mut retval,
-            pkey.len(),
-            pkey.as_mut_ptr() as *mut u8,
-        )
-    };
-    match result {
-        sgx_status_t::SGX_SUCCESS => {}
-        _ => {
-            println!(
-                "[-] ECALL Enclave Failed to get PublicKey {}!",
-                result.as_str()
-            );
-            return;
-        }
-    }
+    // let mut pkey = vec![0u8; 65];
+    // let mut signatures = vec![vec![0u8; 33]; sig_len];
+    //
+    // let result = unsafe {
+    //     for i in 0..signatures.len() {
+    //         let res = get_signature(
+    //             enclave.geteid(),
+    //             &mut retval,
+    //             i,
+    //             signatures[i].len(),
+    //             signatures[i].as_mut_ptr() as *mut u8,
+    //         );
+    //         match res {
+    //             sgx_status_t::SGX_SUCCESS => {}
+    //             _ => {
+    //                 println!(
+    //                     "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+    //                     i,
+    //                     res.as_str()
+    //                 );
+    //                 return;
+    //             }
+    //         }
+    //     }
+    //     get_public_key(
+    //         enclave.geteid(),
+    //         &mut retval,
+    //         pkey.len(),
+    //         pkey.as_mut_ptr() as *mut u8,
+    //     )
+    // };
+    // match result {
+    //     sgx_status_t::SGX_SUCCESS => {}
+    //     _ => {
+    //         println!(
+    //             "[-] ECALL Enclave Failed to get PublicKey {}!",
+    //             result.as_str()
+    //         );
+    //         return;
+    //     }
+    // }
 
     // println!("First Signature: {:?}", hex::encode(&signatures[0]));
     // println!(

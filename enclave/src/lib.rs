@@ -187,38 +187,38 @@ pub extern "C" fn process_data(
         }
     }
 
-    let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-    let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    if multi_thread {
-        let mut handles = vec![];
-        let now = Instant::now();
-        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-            let chunk = chunk.to_vec().clone();
-            let skey = skey.clone();
-            let signatures = Arc::clone(&signatures);
-            let handle = thread::spawn(move || {
-                let sig = cess_bncurve::sign_message(&chunk, &skey);
-                let mut signature = signatures.lock().unwrap();
-                *signature.index_mut(i) = sig;
-            });
-            handles.push(handle);
-        });
-        for handle in handles {
-            handle.join().unwrap();
-        }
-        let elapsed = now.elapsed();
-        println!("Signatures computed in {:.2?}!", elapsed);
-    } else {
-        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-            let chunk = chunk.to_vec().clone();
-            let sig = cess_bncurve::sign_message(&chunk, &skey);
-            signatures.lock().unwrap()[i] = sig;
-        });
-    }
-
-    *sig_len = n_sig;
-
-    unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
+    // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
+    // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
+    // if multi_thread {
+    //     let mut handles = vec![];
+    //     let now = Instant::now();
+    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //         let chunk = chunk.to_vec().clone();
+    //         let skey = skey.clone();
+    //         let signatures = Arc::clone(&signatures);
+    //         let handle = thread::spawn(move || {
+    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
+    //             let mut signature = signatures.lock().unwrap();
+    //             *signature.index_mut(i) = sig;
+    //         });
+    //         handles.push(handle);
+    //     });
+    //     for handle in handles {
+    //         handle.join().unwrap();
+    //     }
+    //     let elapsed = now.elapsed();
+    //     println!("Signatures computed in {:.2?}!", elapsed);
+    // } else {
+    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //         let chunk = chunk.to_vec().clone();
+    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
+    //         signatures.lock().unwrap()[i] = sig;
+    //     });
+    // }
+    //
+    // *sig_len = n_sig;
+    //
+    // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
     sgx_status_t::SGX_SUCCESS
 }
