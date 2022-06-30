@@ -64,6 +64,13 @@ struct Signatures(Vec<G1>, PublicKey);
 
 static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
 
+
+struct Sigmas(Vec<Vec<u8>>);
+struct U(Vec<Vec<u8>>);
+const CONTEXT_LENGTH: usize =16;
+static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![vec![];CONTEXT_LENGTH]);
+static mut U_CONTEXT:U=U(vec![vec![];CONTEXT_LENGTH]);
+
 struct Keys {
     skey: SecretKey,
     pkey: PublicKey,
@@ -148,10 +155,9 @@ pub extern "C" fn process_data(
     data_len: usize,
     block_size: usize,
     segment_size:usize,
-    sigmas_len: usize,
-    sigmas_ptr: *mut u8,
-    u_len: usize,
-    u_ptr: *mut u8,
+    sigmas_len: &mut usize,
+    u_len: &mut usize,
+    context:usize,
 ) -> sgx_status_t {
     let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
@@ -173,66 +179,55 @@ pub extern "C" fn process_data(
     println!("t.signature:{:?}", result.t.signature);
     println!("");
     println!("pkey:{:?}", pkey.base_vector());
-
+    *sigmas_len=result.sigmas.len();
+    *u_len=result.t.t0.u.len();
     unsafe {
-        let mut sigmas_ptr_vec=vec![0u8;0];
-        for per_sigmas_ptr in result.sigmas.clone() {
-            sigmas_ptr_vec.push(per_sigmas_ptr.as_ptr() as u8)
+        for sigmas in result.sigmas {
+            SIGMAS_CONTEXT[context].append(sigmas)
         }
-        println!("");
-        println!("inside sigmas_ptr_vec:{:?}",sigmas_ptr_vec.clone());
-        ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
-        let mut u_ptr_vec=vec![0u8;0];
-        for per_u_ptr in result.sigmas.clone() {
-            u_ptr_vec.push(per_u_ptr.clone().as_ptr() as u8);
-        }
-        println!("");
-        println!("inside u_ptr_vec:{:?}",u_ptr_vec.clone());
-        ptr::copy_nonoverlapping(u_ptr_vec.as_ptr(), u_ptr, u_len);
     }
-    // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-    // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    // if multi_thread {
-    //     let mut handles = vec![];
-    //     let now = Instant::now();
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let skey = skey.clone();
-    //         let signatures = Arc::clone(&signatures);
-    //         let handle = thread::spawn(move || {
-    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //             let mut signature = signatures.lock().unwrap();
-    //             *signature.index_mut(i) = sig;
-    //         });
-    //         handles.push(handle);
-    //     });
-    //     for handle in handles {
-    //         handle.join().unwrap();
-    //     }
-    //     let elapsed = now.elapsed();
-    //     println!("Signatures computed in {:.2?}!", elapsed);
-    // } else {
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //         signatures.lock().unwrap()[i] = sig;
-    //     });
-    // }
-    //
-    // *sig_len = n_sig;
-    //
-    // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
+
+    let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
+    let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
+    if multi_thread {
+        let mut handles = vec![];
+        let now = Instant::now();
+        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+            let chunk = chunk.to_vec().clone();
+            let skey = skey.clone();
+            let signatures = Arc::clone(&signatures);
+            let handle = thread::spawn(move || {
+                let sig = cess_bncurve::sign_message(&chunk, &skey);
+                let mut signature = signatures.lock().unwrap();
+                *signature.index_mut(i) = sig;
+            });
+            handles.push(handle);
+        });
+        for handle in handles {
+            handle.join().unwrap();
+        }
+        let elapsed = now.elapsed();
+        println!("Signatures computed in {:.2?}!", elapsed);
+    } else {
+        d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+            let chunk = chunk.to_vec().clone();
+            let sig = cess_bncurve::sign_message(&chunk, &skey);
+            signatures.lock().unwrap()[i] = sig;
+        });
+    }
+
+    *sig_len = n_sig;
+
+    unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
     sgx_status_t::SGX_SUCCESS
 }
 
 #[no_mangle]
-pub extern "C" fn get_sigmas(g1_len: usize, sig_in: *mut u8, sig_out: *mut u8) {
-    println!("1111111111111111111111111111111111111111");
+pub extern "C" fn get_sigmas(context: usize, sigmas_len: usize, sigmas_out: *mut u8) {
     unsafe {
-        let per_sigmas = unsafe { slice::from_raw_parts(sig_in, g1_len).to_vec() };
-        println!("per_sigmas:{:?}",per_sigmas.clone());
-        ptr::copy_nonoverlapping(per_sigmas.as_ptr(), sig_out, g1_len);
+        let per_sigmas=&SIGMAS_CONTEXT.0[context];
+        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
     }
 }
 

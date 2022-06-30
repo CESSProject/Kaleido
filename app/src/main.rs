@@ -45,10 +45,9 @@ extern "C" {
         data_len: usize,
         block_size: usize,
         segment_size:usize,
-        sigmas_len:usize,
-        sigmas_ptr: *mut u8,
-        u_len:usize,
-        u_ptr: *mut u8,
+        sigmas_len:&usize,
+        u_len:&usize,
+        context: usize,
     ) -> sgx_status_t;
     fn sign_message(
         eid: sgx_enclave_id_t,
@@ -74,9 +73,9 @@ extern "C" {
     fn get_sigmas(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
-        g1_len: usize,
-        sig_in: *mut u8,
-        sig_out: *mut u8,
+        context: usize,
+        sigmas_len: usize,
+        sigmas_out: *mut u8,
     ) -> sgx_status_t;
 }
 
@@ -156,24 +155,8 @@ fn test_process_data(enclave: &SgxEnclave) {
     let sig_len: usize = 0;
 
     let now = Instant::now();
-    let mut n =data.len()/block_size;
-    if data.len()%block_size!=0{
-        n=n+1
-    }
-    let mut s: usize = block_size;
-    if block_size > data.len() {
-        s = data.len();
-    }
-    let mut u_num:usize=0;
-    u_num=s/segment_size;
-    if s%segment_size!=0{
-        u_num=u_num+1
-    }
-    let sigmas_ptr_vec=vec![0u8;n];
-    let u_ptr_vec=vec![0u8;u_num];
-
-    let sigmas=vec![vec![0u8];n];
-    let u=vec![vec![0u8];u_num];
+    let n:usize =0;
+    let u_num:usize=0;
 
     let result = unsafe {
         process_data(
@@ -183,13 +166,11 @@ fn test_process_data(enclave: &SgxEnclave) {
             data.len(),
             block_size, // 1MB block size gives the best results interms of speed.
             segment_size,
-            n,
-            sigmas_ptr_vec.as_ptr() as *mut u8,
-            u_num,
-            u_ptr_vec.as_ptr() as *mut u8,
+            &n,
+            &u_num,
+            1
         )
     };
-
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
@@ -200,77 +181,76 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-    println!("outside sigmas_ptr_vec is {:?}",sigmas_ptr_vec);
-    println!("outside u_ptr_vec is {:?}",u_ptr_vec);
-    let mut sigmas_i =0;
-    for sigmas_ptr in sigmas_ptr_vec {
-        println!("12121212222222222222222222222222222222222222222");
-        let result=unsafe {
-            println!("sigmas_ptr:{}",sigmas_ptr);
-            println!("sigmas[sigmas_i]:{:?}",sigmas[sigmas_i].as_ptr() as *mut u8);
-            get_sigmas(
+    println!("====================:{:}",n);
+    let mut sigmas =vec![vec![0u8; 33]; n];
+    let mut u=vec![vec![0u8;33];u_num];
+    let result = unsafe {
+        for i in 0..sigmas.len() {
+            let res = get_sigmas(
                 enclave.geteid(),
                 &mut retval,
-                33,
-                sigmas_ptr as *mut u8,
-                sigmas[sigmas_i].as_ptr() as *mut u8,
-            )
-        };
-        match result {
-            sgx_status_t::SGX_SUCCESS => {}
-            _ => {
-                println!(
-                    "[-] ECALL Enclave Failed for process_data {}!",
-                    result.as_str()
-                );
-                return;
+                1,
+                sigmas[i].len(),
+                sigmas[i].as_mut_ptr() as *mut u8,
+            );
+            match res {
+                sgx_status_t::SGX_SUCCESS => {}
+                _ => {
+                    println!(
+                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+                        i,
+                        res.as_str()
+                    );
+                    return;
+                }
             }
         }
-        sigmas_i=sigmas_i+1
-    }
+    };
+    println!("outside sigmas:{:?}",sigmas);
+
     let elapsed = now.elapsed();
 
-    // let mut pkey = vec![0u8; 65];
-    // let mut signatures = vec![vec![0u8; 33]; sig_len];
-    //
-    // let result = unsafe {
-    //     for i in 0..signatures.len() {
-    //         let res = get_signature(
-    //             enclave.geteid(),
-    //             &mut retval,
-    //             i,
-    //             signatures[i].len(),
-    //             signatures[i].as_mut_ptr() as *mut u8,
-    //         );
-    //         match res {
-    //             sgx_status_t::SGX_SUCCESS => {}
-    //             _ => {
-    //                 println!(
-    //                     "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
-    //                     i,
-    //                     res.as_str()
-    //                 );
-    //                 return;
-    //             }
-    //         }
-    //     }
-    //     get_public_key(
-    //         enclave.geteid(),
-    //         &mut retval,
-    //         pkey.len(),
-    //         pkey.as_mut_ptr() as *mut u8,
-    //     )
-    // };
-    // match result {
-    //     sgx_status_t::SGX_SUCCESS => {}
-    //     _ => {
-    //         println!(
-    //             "[-] ECALL Enclave Failed to get PublicKey {}!",
-    //             result.as_str()
-    //         );
-    //         return;
-    //     }
-    // }
+    let mut pkey = vec![0u8; 65];
+    let mut signatures = vec![vec![0u8; 33]; sig_len];
+
+    let result = unsafe {
+        for i in 0..signatures.len() {
+            let res = get_signature(
+                enclave.geteid(),
+                &mut retval,
+                i,
+                signatures[i].len(),
+                signatures[i].as_mut_ptr() as *mut u8,
+            );
+            match res {
+                sgx_status_t::SGX_SUCCESS => {}
+                _ => {
+                    println!(
+                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+                        i,
+                        res.as_str()
+                    );
+                    return;
+                }
+            }
+        }
+        get_public_key(
+            enclave.geteid(),
+            &mut retval,
+            pkey.len(),
+            pkey.as_mut_ptr() as *mut u8,
+        )
+    };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {}
+        _ => {
+            println!(
+                "[-] ECALL Enclave Failed to get PublicKey {}!",
+                result.as_str()
+            );
+            return;
+        }
+    }
 
     // println!("First Signature: {:?}", hex::encode(&signatures[0]));
     // println!(
