@@ -165,7 +165,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let now = Instant::now();
     let n:usize =0;
     let u_num:usize=0;
-    let mut name =vec![0u8; 32];
+    let mut name =vec![0u8; 33];
     let result = unsafe {
         process_data(
             enclave.geteid(),
