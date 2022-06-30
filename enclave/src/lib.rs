@@ -227,13 +227,13 @@ pub extern "C" fn process_data(
     sgx_status_t::SGX_SUCCESS
 }
 
-#[no_mangle]
-pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
-    unsafe {
-        let signature = &SIGNATURES.0[index];
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
-    }
-}
+// #[no_mangle]
+// pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
+//     unsafe {
+//         let signature = &SIGNATURES.0[index];
+//         ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+//     }
+// }
 
 /// For public key Enclave EDL requires the length of array to be passed along
 /// Make sure to pass the correct length of publickey being retrieved
