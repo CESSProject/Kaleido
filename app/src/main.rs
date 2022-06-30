@@ -49,6 +49,8 @@ extern "C" {
         u_len:&usize,
         name_len: usize,
         name_out: *mut u8,
+        sig_len: usize,
+        sig_out: *mut u8,
     ) -> sgx_status_t;
     fn sign_message(
         eid: sgx_enclave_id_t,
@@ -166,6 +168,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let n:usize =0;
     let u_num:usize=0;
     let mut name =vec![0u8; 32];
+    let mut sig=vec![0u8;33]
     let result = unsafe {
         process_data(
             enclave.geteid(),
@@ -178,6 +181,8 @@ fn test_process_data(enclave: &SgxEnclave) {
             &u_num,
             name.len(),
             name.as_mut_ptr() as *mut u8,
+            sig.len(),
+            sig.as_mut_ptr() as *mut u8,
         )
     };
     match result {
@@ -240,6 +245,7 @@ fn test_process_data(enclave: &SgxEnclave) {
         }
     };
 
+    println!("outside signature:{:?}",sig);
     println!("outside name:{:?}",name);
     println!("outside sigmas:{:?}",sigmas);
     println!("outside u:{:?}",u);

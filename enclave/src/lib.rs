@@ -159,6 +159,8 @@ pub extern "C" fn process_data(
     u_len: &mut usize,
     name_len: usize,
     name_out: *mut u8,
+    sig_len: usize,
+    sig_out: *mut u8,
     // context:usize,
 ) -> sgx_status_t {
     let now = Instant::now();
@@ -210,6 +212,10 @@ pub extern "C" fn process_data(
     //get name
     unsafe {
         ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), name_out, name_len);
+    }
+    //get sig
+    unsafe {
+        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), sig_out, sig_len);
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
