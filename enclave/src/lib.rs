@@ -173,10 +173,6 @@ pub extern "C" fn process_data(
     println!("t.signature:{:?}", result.t.signature);
     println!("");
     println!("pkey:{:?}", pkey.base_vector());
-    println!("");
-    println!("inside sigmas_ptr_index:{:?}",result.sigmas.as_slice().as_ptr());
-    println!("");
-    println!("inside u_ptr_index:{:?}",result.t.t0.u.as_slice().as_ptr());
 
     unsafe {
         let mut sigmas_ptr_vec=vec![0u8;0];
@@ -188,7 +184,8 @@ pub extern "C" fn process_data(
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
         let mut u_ptr_vec=vec![0u8;0];
         for per_u_ptr in result.sigmas.clone() {
-            u_ptr_vec.push(per_u_ptr.as_ptr() as u8)
+            u_ptr_vec.push(&per_u_ptr.as_ptr() as u8);
+            println!("{:}",&per_u_ptr.as_ptr() as u8)
         }
         println!("");
         println!("inside u_ptr_vec:{:?}",&u_ptr_vec);
@@ -228,6 +225,14 @@ pub extern "C" fn process_data(
     // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
     sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
+    unsafe {
+        let signature = &SIGNATURES.0[index];
+        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
+    }
 }
 
 /// For public key Enclave EDL requires the length of array to be passed along
