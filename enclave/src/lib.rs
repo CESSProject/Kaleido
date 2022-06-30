@@ -184,14 +184,14 @@ pub extern "C" fn process_data(
             sigmas_ptr_vec.push(*per_sigmas_ptr.as_ptr() as u8)
         }
         println!("");
-        println!("inside sigmas_ptr_vec:{:?}",sigmas_ptr_vec.clone());
+        println!("inside sigmas_ptr_vec:{:?}",sigmas_ptr_vec.clone().to_vec());
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
         let mut u_ptr_vec=vec![0u8];
         for per_u_ptr in result.sigmas.clone() {
             u_ptr_vec.push(*per_u_ptr.as_ptr() as u8)
         }
         println!("");
-        println!("inside u_ptr_vec:{:?}",u_ptr_vec.clone());
+        println!("inside u_ptr_vec:{:?}",u_ptr_vec.clone().to_vec());
         ptr::copy_nonoverlapping(u_ptr_vec.as_ptr(), u_ptr, u_len);
     }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
