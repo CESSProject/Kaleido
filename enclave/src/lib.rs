@@ -227,7 +227,7 @@ pub extern "C" fn process_data(
 pub extern "C" fn get_sigmas(context: usize, sigmas_len: usize, sigmas_out: *mut u8) {
     unsafe {
         let per_sigmas=&SIGMAS_CONTEXT.0[context];
-        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
+        ptr::copy_nonoverlapping(per_sigmas.as_ptr(), sigmas_out, sigmas_len);
     }
 }
 
