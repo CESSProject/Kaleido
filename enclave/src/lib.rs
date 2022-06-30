@@ -215,7 +215,7 @@ pub extern "C" fn process_data(
     }
     //get sig
     unsafe {
-        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), sig_out, sig_len);
+        ptr::copy_nonoverlapping(result.t.signature.as_ptr(), sig_out, sig_len);
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
