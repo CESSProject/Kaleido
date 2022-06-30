@@ -25,7 +25,7 @@ enclave {
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
         public sgx_status_t test_pbc();
         public sgx_status_t gen_keys([in, size=seed_len] uint8_t* seed, size_t seed_len);
-        public sgx_status_t process_data([in, size=data_len] uint8_t* data, size_t data_len, size_t block_size, size_t segment_size, [out] size_t* sigmas_len, [out] size_t* u_len);
+        public sgx_status_t process_data([in, size=data_len] uint8_t* data, size_t data_len, size_t block_size, size_t segment_size, [out] size_t* sigmas_len, [out] size_t* u_len , size_t name_len,[out, size=name_len] uint8_t* name_out);
         public sgx_status_t sign_message([in, size=data_len] uint8_t* data, size_t data_len, size_t sig_len, [out, size=sig_len] uint8_t* sig);
         public sgx_status_t get_public_key(size_t pkey_len, [out, size=pkey_len] uint8_t* pkey);
         public sgx_status_t get_signature(size_t index, size_t sig_len, [out, size=sig_len] uint8_t* sig);

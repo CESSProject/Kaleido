@@ -157,6 +157,8 @@ pub extern "C" fn process_data(
     segment_size:usize,
     sigmas_len: &mut usize,
     u_len: &mut usize,
+    name_len: usize,
+    name_out: *mut u8,
     // context:usize,
 ) -> sgx_status_t {
     let now = Instant::now();
@@ -181,6 +183,8 @@ pub extern "C" fn process_data(
     println!("pkey:{:?}", pkey.base_vector());
     *sigmas_len=result.sigmas.len();
     *u_len=result.t.t0.u.len();
+
+    //put sigmas
     let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
     let mut i =0;
     for mut per_sigmas in result.sigmas {
@@ -191,6 +195,7 @@ pub extern "C" fn process_data(
     unsafe {
         SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
+    //put U
     let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
     let mut j =0;
     for mut per_u in result.t.t0.u {
@@ -200,6 +205,11 @@ pub extern "C" fn process_data(
     }
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
+    }
+
+    //get name
+    unsafe {
+        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), name_out, name_len);
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
