@@ -153,10 +153,6 @@ fn test_process_data(enclave: &SgxEnclave) {
     if data.len()%block_size!=0{
         n=n+1
     }
-    println!("n:{:}",n);
-    println!("data.len:{:}",data.len());
-    println!("segmentsize:{:}",segment_size);
-    println!("data%segment_size:{:}",data.len()%segment_size);
     let mut s: usize = block_size;
     if block_size > data.len() {
         s = data.len();

@@ -181,12 +181,21 @@ pub extern "C" fn process_data(
     println!("result.sigmas length:{:?} sigmas_len:{:?}",result.sigmas.len(),sigmas_len);
     println!("");
     println!("result.t.t0.u length:{:?} u_len:{:?}",result.t.t0.u.len(),u_len);
+    let mut sigmas_ptr_vec=vec![0u8];
+    for per_sigmas_ptr in result.sigmas {
+        sigmas_ptr_vec.push(per_sigmas_ptr.as_ptr())
+    }
+
     unsafe {
-        let mut sigmas_ptr_vec=vec![0u8;sigmas_len];
-        ptr::copy_nonoverlapping(result.sigmas.as_ptr(), &mut sigmas_ptr_vec, sigmas_len);
+        let mut sigmas_ptr_vec=vec![0u8];
+        for per_sigmas_ptr in result.sigmas {
+            sigmas_ptr_vec.push(*per_sigmas_ptr.as_ptr())
+        }
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
-        let mut u_ptr_vec=vec![0u8;u_len];
-        ptr::copy_nonoverlapping(result.t.t0.u.as_ptr(), &mut u_ptr_vec, u_len);
+        let mut u_ptr_vec=vec![0u8];
+        for per_u_ptr in result.sigmas {
+            u_ptr_vec.push(*per_u_ptr.as_ptr())
+        }
         ptr::copy_nonoverlapping(u_ptr_vec.as_ptr(), u_ptr, u_len);
     }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
