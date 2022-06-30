@@ -184,8 +184,8 @@ pub extern "C" fn process_data(
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
         let mut u_ptr_vec=vec![0u8;0];
         for per_u_ptr in result.sigmas.clone() {
-            u_ptr_vec.push(&per_u_ptr.as_ptr() as u8);
-            println!("{:}",&per_u_ptr.as_ptr() as u8)
+            u_ptr_vec.push(per_u_ptr.clone().as_ptr() as u8);
+            println!("{:}",per_u_ptr.as_ptr() as u8)
         }
         println!("");
         println!("inside u_ptr_vec:{:?}",&u_ptr_vec);
