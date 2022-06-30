@@ -231,6 +231,7 @@ pub extern "C" fn get_sigmas(g1_len: usize, sig_in: *mut u8, sig_out: *mut u8) {
 
     unsafe {
         let per_sigmas = unsafe { slice::from_raw_parts(sig_in, g1_len).to_vec() };
+        println!("per_sigmas:{:?}",per_sigmas.clone());
         ptr::copy_nonoverlapping(per_sigmas.as_ptr(), sig_out, g1_len);
     }
 }
