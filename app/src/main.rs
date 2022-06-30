@@ -150,7 +150,7 @@ fn test_process_data(enclave: &SgxEnclave) {
 
     let now = Instant::now();
     let mut n =data.len()/block_size;
-    if data.len()%segment_size!=0{
+    if data.len()%block_size!=0{
         n=n+1
     }
     println!("n:{:}",n);
