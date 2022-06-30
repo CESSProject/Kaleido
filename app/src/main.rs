@@ -207,7 +207,7 @@ fn test_process_data(enclave: &SgxEnclave) {
         println!("12121212222222222222222222222222222222222222222");
         let result=unsafe {
             println!("sigmas_ptr:{:}",sigmas_ptr);
-            println!("sigmas[sigmas_i]:{:}",sigmas[sigmas_i].as_ptr());
+            println!("sigmas[sigmas_i]:{:}",sigmas[sigmas_i].as_slice().as_ptr());
             get_sigmas(
                 enclave.geteid(),
                 &mut retval,
