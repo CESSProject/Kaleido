@@ -71,6 +71,13 @@ extern "C" {
         sig_len: usize,
         sigs: *mut u8,
     ) -> sgx_status_t;
+    fn get_sigmas(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        g1_len: usize,
+        sig_in: *mut u8,
+        sig_out: *mut u8,
+    ) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -165,6 +172,9 @@ fn test_process_data(enclave: &SgxEnclave) {
     let sigmas_ptr_vec=vec![0u8;n];
     let u_ptr_vec=vec![0u8;u_num];
 
+    let sigmas=vec![vec![0u8];n];
+    let u=vec![vec![0u8];u_num];
+
     let result = unsafe {
         process_data(
             enclave.geteid(),
@@ -192,7 +202,29 @@ fn test_process_data(enclave: &SgxEnclave) {
     }
     println!("outside sigmas_ptr_vec is {:?}",sigmas_ptr_vec);
     println!("outside u_ptr_vec is {:?}",u_ptr_vec);
-
+    let mut sigmas_i =0;
+    for sigmas_ptr in sigmas_ptr_vec {
+    let result=unsafe {
+            get_sigmas(
+                enclave.geteid(),
+                &mut retval,
+                33,
+                sigmas_ptr as *mut u8,
+                sigmas[sigmas_i].as_ptr() as *mut u8,
+            )
+    };
+        match result {
+            sgx_status_t::SGX_SUCCESS => {}
+            _ => {
+                println!(
+                    "[-] ECALL Enclave Failed for process_data {}!",
+                    result.as_str()
+                );
+                return;
+            }
+        }
+        sigmas_i=sigmas_i+1
+    }
     let elapsed = now.elapsed();
 
     // let mut pkey = vec![0u8; 65];

@@ -29,5 +29,6 @@ enclave {
         public sgx_status_t sign_message([in, size=data_len] uint8_t* data, size_t data_len, size_t sig_len, [out, size=sig_len] uint8_t* sig);
         public sgx_status_t get_public_key(size_t pkey_len, [out, size=pkey_len] uint8_t* pkey);
         public sgx_status_t get_signature(size_t index, size_t sig_len, [out, size=sig_len] uint8_t* sig);
+        public sgx_status_t get_sigmas(size_t g1_len,[in, size=g1_len] uint8_t* sig_in, [out, size=g1_len] uint8_t* sig_out);
     };
 };
