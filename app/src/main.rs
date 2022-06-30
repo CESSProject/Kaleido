@@ -194,7 +194,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             let res = get_sigmas(
                 enclave.geteid(),
                 &mut retval,
-                1,
+                i,
                 sigmas[i].len(),
                 sigmas[i].as_mut_ptr() as *mut u8,
             );
@@ -216,7 +216,7 @@ fn test_process_data(enclave: &SgxEnclave) {
             let res = get_u(
                 enclave.geteid(),
                 &mut retval,
-                1,
+                i,
                 u[i].len(),
                 u[i].as_mut_ptr() as *mut u8,
             );
