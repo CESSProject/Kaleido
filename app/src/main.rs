@@ -162,8 +162,8 @@ fn test_process_data(enclave: &SgxEnclave) {
     if s%segment_size!=0{
         u_num=u_num+1
     }
-    let sigmas_ptr_index=vec![0u8,n];
-    let u_ptr_index=vec![0u8,u_num];
+    let sigmas_ptr_index=vec![0u8;n];
+    let u_ptr_index=vec![0u8;u_num];
 
     let result = unsafe {
         process_data(
