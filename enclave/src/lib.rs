@@ -64,6 +64,13 @@ struct Signatures(Vec<G1>, PublicKey);
 
 static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
 
+
+struct Sigmas(Vec<G1>);
+struct U(Vec<G1>);
+const CONTEXT_LENGTH: usize =16;
+static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![]);
+static mut U_CONTEXT:U=U(vec![]);
+
 struct Keys {
     skey: SecretKey,
     pkey: PublicKey,
@@ -147,8 +154,14 @@ pub extern "C" fn process_data(
     data: *mut u8,
     data_len: usize,
     block_size: usize,
-    sig_len: &mut usize,
-    multi_thread: bool,
+    segment_size:usize,
+    sigmas_len: &mut usize,
+    u_len: &mut usize,
+    name_len: usize,
+    name_out: *mut u8,
+    sig_len: usize,
+    sig_out: *mut u8,
+    // context:usize,
 ) -> sgx_status_t {
     let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
@@ -158,7 +171,7 @@ pub extern "C" fn process_data(
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
     let result =
-        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size);
+        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size,segment_size);
     println!("sigmas:{:?}", result.sigmas);
     println!("");
     println!("t.t0.name:{:?}", result.t.t0.name);
@@ -170,6 +183,40 @@ pub extern "C" fn process_data(
     println!("t.signature:{:?}", result.t.signature);
     println!("");
     println!("pkey:{:?}", pkey.base_vector());
+    *sigmas_len=result.sigmas.len();
+    *u_len=result.t.t0.u.len();
+
+    //put sigmas
+    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
+    let mut i =0;
+    for mut per_sigmas in result.sigmas {
+        let g1 = pbc::get_g1_from_byte(&per_sigmas);
+        sigmas.lock().unwrap()[i] = g1;
+        i=i+1
+    }
+    unsafe {
+        SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
+    }
+    //put U
+    let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
+    let mut j =0;
+    for mut per_u in result.t.t0.u {
+        let g1 = pbc::get_g1_from_byte(&per_u);
+        Ur.lock().unwrap()[j] = g1;
+        j=j+1
+    }
+    unsafe {
+        U_CONTEXT = U(Ur.lock().unwrap().to_vec());
+    }
+
+    //get name
+    unsafe {
+        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), name_out, name_len);
+    }
+    //get sig
+    unsafe {
+        ptr::copy_nonoverlapping(result.t.signature.as_ptr(), sig_out, sig_len);
+    }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
@@ -200,11 +247,27 @@ pub extern "C" fn process_data(
     //     });
     // }
     //
-    // *sig_len = n_sig;
+    // // *sig_len = n_sig;
     //
     // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
     sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u8) {
+    unsafe {
+        let per_sigmas=&SIGMAS_CONTEXT.0[index];
+        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_u(index: usize, u_len: usize, u_out: *mut u8) {
+    unsafe {
+        let per_u=&U_CONTEXT.0[index];
+        ptr::copy_nonoverlapping(per_u.base_vector().as_ptr(), u_out, u_len);
+    }
 }
 
 /// For public key Enclave EDL requires the length of array to be passed along
