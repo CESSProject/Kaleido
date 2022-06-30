@@ -196,6 +196,7 @@ pub extern "C" fn process_data(
         Ur.lock().unwrap()[i] = g1;
     }
     println!("------------------------------{:?}",Ur);
+    println!("============================={:?}",result.t.t0.u.len());
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec())
     }
