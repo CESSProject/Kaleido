@@ -190,13 +190,13 @@ pub extern "C" fn process_data(
     unsafe {
         SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
-    let U  = Arc::new(SgxMutex::new(vec![G1::zero(); result.t.t0.u.len()]));
+    let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); result.t.t0.u.len()]));
     for mut per in result.t.t0.u {
         let g1 = pbc::get_g1_from_byte(&per);
-        U.lock().unwrap()[i] = g1;
+        Ur.lock().unwrap()[i] = g1;
     }
     unsafe {
-        U_CONTEXT = U(sigmas.lock().unwrap().to_vec())
+        U_CONTEXT = U(Ur.lock().unwrap().to_vec())
     }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
