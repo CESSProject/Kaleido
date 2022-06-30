@@ -191,9 +191,10 @@ pub extern "C" fn process_data(
         SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
     let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
+    let j=0;
     for mut per_u in result.t.t0.u {
         let g1 = pbc::get_g1_from_byte(&per_u);
-        Ur.lock().unwrap()[i] = g1;
+        Ur.lock().unwrap()[j] = g1;
     }
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
