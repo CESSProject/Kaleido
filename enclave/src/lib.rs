@@ -182,8 +182,8 @@ pub extern "C" fn process_data(
     *sigmas_len=result.sigmas.len();
     *u_len=result.t.t0.u.len();
     unsafe {
-        for sigmas in result.sigmas {
-            SIGMAS_CONTEXT[context].append(sigmas)
+        for mut sigmas in result.sigmas {
+            SIGMAS_CONTEXT.0[context].append(&mut sigmas)
         }
     }
 
