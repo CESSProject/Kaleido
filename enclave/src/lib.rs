@@ -228,7 +228,7 @@ pub extern "C" fn process_data(
 
 #[no_mangle]
 pub extern "C" fn get_sigmas(g1_len: usize, sig_in: *mut u8, sig_out: *mut u8) {
-
+    println!("1111111111111111111111111111111111111111");
     unsafe {
         let per_sigmas = unsafe { slice::from_raw_parts(sig_in, g1_len).to_vec() };
         println!("per_sigmas:{:?}",per_sigmas.clone());
