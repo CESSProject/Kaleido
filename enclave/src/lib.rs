@@ -195,11 +195,13 @@ pub extern "C" fn process_data(
         let g1 = pbc::get_g1_from_byte(&per);
         Ur.lock().unwrap()[i] = g1;
     }
-    println!("------------------------------{:?}",Ur.lock().unwrap().to_vec());
     println!("============================={:?}",result.t.t0.u.len());
     unsafe {
-        U_CONTEXT = U(Ur.lock().unwrap().to_vec())
+        U_CONTEXT = U(Ur.lock().unwrap().to_vec());
+        println!("-------------------:{:?}",U_CONTEXT.0.len());
+        println!("-------------------:{:?}",U_CONTEXT.0[2])
     }
+
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
     // if multi_thread {
