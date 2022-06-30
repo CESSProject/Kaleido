@@ -195,6 +195,7 @@ pub extern "C" fn process_data(
         let g1 = pbc::get_g1_from_byte(&per);
         Ur.lock().unwrap()[i] = g1;
     }
+    println!("------------------------------{:?}",Ur);
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec())
     }
