@@ -148,9 +148,9 @@ pub extern "C" fn process_data(
     data_len: usize,
     block_size: usize,
     segment_size:usize,
-    sigmas_len:usize,
+    sigmas_len: usize,
     sigmas_ptr: *mut u8,
-    u_len:usize,
+    u_len: usize,
     u_ptr: *mut u8,
 ) -> sgx_status_t {
     let now = Instant::now();
@@ -180,8 +180,10 @@ pub extern "C" fn process_data(
     // unsafe {
     //     let mut sigmas_ptr_vec=vec![sigmas_ptr as u8];
     //     ptr::copy_nonoverlapping(result.sigmas.as_slice().as_ptr(), &mut sigmas_ptr_vec, sigmas_len);
+    //     ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
     //     let mut u_ptr_vec=vec![u_ptr as u8];
     //     ptr::copy_nonoverlapping(result.t.t0.u.as_slice().as_ptr(), &mut u_ptr_vec, u_len);
+    //     ptr::copy_nonoverlapping(u_ptr_vec.as_ptr(), u_ptr, u_len);
     // }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
