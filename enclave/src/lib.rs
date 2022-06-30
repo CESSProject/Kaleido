@@ -180,6 +180,7 @@ pub extern "C" fn process_data(
 
     unsafe {
         let mut sigmas_ptr_vec=vec![0u8];
+        println!("1111111111:{:?}",sigmas_ptr_vec.clone().to_vec());
         for per_sigmas_ptr in result.sigmas.clone() {
             sigmas_ptr_vec.push(per_sigmas_ptr.as_ptr() as u8)
         }
