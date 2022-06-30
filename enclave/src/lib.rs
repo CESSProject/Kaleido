@@ -184,12 +184,20 @@ pub extern "C" fn process_data(
     let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); result.sigmas.len()]));
     let i=0;
     for mut per in result.sigmas {
-        sigmas.lock().unwrap()[i] = per.as_slice() as G1;
+        let g1 = pbc::get_g1_from_byte(&per);
+        sigmas.lock().unwrap()[i] = g1;
     }
     unsafe {
-        SIGMAS_CONTEXT = SIGMAS_CONTEXT(sigmas.lock().unwrap().to_vec())
+        SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
-
+    let U  = Arc::new(SgxMutex::new(vec![G1::zero(); result.t.t0.u.len()]));
+    for mut per in result.t.t0.u {
+        let g1 = pbc::get_g1_from_byte(&per);
+        U.lock().unwrap()[i] = g1;
+    }
+    unsafe {
+        U_CONTEXT = U(sigmas.lock().unwrap().to_vec())
+    }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
     // if multi_thread {
@@ -231,6 +239,14 @@ pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u
     unsafe {
         let per_sigmas=&SIGMAS_CONTEXT.0[index];
         ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_u(index: usize, u_len: usize, u_out: *mut u8) {
+    unsafe {
+        let per_u=&U_CONTEXT.0[index];
+        ptr::copy_nonoverlapping(per_u.base_vector().as_ptr(), u_out, u_len);
     }
 }
 

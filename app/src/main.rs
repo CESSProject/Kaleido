@@ -76,6 +76,13 @@ extern "C" {
         sigmas_len: usize,
         sigmas_out: *mut u8,
     ) -> sgx_status_t;
+    fn get_u(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        index: usize,
+        u_len: usize,
+        u_out: *mut u8,
+    ) -> sgx_status_t;
 }
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
@@ -204,7 +211,30 @@ fn test_process_data(enclave: &SgxEnclave) {
             }
         }
     };
+    unsafe {
+        for i in 0..u.len() {
+            let res = get_u(
+                enclave.geteid(),
+                &mut retval,
+                1,
+                u[i].len(),
+                u[i].as_mut_ptr() as *mut u8,
+            );
+            match res {
+                sgx_status_t::SGX_SUCCESS => {}
+                _ => {
+                    println!(
+                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+                        i,
+                        res.as_str()
+                    );
+                    return;
+                }
+            }
+        }
+    };
     println!("outside sigmas:{:?}",sigmas);
+    println!("outside u:{:?}",u);
 
     let elapsed = now.elapsed();
 
