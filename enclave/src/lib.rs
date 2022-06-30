@@ -176,7 +176,7 @@ pub extern "C" fn process_data(
     println!("");
     println!("inside sigmas_ptr_index:{:?}",result.sigmas.as_slice().as_ptr());
     println!("");
-    println!("inside u_ptr_index:{:?}",esult.t.t0.u.as_slice().as_ptr());
+    println!("inside u_ptr_index:{:?}",result.t.t0.u.as_slice().as_ptr());
     // unsafe {
     //     let mut sigmas_ptr_vec=vec![sigmas_ptr as u8];
     //     ptr::copy_nonoverlapping(result.sigmas.as_slice().as_ptr(), &mut sigmas_ptr_vec, sigmas_len);
