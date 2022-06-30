@@ -181,14 +181,14 @@ pub extern "C" fn process_data(
     unsafe {
         let mut sigmas_ptr_vec=vec![0u8];
         for per_sigmas_ptr in result.sigmas.clone() {
-            sigmas_ptr_vec.push(*per_sigmas_ptr.as_ptr() as u8)
+            sigmas_ptr_vec.push(per_sigmas_ptr.as_ptr() as u8)
         }
         println!("");
         println!("inside sigmas_ptr_vec:{:?}",sigmas_ptr_vec.clone().to_vec());
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
         let mut u_ptr_vec=vec![0u8];
         for per_u_ptr in result.sigmas.clone() {
-            u_ptr_vec.push(*per_u_ptr.as_ptr() as u8)
+            u_ptr_vec.push(per_u_ptr.as_ptr() as u8)
         }
         println!("");
         println!("inside u_ptr_vec:{:?}",u_ptr_vec.clone().to_vec());
