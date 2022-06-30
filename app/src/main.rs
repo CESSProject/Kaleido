@@ -250,8 +250,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("outside sigmas:{:?}",sigmas);
     println!("outside u:{:?}",u);
 
-    let elapsed = now.elapsed();
-
+    // let elapsed = now.elapsed();
     // let mut pkey = vec![0u8; 65];
     // let mut signatures = vec![vec![0u8; 33]; sig_len];
     //
