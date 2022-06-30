@@ -199,7 +199,7 @@ pub extern "C" fn process_data(
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
         println!("-------------------:{:?}",U_CONTEXT.0.len());
-        println!("-------------------:{:?}",U_CONTEXT.0[2])
+        println!("-------------------:{:?}",U_CONTEXT.0[2].base_vector().to_vec())
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
