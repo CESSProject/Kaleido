@@ -162,8 +162,8 @@ fn test_process_data(enclave: &SgxEnclave) {
     if s%segment_size!=0{
         u_num=u_num+1
     }
-    let sigmas_ptr_index=vec![0u8;n];
-    let u_ptr_index=vec![0u8;u_num];
+    let sigmas_ptr_vec=vec![0u8;n];
+    let u_ptr_vec=vec![0u8;u_num];
 
     let result = unsafe {
         process_data(
@@ -174,9 +174,9 @@ fn test_process_data(enclave: &SgxEnclave) {
             block_size, // 1MB block size gives the best results interms of speed.
             segment_size,
             n,
-            sigmas_ptr_index.as_ptr() as *mut u8,
+            sigmas_ptr_vec.as_ptr() as *mut u8,
             u_num,
-            u_ptr_index.as_ptr() as *mut u8,
+            u_ptr_vec.as_ptr() as *mut u8,
         )
     };
 
@@ -190,8 +190,8 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-    println!("outside sigmas_ptr_index is {:?}",sigmas_ptr_index.as_ptr());
-    println!("outside sigmas_ptr_index is {:?}",u_ptr_index.as_ptr());
+    println!("outside sigmas_ptr_vec is {:?}",sigmas_ptr_vec);
+    println!("outside u_ptr_vec is {:?}",u_ptr_vec);
 
     let elapsed = now.elapsed();
 

@@ -177,21 +177,21 @@ pub extern "C" fn process_data(
     println!("inside sigmas_ptr_index:{:?}",result.sigmas.as_slice().as_ptr());
     println!("");
     println!("inside u_ptr_index:{:?}",result.t.t0.u.as_slice().as_ptr());
-    println!("");
-    println!("result.sigmas length:{:?} sigmas_len:{:?}",result.sigmas.len(),sigmas_len);
-    println!("");
-    println!("result.t.t0.u length:{:?} u_len:{:?}",result.t.t0.u.len(),u_len);
 
     unsafe {
         let mut sigmas_ptr_vec=vec![0u8];
         for per_sigmas_ptr in result.sigmas.clone() {
             sigmas_ptr_vec.push(*per_sigmas_ptr.as_ptr() as u8)
         }
+        println!("");
+        println!("inside sigmas_ptr_vec:{:?}",sigmas_ptr_vec.clone());
         ptr::copy_nonoverlapping(sigmas_ptr_vec.as_ptr(), sigmas_ptr, sigmas_len);
         let mut u_ptr_vec=vec![0u8];
         for per_u_ptr in result.sigmas.clone() {
             u_ptr_vec.push(*per_u_ptr.as_ptr() as u8)
         }
+        println!("");
+        println!("inside u_ptr_vec:{:?}",u_ptr_vec.clone());
         ptr::copy_nonoverlapping(u_ptr_vec.as_ptr(), u_ptr, u_len);
     }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
