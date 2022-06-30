@@ -181,7 +181,7 @@ pub extern "C" fn process_data(
     println!("pkey:{:?}", pkey.base_vector());
     *sigmas_len=result.sigmas.len();
     *u_len=result.t.t0.u.len();
-    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); result.sigmas.len()]));
+    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
     let i=0;
     for mut per in result.sigmas {
         let g1 = pbc::get_g1_from_byte(&per);
@@ -190,12 +190,11 @@ pub extern "C" fn process_data(
     unsafe {
         SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
-    let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); result.t.t0.u.len()]));
+    let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
     for mut per in result.t.t0.u {
         let g1 = pbc::get_g1_from_byte(&per);
         Ur.lock().unwrap()[i] = g1;
     }
-    println!("============================={:?}",result.t.t0.u.len());
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
         println!("-------------------:{:?}",U_CONTEXT.0.len());
