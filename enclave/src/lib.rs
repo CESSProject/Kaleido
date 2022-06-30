@@ -68,8 +68,8 @@ static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()
 struct Sigmas(Vec<Vec<u8>>);
 struct U(Vec<Vec<u8>>);
 const CONTEXT_LENGTH: usize =16;
-static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![vec![];CONTEXT_LENGTH]);
-static mut U_CONTEXT:U=U(vec![vec![];CONTEXT_LENGTH]);
+static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![vec![];16]);
+static mut U_CONTEXT:U=U(vec![vec![];16]);
 
 struct Keys {
     skey: SecretKey,
