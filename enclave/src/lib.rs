@@ -183,22 +183,20 @@ pub extern "C" fn process_data(
     *u_len=result.t.t0.u.len();
     let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
     let i=0;
-    for mut per in result.sigmas {
-        let g1 = pbc::get_g1_from_byte(&per);
+    for mut per_sigmas in result.sigmas {
+        let g1 = pbc::get_g1_from_byte(&per_sigmas);
         sigmas.lock().unwrap()[i] = g1;
     }
     unsafe {
         SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
     }
     let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
-    for mut per in result.t.t0.u {
-        let g1 = pbc::get_g1_from_byte(&per);
+    for mut per_u in result.t.t0.u {
+        let g1 = pbc::get_g1_from_byte(&per_u);
         Ur.lock().unwrap()[i] = g1;
     }
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
-        println!("-------------------:{:?}",U_CONTEXT.0.len());
-        println!("-------------------:{:?}",U_CONTEXT.0[2].base_vector().to_vec())
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
