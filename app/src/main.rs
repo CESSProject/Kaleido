@@ -47,7 +47,6 @@ extern "C" {
         segment_size:usize,
         sigmas_len:&usize,
         u_len:&usize,
-        context: usize,
     ) -> sgx_status_t;
     fn sign_message(
         eid: sgx_enclave_id_t,
@@ -73,7 +72,7 @@ extern "C" {
     fn get_sigmas(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
-        context: usize,
+        index: usize,
         sigmas_len: usize,
         sigmas_out: *mut u8,
     ) -> sgx_status_t;
@@ -168,7 +167,6 @@ fn test_process_data(enclave: &SgxEnclave) {
             segment_size,
             &n,
             &u_num,
-            1
         )
     };
     match result {
@@ -184,7 +182,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("====================:{:}",n);
     let mut sigmas =vec![vec![0u8; 33]; n];
     let mut u=vec![vec![0u8;33];u_num];
-    let result = unsafe {
+    unsafe {
         for i in 0..sigmas.len() {
             let res = get_sigmas(
                 enclave.geteid(),

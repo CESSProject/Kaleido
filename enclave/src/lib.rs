@@ -65,11 +65,11 @@ struct Signatures(Vec<G1>, PublicKey);
 static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
 
 
-struct Sigmas(Vec<Vec<u8>>);
-struct U(Vec<Vec<u8>>);
+struct Sigmas(Vec<G1>);
+struct U(Vec<G1>);
 const CONTEXT_LENGTH: usize =16;
-static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![vec![];16]);
-static mut U_CONTEXT:U=U(vec![vec![];16]);
+static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![]);
+static mut U_CONTEXT:U=U(vec![]);
 
 struct Keys {
     skey: SecretKey,
@@ -157,7 +157,7 @@ pub extern "C" fn process_data(
     segment_size:usize,
     sigmas_len: &mut usize,
     u_len: &mut usize,
-    context:usize,
+    // context:usize,
 ) -> sgx_status_t {
     let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
@@ -181,10 +181,13 @@ pub extern "C" fn process_data(
     println!("pkey:{:?}", pkey.base_vector());
     *sigmas_len=result.sigmas.len();
     *u_len=result.t.t0.u.len();
+    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); result.sigmas.len()]));
+    let i=0;
+    for mut per in result.sigmas {
+        sigmas.lock().unwrap()[i] = per.as_slice() as G1;
+    }
     unsafe {
-        for mut sigmas in result.sigmas {
-            SIGMAS_CONTEXT.0[context].append(&mut sigmas)
-        }
+        SIGMAS_CONTEXT = SIGMAS_CONTEXT(sigmas.lock().unwrap().to_vec())
     }
 
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
@@ -216,7 +219,7 @@ pub extern "C" fn process_data(
     //     });
     // }
     //
-    // *sig_len = n_sig;
+    // // *sig_len = n_sig;
     //
     // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
 
@@ -224,10 +227,10 @@ pub extern "C" fn process_data(
 }
 
 #[no_mangle]
-pub extern "C" fn get_sigmas(context: usize, sigmas_len: usize, sigmas_out: *mut u8) {
+pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u8) {
     unsafe {
-        let per_sigmas=&SIGMAS_CONTEXT.0[context];
-        ptr::copy_nonoverlapping(per_sigmas.as_ptr(), sigmas_out, sigmas_len);
+        let per_sigmas=&SIGMAS_CONTEXT.0[index];
+        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
     }
 }
 
