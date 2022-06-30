@@ -17,6 +17,8 @@
 
 extern crate sgx_types;
 extern crate sgx_urts;
+
+use actix_web::{web, App, HttpServer};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::ops::IndexMut;
@@ -26,6 +28,9 @@ use std::{
     thread,
     time::Instant,
 };
+
+mod app;
+mod routes;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -472,7 +477,10 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
     }
 
     println!("First Signature: {:?}", hex::encode(&signatures[0]));
-    println!("Last Signature: {:?}", hex::encode(&signatures[signatures.len() - 1]));
+    println!(
+        "Last Signature: {:?}",
+        hex::encode(&signatures[signatures.len() - 1])
+    );
 
     println!("Signatures:");
     for sig in &signatures {
@@ -480,13 +488,13 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
     }
 
     println!("First Signature: {:?}", hex::encode(&signatures[0]));
-    println!("Last Signature: {:?}", hex::encode(&signatures[signatures.len() - 1]));
+    println!(
+        "Last Signature: {:?}",
+        hex::encode(&signatures[signatures.len() - 1])
+    );
 
     println!("PublicKey: {:?}", hex::encode(pkey));
-    println!(
-        "Number of Signatures: {}",
-        &signatures.len()
-    );
+    println!("Number of Signatures: {}", &signatures.len());
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 }
@@ -587,18 +595,31 @@ fn test_sign_message(enclave: &SgxEnclave) {
     println!("[+] process_data success...");
 }
 
-fn main() {
-    let enclave = match init_enclave() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-            r
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let result = match init_enclave() {
+        Ok(enclave) => {
+            let eid = enclave.geteid();
+            println!("[+] Init Enclave Successful {}!", eid);
+            let res = HttpServer::new(move || {
+                let eid = eid.clone();
+                App::new()
+                    .app_data(web::Data::new(app::AppState { eid }))
+                    .service(routes::r_get_rng)
+            })
+            .bind(("0.0.0.0", 8080))?
+            .run()
+            .await?;
+            enclave.destroy();
+            Ok(res)
         }
         Err(x) => {
             println!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
+            panic!("Failed to start enclave!");
         }
     };
 
+    result
 
     // println!("*************************** TEST RNG *****************************");
     // test_rng(&enclave);
@@ -607,9 +628,9 @@ fn main() {
     // test_pbc_lib(&enclave);
     // println!("******************************************************************\n");
 
-    println!("*************************** TEST SIG *****************************");
-    test_process_data(&enclave); // Multi-thread within enclave.
-    println!("******************************************************************\n");
+    // println!("*************************** TEST SIG *****************************");
+    // test_process_data(&enclave); // Multi-thread within enclave.
+    // println!("******************************************************************\n");
 
     // println!("************************* TEST SIG MSG ***************************");
     // test_sign_message_single_thread(&enclave);
@@ -618,5 +639,5 @@ fn main() {
     // println!("********************** TEST MULTI SIG MSG ************************");
     // test_sign_message_multi_thread(&enclave);
     // println!("******************************************************************\n");
-    enclave.destroy();
+    // enclave.destroy();
 }
