@@ -177,12 +177,12 @@ pub extern "C" fn process_data(
     println!("inside sigmas_ptr_index:{:?}",result.sigmas.as_slice().as_ptr());
     println!("");
     println!("inside u_ptr_index:{:?}",esult.t.t0.u.as_slice().as_ptr());
-    unsafe {
-        let mut sigmas_ptr_vec=vec![sigmas_ptr as u8];
-        ptr::copy_nonoverlapping(result.sigmas.as_slice().as_ptr(), &mut sigmas_ptr_vec, sigmas_len);
-        let mut u_ptr_vec=vec![u_ptr as u8];
-        ptr::copy_nonoverlapping(result.t.t0.u.as_slice().as_ptr(), &mut u_ptr_vec, u_len);
-    }
+    // unsafe {
+    //     let mut sigmas_ptr_vec=vec![sigmas_ptr as u8];
+    //     ptr::copy_nonoverlapping(result.sigmas.as_slice().as_ptr(), &mut sigmas_ptr_vec, sigmas_len);
+    //     let mut u_ptr_vec=vec![u_ptr as u8];
+    //     ptr::copy_nonoverlapping(result.t.t0.u.as_slice().as_ptr(), &mut u_ptr_vec, u_len);
+    // }
     // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
     // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
     // if multi_thread {
