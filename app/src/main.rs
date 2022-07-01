@@ -30,69 +30,10 @@ use std::{
 };
 
 mod app;
+mod enclave_def;
 mod routes;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
-
-extern "C" {
-    fn get_rng(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        length: usize,
-        value: *mut u8,
-    ) -> sgx_status_t;
-    fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
-    fn gen_keys(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, seed: *const u8, seed_len: usize);
-    fn process_data(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        data: *mut u8,
-        data_len: usize,
-        block_size: usize,
-        segment_size:usize,
-        sigmas_len:&usize,
-        u_len:&usize,
-        name_len: usize,
-        name_out: *mut u8,
-        sig_len: usize,
-        sig_out: *mut u8,
-    ) -> sgx_status_t;
-    fn sign_message(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        data: *mut u8,
-        data_len: usize,
-        sig_len: usize,
-        sig: *mut u8,
-    ) -> sgx_status_t;
-    fn get_public_key(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        pkey_len: usize,
-        pkey: *mut u8,
-    ) -> sgx_status_t;
-    fn get_signature(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        index: usize,
-        sig_len: usize,
-        sigs: *mut u8,
-    ) -> sgx_status_t;
-    fn get_sigmas(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        index: usize,
-        sigmas_len: usize,
-        sigmas_out: *mut u8,
-    ) -> sgx_status_t;
-    fn get_u(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        index: usize,
-        u_len: usize,
-        u_out: *mut u8,
-    ) -> sgx_status_t;
-}
 
 fn init_enclave() -> SgxResult<SgxEnclave> {
     let mut launch_token: sgx_launch_token_t = [0; 1024];
@@ -119,7 +60,7 @@ fn test_rng(enclave: &SgxEnclave) {
     let mut retval = sgx_status_t::SGX_SUCCESS;
 
     let result = unsafe {
-        get_rng(
+        enclave_def::get_rng(
             enclave.geteid(),
             &mut retval,
             length,
@@ -139,7 +80,7 @@ fn test_rng(enclave: &SgxEnclave) {
 
 fn test_pbc_lib(enclave: &SgxEnclave) {
     let mut retval = sgx_status_t::SGX_SUCCESS;
-    let result = unsafe { test_pbc(enclave.geteid(), &mut retval) };
+    let result = unsafe { enclave_def::test_pbc(enclave.geteid(), &mut retval) };
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
@@ -162,7 +103,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let seed = String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
 
     unsafe {
-        gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+        enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
     println!("Get KeyGen success!");
     let block_size:usize=1024*1024;
@@ -175,7 +116,7 @@ fn test_process_data(enclave: &SgxEnclave) {
     let mut name =vec![0u8; 32];
     let mut sig=vec![0u8;33];
     let result = unsafe {
-        process_data(
+        enclave_def::process_data(
             enclave.geteid(),
             &mut retval,
             data.as_ptr() as *mut u8,
@@ -203,10 +144,11 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("====================:{:}",n);
     let mut sigmas =vec![vec![0u8; 33]; n];
     let mut u=vec![vec![0u8;33];u_num];
+    
     //get sigmas
     unsafe {
         for i in 0..sigmas.len() {
-            let res = get_sigmas(
+            let res = enclave_def::get_sigmas(
                 enclave.geteid(),
                 &mut retval,
                 i,
@@ -226,10 +168,11 @@ fn test_process_data(enclave: &SgxEnclave) {
             }
         }
     };
+
     //get u
     unsafe {
         for i in 0..u.len() {
-            let res = get_u(
+            let res = enclave_def::get_u(
                 enclave.geteid(),
                 &mut retval,
                 i,
@@ -326,7 +269,7 @@ fn test_sign_message_multi_thread(enclave: &SgxEnclave) {
     let block_size: usize = 1024 * 1024; // 1MB block size gives the best results interms of speed.
 
     unsafe {
-        gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+        enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
     let sig_len: usize = 0;
 
@@ -341,7 +284,7 @@ fn test_sign_message_multi_thread(enclave: &SgxEnclave) {
         let handle = thread::spawn(move || {
             let mut sig = vec![0u8; 33];
             let result = unsafe {
-                sign_message(
+                enclave_def::sign_message(
                     eid,
                     &mut retval,
                     chunk.as_ptr() as *mut _,
@@ -377,7 +320,7 @@ fn test_sign_message_multi_thread(enclave: &SgxEnclave) {
     let mut pkey = vec![0u8; 65];
 
     let result = unsafe {
-        get_public_key(
+        enclave_def::get_public_key(
             enclave.geteid(),
             &mut retval,
             pkey.len(),
@@ -422,14 +365,14 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
     let mut signatures: Vec<Vec<u8>> = Vec::new();
 
     unsafe {
-        gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+        enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
 
     let now = Instant::now();
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         let mut sig = vec![0u8; 33];
         let result = unsafe {
-            sign_message(
+            enclave_def::sign_message(
                 enclave.geteid(),
                 &mut retval,
                 chunk.as_ptr() as *mut _,
@@ -458,7 +401,7 @@ fn test_sign_message_single_thread(enclave: &SgxEnclave) {
     let mut pkey = vec![0u8; 65];
 
     let result = unsafe {
-        get_public_key(
+        enclave_def::get_public_key(
             enclave.geteid(),
             &mut retval,
             pkey.len(),
@@ -515,7 +458,7 @@ fn test_sign_message(enclave: &SgxEnclave) {
     let mut signatures = Arc::new(Mutex::new(vec![vec![0u8; 33]; n_sig]));
 
     unsafe {
-        gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+        enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
 
     let now = Instant::now();
@@ -529,7 +472,7 @@ fn test_sign_message(enclave: &SgxEnclave) {
         let handle = thread::spawn(move || {
             let mut sig = vec![0u8; 33];
             let result = unsafe {
-                sign_message(
+                enclave_def::sign_message(
                     eid,
                     &mut retval,
                     chunk.as_ptr() as *mut _,
@@ -565,7 +508,7 @@ fn test_sign_message(enclave: &SgxEnclave) {
     let mut pkey = vec![0u8; 65];
 
     let result = unsafe {
-        get_public_key(
+        enclave_def::get_public_key(
             enclave.geteid(),
             &mut retval,
             pkey.len(),
@@ -601,11 +544,25 @@ async fn main() -> std::io::Result<()> {
         Ok(enclave) => {
             let eid = enclave.geteid();
             println!("[+] Init Enclave Successful {}!", eid);
+
+            // Generate Deterministic Key using ENCLAVE_KEY_SEED
+            // This will be removed later as the keys will be generated within enclave.
+            let seed =
+                String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
+            let mut retval = sgx_status_t::SGX_SUCCESS;
+            unsafe {
+                enclave_def::gen_keys(eid, &mut retval, seed.as_ptr(), seed.len());
+            }
+            if retval != sgx_status_t::SGX_SUCCESS {
+                enclave.destroy();
+                panic!("Failed to generate key pair");
+            }
+
             let res = HttpServer::new(move || {
                 let eid = eid.clone();
                 App::new()
                     .app_data(web::Data::new(app::AppState { eid }))
-                    .service(routes::r_get_rng)
+                    .service(routes::r_process_data)
             })
             .bind(("0.0.0.0", 8080))?
             .run()

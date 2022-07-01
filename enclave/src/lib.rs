@@ -136,9 +136,6 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
         KEYS.gen_keys(s);
     }
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-    println!("{}", skey);
-    println!("{}", pkey);
-    println!("{}", _sig);
     sgx_status_t::SGX_SUCCESS
 }
 
