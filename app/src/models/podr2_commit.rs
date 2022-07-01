@@ -8,14 +8,14 @@ use serde::{Deserialize, Serialize};
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 pub struct FileTagT {
     pub t0: T0,
     pub signature: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 pub struct T0 {
     pub name: String,
     pub n: usize,
@@ -37,7 +37,7 @@ impl FileTagT {
 
 //PoDR2CommitResponse structure
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 pub struct PoDR2CommitResponse {
     pub t: FileTagT,
     pub sigmas: Vec<String>,
@@ -52,4 +52,12 @@ impl PoDR2CommitResponse {
             pkey: String::new(),
         } 
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2CommitRequest {
+    pub data: Vec<u8>,
+    pub block_size: usize,
+    pub segment_size: usize,
 }

@@ -6,18 +6,17 @@ use sgx_types::*;
 
 use crate::app::AppState;
 use crate::enclave_def;
-use crate::models::podr2_commit::PoDR2CommitResponse;
+use crate::models::podr2_commit::{PoDR2CommitResponse, PoDR2CommitRequest};
 use std::time::Instant;
 
 // r_ is appended to identify routes
 #[post("/process_data")]
-pub async fn r_process_data(data: web::Data<AppState>) -> impl Responder {
+pub async fn r_process_data(data: web::Data<AppState>, req: web::Json<PoDR2CommitRequest>) -> impl Responder {
     let eid = data.eid;
 
-    // TODO: Process received data from post.
-    let data: Vec<u8> = vec![123, 12, 23];
-    let block_size: usize = 1024 * 1024;
-    let segment_size: usize = 1;
+    let data: Vec<u8> = req.data.clone();
+    let block_size: usize = req.block_size;
+    let segment_size: usize = req.segment_size;
 
     let now = Instant::now();
     let mut retval = sgx_status_t::SGX_SUCCESS;
