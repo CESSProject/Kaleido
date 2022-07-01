@@ -32,6 +32,7 @@ use std::{
 mod app;
 mod enclave_def;
 mod routes;
+mod models;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
