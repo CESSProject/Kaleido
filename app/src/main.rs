@@ -144,9 +144,8 @@ fn test_process_data(enclave: &SgxEnclave) {
     println!("====================:{:}",n);
     let mut sigmas =vec![vec![0u8; 33]; n];
     let mut u=vec![vec![0u8;33];u_num];
-    
-    //get sigmas
     unsafe {
+        // get sigmas
         for i in 0..sigmas.len() {
             let res = enclave_def::get_sigmas(
                 enclave.geteid(),
@@ -167,10 +166,8 @@ fn test_process_data(enclave: &SgxEnclave) {
                 }
             }
         }
-    };
 
-    //get u
-    unsafe {
+        //get u
         for i in 0..u.len() {
             let res = enclave_def::get_u(
                 enclave.geteid(),
