@@ -1,0 +1,55 @@
+extern crate alloc;
+
+use std::string;
+
+use alloc::string::String;
+use alloc::vec::Vec;
+use serde::{Deserialize, Serialize};
+
+//filetag struct
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct FileTagT {
+    pub t0: T0,
+    pub signature: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct T0 {
+    pub name: String,
+    pub n: usize,
+    pub u: Vec<String>,
+}
+
+impl FileTagT {
+    pub fn new() -> FileTagT {
+        FileTagT {
+            t0: T0 {
+                name: String::new(),
+                n: 0,
+                u: Vec::new(),
+            },
+            signature: String::new(),
+        }
+    }
+}
+
+//PoDR2CommitResponse structure
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct PoDR2CommitResponse {
+    pub t: FileTagT,
+    pub sigmas: Vec<String>,
+    pub pkey: String,
+}
+
+impl PoDR2CommitResponse {
+    pub fn new() -> PoDR2CommitResponse {
+        PoDR2CommitResponse {
+            t: FileTagT::new(),
+            sigmas: Vec::new(),
+            pkey: String::new(),
+        } 
+    }
+}
