@@ -1,13 +1,17 @@
 [package]
 name = "app"
-version = "1.0.0"
+version = "0.0.1"
 authors = ["CESS Labs"]
 build = "build.rs"
+edition = "2021"
 
 [dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 hex = "0.4"
+actix-web = "^4"
+serde = { version = "^1.0", features = ["derive"] }
+serde_json = "^1"
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
