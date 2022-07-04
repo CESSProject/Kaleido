@@ -1,23 +1,32 @@
 extern crate base64;
 
 use actix_web::http::header::ContentType;
-use actix_web::{post, web, HttpResponse, Responder};
+use actix_web::{post, web, HttpResponse, Responder, error};
 use sgx_types::*;
 
 use crate::app::AppState;
 use crate::enclave_def;
-use crate::models::podr2_commit::{PoDR2CommitResponse, PoDR2CommitRequest};
+use crate::models::podr2_commit::{PoDR2CommitRequest, PoDR2CommitResponse, PoDR2CommitError};
 use std::time::Instant;
 
 // r_ is appended to identify routes
 #[post("/process_data")]
-pub async fn r_process_data(data: web::Data<AppState>, req: web::Json<PoDR2CommitRequest>) -> impl Responder {
+pub async fn r_process_data(
+    data: web::Data<AppState>,
+    req: web::Json<PoDR2CommitRequest>,
+) -> Result<impl Responder, PoDR2CommitError> {
+
+    println!("Request: {:?}", req);
     let eid = data.eid;
 
     let data_base64: String = req.data.clone();
     let block_size: usize = req.block_size;
     let segment_size: usize = req.segment_size;
-    let file_data =base64::decode(data_base64)?;
+    let file_data = base64::decode(data_base64);
+    let file_data = match file_data {
+        Ok(data) => data,
+        Err(_) => return Err(PoDR2CommitError{message: Some("Invalid base64 encoded data.".to_string())})
+    };
 
     let now = Instant::now();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -71,9 +80,10 @@ pub async fn r_process_data(data: web::Data<AppState>, req: web::Json<PoDR2Commi
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 
-    HttpResponse::Ok()
-        .content_type(ContentType::json())
-        .body(serde_json::to_string(&commit_res).unwrap())
+    Ok(HttpResponse::Ok()
+    .content_type(ContentType::json())
+    .body(serde_json::to_string(&commit_res).unwrap()))
+    
 }
 
 // TODO: Return Result<T, E> instead
