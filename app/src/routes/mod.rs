@@ -14,9 +14,10 @@ use std::time::Instant;
 pub async fn r_process_data(data: web::Data<AppState>, req: web::Json<PoDR2CommitRequest>) -> impl Responder {
     let eid = data.eid;
 
-    let data: Vec<u8> = req.data.clone();
+    let data_base64: String = req.data.clone();
     let block_size: usize = req.block_size;
     let segment_size: usize = req.segment_size;
+    let file_data =base64::decode(data_base64)?;
 
     let now = Instant::now();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -29,8 +30,8 @@ pub async fn r_process_data(data: web::Data<AppState>, req: web::Json<PoDR2Commi
         enclave_def::process_data(
             eid,
             &mut retval,
-            data.as_ptr() as *mut u8,
-            data.len(),
+            file_data.as_ptr() as *mut u8,
+            file_data.len(),
             block_size, // 1MB block size gives the best results interms of speed.
             segment_size,
             &sigmas_len,
