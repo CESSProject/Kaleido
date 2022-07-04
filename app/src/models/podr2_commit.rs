@@ -1,10 +1,10 @@
 extern crate alloc;
 
-use std::string;
-
+use actix_web::{error::ResponseError, http::StatusCode, HttpResponse};
 use alloc::string::String;
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]
@@ -50,7 +50,7 @@ impl PoDR2CommitResponse {
             t: FileTagT::new(),
             sigmas: Vec::new(),
             pkey: String::new(),
-        } 
+        }
     }
 }
 
@@ -60,4 +60,44 @@ pub struct PoDR2CommitRequest {
     pub data: String,
     pub block_size: usize,
     pub segment_size: usize,
+}
+
+#[derive(Debug)]
+pub struct PoDR2CommitError {
+    pub message: Option<String>,
+}
+
+impl PoDR2CommitError {
+    fn message(&self) -> String {
+        match &*self {
+            PoDR2CommitError {
+                message: Some(message),
+            } => message.clone(),
+            PoDR2CommitError { message: None } => "An unexpected error has occurred".to_string(),
+        }
+    }
+}
+
+impl fmt::Display for PoDR2CommitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2CommitErrorResponse {
+    pub error: String,
+}
+
+impl ResponseError for PoDR2CommitError {
+    fn status_code(&self) -> actix_web::http::StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn error_response(&self) -> actix_web::HttpResponse {
+        HttpResponse::build(self.status_code()).json(PoDR2CommitErrorResponse {
+            error: self.message(),
+        })
+    }
 }

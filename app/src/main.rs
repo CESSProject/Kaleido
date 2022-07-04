@@ -562,7 +562,7 @@ async fn main() -> std::io::Result<()> {
                     .app_data(web::Data::new(app::AppState { eid }))
                     .service(routes::r_process_data)
             })
-            .bind(("0.0.0.0", 8081))?
+            .bind(("0.0.0.0", 8080))?
             .run()
             .await?;
             enclave.destroy();
