@@ -98,6 +98,8 @@ impl Keys {
                 SIGNATURES.1 = pkey;
             }
             self.generated = true;
+            println!("{}", skey.to_str());
+            println!("{}", pkey.to_str());
         }
     }
 
@@ -169,20 +171,19 @@ pub extern "C" fn process_data(
 
     let result =
         podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size,segment_size);
-    println!("sigmas:{:?}", result.sigmas);
-    println!("");
-    println!("t.t0.name:{:?}", result.t.t0.name);
-    println!("");
-    println!("t.t0.u:{:?}", result.t.t0.u);
-    println!("");
-    println!("t.t0.n:{:?}", result.t.t0.n);
-    println!("");
-    println!("t.signature:{:?}", result.t.signature);
-    println!("");
-    println!("pkey:{:?}", pkey.base_vector());
+
+    for s in &result.sigmas {
+        println!("s: {}", u8v_to_hexstr(&s));
+    }
+    for u in &result.t.t0.u {
+        println!("u: {}", u8v_to_hexstr(&u));
+    }
+    println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
+    println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
+    println!("pkey:{:?}", pkey.to_str());
+
     *sigmas_len=result.sigmas.len();
     *u_len=result.t.t0.u.len();
-
     //put sigmas
     let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
     let mut i =0;

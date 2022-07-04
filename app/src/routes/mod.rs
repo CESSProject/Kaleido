@@ -1,12 +1,12 @@
 extern crate base64;
 
 use actix_web::http::header::ContentType;
-use actix_web::{post, web, HttpResponse, Responder, error};
+use actix_web::{error, post, web, HttpResponse, Responder};
 use sgx_types::*;
 
 use crate::app::AppState;
 use crate::enclave_def;
-use crate::models::podr2_commit::{PoDR2CommitRequest, PoDR2CommitResponse, PoDR2CommitError};
+use crate::models::podr2_commit::{PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse};
 use std::time::Instant;
 
 // r_ is appended to identify routes
@@ -15,7 +15,6 @@ pub async fn r_process_data(
     data: web::Data<AppState>,
     req: web::Json<PoDR2CommitRequest>,
 ) -> Result<impl Responder, PoDR2CommitError> {
-
     println!("Request: {:?}", req);
     let eid = data.eid;
 
@@ -25,7 +24,11 @@ pub async fn r_process_data(
     let file_data = base64::decode(data_base64);
     let file_data = match file_data {
         Ok(data) => data,
-        Err(_) => return Err(PoDR2CommitError{message: Some("Invalid base64 encoded data.".to_string())})
+        Err(_) => {
+            return Err(PoDR2CommitError {
+                message: Some("Invalid base64 encoded data.".to_string()),
+            })
+        }
     };
 
     let now = Instant::now();
@@ -65,29 +68,31 @@ pub async fn r_process_data(
 
     let elapsed = now.elapsed();
     let mut commit_res = PoDR2CommitResponse::new();
-    commit_res.pkey = get_public_key(eid);
-    commit_res.sigmas = get_sigmas(eid, sigmas_len);
+    commit_res.pkey = get_public_key(eid)?;
+    commit_res.sigmas = get_sigmas(eid, sigmas_len)?;
     commit_res.t.signature = base64::encode(sig);
     commit_res.t.t0.name = base64::encode(name);
     commit_res.t.t0.n = sigmas_len;
-    commit_res.t.t0.u = get_u(eid, u_len);
+    commit_res.t.t0.u = get_u(eid, u_len)?;
 
-    println!("outside publicKey:{:?}", commit_res.pkey);
-    println!("outside signature:{:?}", commit_res.t.signature);
-    println!("outside name:{:?}", commit_res.t.t0.name);
-    println!("outside sigmas:{:?}", commit_res.sigmas);
-    println!("outside u:{:?}", commit_res.t.t0.u);
+    println!(
+        "************************ PoDR2Commit Result - BASE64 ENCODED ************************"
+    );
+    println!("PKey: {:?}", commit_res.pkey);
+    println!("signature: {:?}", commit_res.t.signature);
+    println!("name: {:?}", commit_res.t.t0.name);
+    println!("sigmas: {:?}", commit_res.sigmas);
+    println!("u: {:?}", commit_res.t.t0.u);
     println!("Signatures generated in {:.2?}!", elapsed);
     println!("[+] process_data success...");
 
     Ok(HttpResponse::Ok()
-    .content_type(ContentType::json())
-    .body(serde_json::to_string(&commit_res).unwrap()))
-    
+        .content_type(ContentType::json())
+        .body(serde_json::to_string(&commit_res).unwrap()))
 }
 
 // TODO: Return Result<T, E> instead
-fn get_public_key(eid: u64) -> String {
+fn get_public_key(eid: u64) -> Result<String, PoDR2CommitError> {
     let mut pkey = vec![0u8; 65];
     let mut retval = sgx_status_t::SGX_SUCCESS;
 
@@ -102,14 +107,17 @@ fn get_public_key(eid: u64) -> String {
                     "[-] ECALL Enclave Failed to get Publickey, {}!",
                     res.as_str()
                 );
+                return Err(PoDR2CommitError {
+                    message: Some("Failed to get PublicKey".to_string()),
+                });
             }
         }
     };
-    base64::encode(pkey)
+    Ok(base64::encode(pkey))
 }
 
 // TODO: Return Result<T, E> instead
-fn get_sigmas(eid: u64, len: usize) -> Vec<String> {
+fn get_sigmas(eid: u64, len: usize) -> Result<Vec<String>, PoDR2CommitError> {
     let mut sigmas = vec![vec![0u8; 33]; len];
     let mut retval = sgx_status_t::SGX_SUCCESS;
     unsafe {
@@ -130,6 +138,9 @@ fn get_sigmas(eid: u64, len: usize) -> Vec<String> {
                         i,
                         res.as_str()
                     );
+                    return Err(PoDR2CommitError {
+                        message: Some("Failed to get Signatures".to_string()),
+                    });
                 }
             }
         }
@@ -138,11 +149,11 @@ fn get_sigmas(eid: u64, len: usize) -> Vec<String> {
     for sigma in sigmas {
         sigmas_encoded.push(base64::encode(sigma))
     }
-    sigmas_encoded
+    Ok(sigmas_encoded)
 }
 
 // TODO: Return Result<T, E> instead
-fn get_u(eid: u64, len: usize) -> Vec<String> {
+fn get_u(eid: u64, len: usize) -> Result<Vec<String>, PoDR2CommitError> {
     let mut us = vec![vec![0u8; 33]; len];
     let mut retval = sgx_status_t::SGX_SUCCESS;
     unsafe {
@@ -159,10 +170,13 @@ fn get_u(eid: u64, len: usize) -> Vec<String> {
                 sgx_status_t::SGX_SUCCESS => {}
                 _ => {
                     println!(
-                        "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
+                        "[-] ECALL Enclave Failed to get u at index: {}, {}!",
                         i,
                         res.as_str()
                     );
+                    return Err(PoDR2CommitError {
+                        message: Some("Failed to get u".to_string()),
+                    });
                 }
             }
         }
@@ -171,5 +185,5 @@ fn get_u(eid: u64, len: usize) -> Vec<String> {
     for u in us {
         u_encoded.push(base64::encode(u))
     }
-    u_encoded
+    Ok(u_encoded)
 }
