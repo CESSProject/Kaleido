@@ -31,8 +31,8 @@ use std::{
 
 mod app;
 mod enclave_def;
-mod routes;
 mod models;
+mod routes;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -107,15 +107,15 @@ fn test_process_data(enclave: &SgxEnclave) {
         enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
     }
     println!("Get KeyGen success!");
-    let block_size:usize=1024*1024;
-    let segment_size:usize=1;
+    let block_size: usize = 1024 * 1024;
+    let segment_size: usize = 1;
     let sig_len: usize = 0;
 
     let now = Instant::now();
-    let n:usize =0;
-    let u_num:usize=0;
-    let mut name =vec![0u8; 32];
-    let mut sig=vec![0u8;33];
+    let n: usize = 0;
+    let u_num: usize = 0;
+    let mut name = vec![0u8; 32];
+    let mut sig = vec![0u8; 33];
     let result = unsafe {
         enclave_def::process_data(
             enclave.geteid(),
@@ -142,9 +142,9 @@ fn test_process_data(enclave: &SgxEnclave) {
             return;
         }
     }
-    println!("====================:{:}",n);
-    let mut sigmas =vec![vec![0u8; 33]; n];
-    let mut u=vec![vec![0u8;33];u_num];
+    println!("====================:{:}", n);
+    let mut sigmas = vec![vec![0u8; 33]; n];
+    let mut u = vec![vec![0u8; 33]; u_num];
     unsafe {
         // get sigmas
         for i in 0..sigmas.len() {
@@ -191,10 +191,10 @@ fn test_process_data(enclave: &SgxEnclave) {
         }
     };
 
-    println!("outside signature:{:?}",sig);
-    println!("outside name:{:?}",name);
-    println!("outside sigmas:{:?}",sigmas);
-    println!("outside u:{:?}",u);
+    println!("outside signature:{:?}", sig);
+    println!("outside name:{:?}", name);
+    println!("outside sigmas:{:?}", sigmas);
+    println!("outside u:{:?}", u);
 
     // let elapsed = now.elapsed();
     // let mut pkey = vec![0u8; 65];
@@ -538,6 +538,10 @@ fn test_sign_message(enclave: &SgxEnclave) {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let seed = env::var("ENCLAVE_KEY_SEED").unwrap_or("TEST_SEED".to_string());
+    let port: u16 =  env::var("KALEIDO_PORT").unwrap_or("8080".to_string()).parse().unwrap();
+
+
     let result = match init_enclave() {
         Ok(enclave) => {
             let eid = enclave.geteid();
@@ -545,8 +549,7 @@ async fn main() -> std::io::Result<()> {
 
             // Generate Deterministic Key using ENCLAVE_KEY_SEED
             // This will be removed later as the keys will be generated within enclave.
-            let seed =
-                String::from(env::var("ENCLAVE_KEY_SEED").expect("$ENCLAVE_KEY_SEED not set"));
+
             let mut retval = sgx_status_t::SGX_SUCCESS;
             unsafe {
                 enclave_def::gen_keys(eid, &mut retval, seed.as_ptr(), seed.len());
@@ -562,7 +565,7 @@ async fn main() -> std::io::Result<()> {
                     .app_data(web::Data::new(app::AppState { eid }))
                     .service(routes::r_process_data)
             })
-            .bind(("0.0.0.0", 8080))?
+            .bind(("0.0.0.0", port))?
             .run()
             .await?;
             enclave.destroy();
