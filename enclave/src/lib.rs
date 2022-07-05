@@ -64,12 +64,11 @@ struct Signatures(Vec<G1>, PublicKey);
 
 static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
 
-
 struct Sigmas(Vec<G1>);
 struct U(Vec<G1>);
-const CONTEXT_LENGTH: usize =16;
-static mut SIGMAS_CONTEXT:Sigmas=Sigmas(vec![]);
-static mut U_CONTEXT:U=U(vec![]);
+const CONTEXT_LENGTH: usize = 16;
+static mut SIGMAS_CONTEXT: Sigmas = Sigmas(vec![]);
+static mut U_CONTEXT: U = U(vec![]);
 
 struct Keys {
     skey: SecretKey,
@@ -136,6 +135,8 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
         KEYS.gen_keys(s);
     }
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+    println!("{}", skey.to_str());
+    println!("{}", pkey.to_str());
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -151,7 +152,7 @@ pub extern "C" fn process_data(
     data: *mut u8,
     data_len: usize,
     block_size: usize,
-    segment_size:usize,
+    segment_size: usize,
     sigmas_len: &mut usize,
     u_len: &mut usize,
     name_len: usize,
@@ -167,40 +168,42 @@ pub extern "C" fn process_data(
 
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
-    let result =
-        podr2_proof_commit::podr2_proof_commit(skey.clone(), pkey.clone(), d.clone(), block_size,segment_size);
-    println!("sigmas:{:?}", result.sigmas);
-    println!("");
-    println!("t.t0.name:{:?}", result.t.t0.name);
-    println!("");
-    println!("t.t0.u:{:?}", result.t.t0.u);
-    println!("");
-    println!("t.t0.n:{:?}", result.t.t0.n);
-    println!("");
-    println!("t.signature:{:?}", result.t.signature);
-    println!("");
-    println!("pkey:{:?}", pkey.base_vector());
-    *sigmas_len=result.sigmas.len();
-    *u_len=result.t.t0.u.len();
+    let result = podr2_proof_commit::podr2_proof_commit(
+        skey.clone(),
+        pkey.clone(),
+        d.clone(),
+        block_size,
+        segment_size,
+    );
 
+    for s in &result.sigmas {
+        println!("s: {}", u8v_to_hexstr(&s));
+    }
+    for u in &result.t.t0.u {
+        println!("u: {}", u8v_to_hexstr(&u));
+    }
+    println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
+    println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
+    println!("pkey:{:?}", pkey.to_str());
+
+    *sigmas_len = result.sigmas.len();
+    *u_len = result.t.t0.u.len();
     //put sigmas
     let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
-    let mut i =0;
+    let mut i = 0;
     for mut per_sigmas in result.sigmas {
         let g1 = pbc::get_g1_from_byte(&per_sigmas);
         sigmas.lock().unwrap()[i] = g1;
-        i=i+1
+        i = i + 1
     }
-    unsafe {
-        SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec())
-    }
+    unsafe { SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec()) }
     //put U
-    let Ur  = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
-    let mut j =0;
+    let Ur = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
+    let mut j = 0;
     for mut per_u in result.t.t0.u {
         let g1 = pbc::get_g1_from_byte(&per_u);
         Ur.lock().unwrap()[j] = g1;
-        j=j+1
+        j = j + 1
     }
     unsafe {
         U_CONTEXT = U(Ur.lock().unwrap().to_vec());
@@ -254,7 +257,7 @@ pub extern "C" fn process_data(
 #[no_mangle]
 pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u8) {
     unsafe {
-        let per_sigmas=&SIGMAS_CONTEXT.0[index];
+        let per_sigmas = &SIGMAS_CONTEXT.0[index];
         ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
     }
 }
@@ -262,7 +265,7 @@ pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u
 #[no_mangle]
 pub extern "C" fn get_u(index: usize, u_len: usize, u_out: *mut u8) {
     unsafe {
-        let per_u=&U_CONTEXT.0[index];
+        let per_u = &U_CONTEXT.0[index];
         ptr::copy_nonoverlapping(per_u.base_vector().as_ptr(), u_out, u_len);
     }
 }

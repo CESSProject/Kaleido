@@ -93,7 +93,7 @@ pub fn generate_authenticator(
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
-    println!("hash_name_i:{:?}", hash_name_i.base_vector().to_vec());
+    println!("hash_name_i: {:?}", hash_name_i.to_str());
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
@@ -120,9 +120,10 @@ pub fn generate_authenticator(
     res
 }
 
+// Append i to the name and compute hash
 pub fn hash_name_i(name: &mut Vec<u8>, i: usize) -> G1 {
     name.push(i as u8);
-    println!("name:{:?}", name);
     let hash_array = hash(name.as_slice());
+    println!("name hash: {:?}", hash_array.to_str());
     pbc::get_g1_from_hash(&hash_array)
 }
