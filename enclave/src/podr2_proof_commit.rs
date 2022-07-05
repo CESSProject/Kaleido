@@ -78,7 +78,6 @@ pub fn podr2_proof_commit(
     t.signature = sig_g1.clone().base_vector().to_vec();
 
     let verify = cess_bncurve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
-    println!("verify signature:{}", verify);
     result.t = t;
 
     result
@@ -93,7 +92,6 @@ pub fn generate_authenticator(
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
-    println!("hash_name_i: {:?}", hash_name_i.to_str());
     let productory = G1::zero();
     let s = t0.u.len();
     for j in 0..s {
@@ -124,6 +122,5 @@ pub fn generate_authenticator(
 pub fn hash_name_i(name: &mut Vec<u8>, i: usize) -> G1 {
     name.push(i as u8);
     let hash_array = hash(name.as_slice());
-    println!("name hash: {:?}", hash_array.to_str());
     pbc::get_g1_from_hash(&hash_array)
 }
