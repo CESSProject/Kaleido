@@ -135,8 +135,6 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
         KEYS.gen_keys(s);
     }
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-    println!("{}", skey.to_str());
-    println!("{}", pkey.to_str());
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -164,7 +162,6 @@ pub extern "C" fn process_data(
     let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let elapsed = now.elapsed();
-    println!("Data copied to Enclave in {:.2?}!", elapsed);
 
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
@@ -176,15 +173,15 @@ pub extern "C" fn process_data(
         segment_size,
     );
 
-    for s in &result.sigmas {
-        println!("s: {}", u8v_to_hexstr(&s));
-    }
-    for u in &result.t.t0.u {
-        println!("u: {}", u8v_to_hexstr(&u));
-    }
-    println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
-    println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
-    println!("pkey:{:?}", pkey.to_str());
+    // for s in &result.sigmas {
+    //     println!("s: {}", u8v_to_hexstr(&s));
+    // }
+    // for u in &result.t.t0.u {
+    //     println!("u: {}", u8v_to_hexstr(&u));
+    // }
+    // println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
+    // println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
+    // println!("pkey:{:?}", pkey.to_str());
 
     *sigmas_len = result.sigmas.len();
     *u_len = result.t.t0.u.len();
