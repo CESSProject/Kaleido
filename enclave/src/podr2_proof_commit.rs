@@ -58,7 +58,7 @@ pub fn podr2_proof_commit(
     for i in 0..t.t0.n {
         result
             .sigmas
-            .push(generate_authenticator(i, &mut t.t0, &matrix[i], &skey));
+            .push(generate_authenticator(i, block_size,&mut t.t0, &matrix[i], &skey,segment_size));
 
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
@@ -85,18 +85,32 @@ pub fn podr2_proof_commit(
 
 pub fn generate_authenticator(
     i: usize,
+    s: usize,
     t0: &mut T0,
     piece: &Vec<u8>,
     alpha: &cess_bncurve::SecretKey,
+    segment_size: usize,
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
     let productory = G1::zero();
-    let s = t0.u.len();
-    for j in 0..s {
+    let mut u_num:usize=0;
+    u_num=s/segment_size;
+    if s%segment_size!=0{
+        u_num=u_num+1
+    }
+    for j in 0..u_num {
+        if j == u_num-1 {
+            //mij
+            let piece_sigle = pbc::get_zr_from_hash(&piece[j * segment_size..piece.len()].to_vec());
+            let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+            //uj^mij
+            pbc::g1_pow_zn(&g1, &piece_sigle);
+            pbc::g1_mul_g1(&productory, &g1);
+        }
         //mij
-        let piece_sigle = pbc::get_zr_from_hash(&hash(&vec![piece[j]]));
+        let piece_sigle = pbc::get_zr_from_hash(&piece[j * segment_size..(j+1) * segment_size].to_vec());
         // println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
         let g1 = pbc::get_g1_from_byte(&t0.u[j]);
         // println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
