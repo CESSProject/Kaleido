@@ -167,14 +167,14 @@ pub fn get_g1_from_byte(byte:&Vec<u8>)->G1{
     g1
 }
 
-pub fn get_zr_from_hash(h: &Hash)->Zr{
+pub fn get_zr_from_hash(h: &Vec<u8>)->Zr{
     let context = BN_CURVE_INFO.context as u64;
     let zr = Zr::zero();
     unsafe {
         cess_pbc::get_Zr_from_hash(
             context,
             zr.base_vector().as_ptr() as *mut _,
-            h.base_vector().as_ptr() as *mut _,
+            h.as_ptr() as *mut _,
             config::HASH_SIZE as u64,
         );
     }
