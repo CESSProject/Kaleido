@@ -22,6 +22,7 @@ extern crate log;
 
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
+use log::{debug, error, info, log_enabled, Level};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::ops::IndexMut;
@@ -71,7 +72,7 @@ async fn main() -> std::io::Result<()> {
     let result = match init_enclave() {
         Ok(enclave) => {
             let eid = enclave.geteid();
-            println!("[+] Init Enclave Successful {}!", eid);
+            info!("Enclave Initialized! ID: {}!", eid);
 
             let mut retval = sgx_status_t::SGX_SUCCESS;
             unsafe {
@@ -96,17 +97,17 @@ async fn main() -> std::io::Result<()> {
             .run()
             .await?;
             enclave.destroy();
+            info!("Enclave destroyed");
             Ok(res)
         }
         Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
+            error!("[-] Init Enclave Failed {}!", x.as_str());
             panic!("Failed to start enclave!");
         }
     };
 
     result
 }
-
 
 // fn test_rng(enclave: &SgxEnclave) {
 //     let length: usize = 5;

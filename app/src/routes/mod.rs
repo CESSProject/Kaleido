@@ -15,7 +15,7 @@ pub async fn r_process_data(
     data: web::Data<AppState>,
     req: web::Json<PoDR2CommitRequest>,
 ) -> Result<impl Responder, PoDR2CommitError> {
-    println!("Request: {:?}", req);
+    debug!("Request: {:?}", req);
     let eid = data.eid;
 
     let data_base64: String = req.data.clone();
@@ -58,7 +58,7 @@ pub async fn r_process_data(
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
-            println!(
+            error!(
                 "[-] ECALL Enclave Failed for process_data {}!",
                 result.as_str()
             );
@@ -75,16 +75,16 @@ pub async fn r_process_data(
     commit_res.t.t0.n = sigmas_len;
     commit_res.t.t0.u = get_u(eid, u_len)?;
 
-    println!(
+    debug!(
         "************************ PoDR2Commit Result - BASE64 ENCODED ************************"
     );
-    println!("PKey: {:?}", commit_res.pkey);
-    println!("signature: {:?}", commit_res.t.signature);
-    println!("name: {:?}", commit_res.t.t0.name);
-    println!("sigmas: {:?}", commit_res.sigmas);
-    println!("u: {:?}", commit_res.t.t0.u);
-    println!("Signatures generated in {:.2?}!", elapsed);
-    println!("[+] process_data success...");
+    debug!("PKey: {:?}", commit_res.pkey);
+    debug!("signature: {:?}", commit_res.t.signature);
+    debug!("name: {:?}", commit_res.t.t0.name);
+    debug!("sigmas: {:?}", commit_res.sigmas);
+    debug!("u: {:?}", commit_res.t.t0.u);
+    debug!("Signatures generated in {:.2?}!", elapsed);
+    debug!("[+] process_data success...");
 
     Ok(HttpResponse::Ok()
         .content_type(ContentType::json())
@@ -103,7 +103,7 @@ fn get_public_key(eid: u64) -> Result<String, PoDR2CommitError> {
         match res {
             sgx_status_t::SGX_SUCCESS => {}
             _ => {
-                println!(
+                error!(
                     "[-] ECALL Enclave Failed to get Publickey, {}!",
                     res.as_str()
                 );
@@ -133,7 +133,7 @@ fn get_sigmas(eid: u64, len: usize) -> Result<Vec<String>, PoDR2CommitError> {
             match res {
                 sgx_status_t::SGX_SUCCESS => {}
                 _ => {
-                    println!(
+                    error!(
                         "[-] ECALL Enclave Failed to get Signature at index: {}, {}!",
                         i,
                         res.as_str()
@@ -169,7 +169,7 @@ fn get_u(eid: u64, len: usize) -> Result<Vec<String>, PoDR2CommitError> {
             match res {
                 sgx_status_t::SGX_SUCCESS => {}
                 _ => {
-                    println!(
+                    error!(
                         "[-] ECALL Enclave Failed to get u at index: {}, {}!",
                         i,
                         res.as_str()
