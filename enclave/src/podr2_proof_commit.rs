@@ -108,6 +108,7 @@ pub fn generate_authenticator(
             //uj^mij
             pbc::g1_pow_zn(&g1, &piece_sigle);
             pbc::g1_mul_g1(&productory, &g1);
+            continue
         }
         //mij
         let piece_sigle = pbc::get_zr_from_hash(&piece[j * segment_size..(j+1) * segment_size].to_vec());
