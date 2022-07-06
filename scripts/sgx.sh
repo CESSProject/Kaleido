@@ -94,14 +94,14 @@ function install_dcap() {
 		chmod +x /tmp/$dcap_driverbin
 	else
 		log_err "The DCAP driver was not successfully downloaded, please check your network!"
-		exit 1
+		return 1
 	fi
 
 	log_info "Installing dcap driver"
 	/tmp/$dcap_driverbin
 	if [ $? -ne 0 ]; then
 		log_err "Failed to install the DCAP driver, please check the driver's installation logs!"
-		exit 1
+		return 1
 	else
 		log_success "Delete temporary files"
 		rm /tmp/$dcap_driverbin
@@ -126,14 +126,14 @@ function install_isgx() {
 		chmod +x /tmp/$isgx_driverbin
 	else
 		log_err "The isgx driver was not successfully downloaded, please check your network!"
-		exit 1
+		return 1
 	fi
 
 	log_info "Installing isgx driver"
 	/tmp/$isgx_driverbin
 	if [ $? -ne 0 ]; then
 		log_err "Failed to install the isgx driver, please check the driver installation logs!"
-		exit 1
+		return 1
 	else
 		log_success "Deleteted temporary files"
 		rm /tmp/$isgx_driverbin
@@ -145,10 +145,11 @@ function install_isgx() {
 function install_driver() {
 	remove_dirver
 	install_dcap
+	                         
 	if [ $? -ne 0 ]; then
 		install_isgx
 		if [ $? -ne 0 ]; then
-			log_err "Failed to install the DCAP and isgx driver, please check the driver installation logs!"
+			log_err "Failed to install the DCAP and the isgx driver, please check the driver installation logs!"
 			exit 1
 		fi
 	fi

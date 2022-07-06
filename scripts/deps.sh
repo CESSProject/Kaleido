@@ -37,16 +37,18 @@ function install_build_dep() {
   log_info "Installing SGX-PBC Library"
 
   # install pbc
-  cd Kaleido/cess_pbc/pbc && \ 
+  git clone https://github.com/tehsunnliu/pbc-sgx &&
+  cd pbc-sgx && \ 
   export SGX_TSTDC_CPPFLAGS=-I/usr/local/include &&
     ./bootstrap &&
     ./configure &&
-    make install
+    make install &&
+    cd .. && rm -rf pbc-sgx
 
   log_info "Building Kaleido"
 
   # Build Kaleido
-  cd ../.. && make
+  cd Kaleido && make
 
   # Start AESM
   LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
