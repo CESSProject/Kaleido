@@ -58,7 +58,7 @@ pub fn podr2_proof_commit(
     for i in 0..t.t0.n {
         result
             .sigmas
-            .push(generate_authenticator(i, block_size,&mut t.t0, &matrix[i], &skey,segment_size));
+            .push(generate_authenticator(i, s,&mut t.t0, &matrix[i], &skey,segment_size));
 
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
