@@ -90,6 +90,7 @@ async fn main() -> std::io::Result<()> {
                 let eid = eid.clone();
                 App::new()
                     .wrap(logger)
+                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024))
                     .app_data(web::Data::new(app::AppState { eid }))
                     .service(routes::r_process_data)
             })

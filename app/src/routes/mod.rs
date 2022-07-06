@@ -15,7 +15,6 @@ pub async fn r_process_data(
     data: web::Data<AppState>,
     req: web::Json<PoDR2CommitRequest>,
 ) -> Result<impl Responder, PoDR2CommitError> {
-    debug!("Request: {:?}", req);
     let eid = data.eid;
 
     let data_base64: String = req.data.clone();
@@ -30,6 +29,7 @@ pub async fn r_process_data(
             })
         }
     };
+    debug!("File data decoded");
 
     let now = Instant::now();
     let mut retval = sgx_status_t::SGX_SUCCESS;
@@ -38,6 +38,7 @@ pub async fn r_process_data(
     let mut name = vec![0u8; 32];
     let mut sig = vec![0u8; 33];
 
+    debug!("Processing file data");
     let result = unsafe {
         enclave_def::process_data(
             eid,
@@ -54,7 +55,8 @@ pub async fn r_process_data(
             sig.as_mut_ptr() as *mut u8,
         )
     };
-
+    
+    debug!("Processing complete");
     match result {
         sgx_status_t::SGX_SUCCESS => {}
         _ => {
