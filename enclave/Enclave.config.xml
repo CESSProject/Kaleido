@@ -10,8 +10,8 @@
   <!-- The stack size per trusted thread (in bytes) --> 
   <StackMaxSize>0x400000</StackMaxSize>
   
-  <!-- 256MB The heap size for the enclave (in bytes)--> 
-  <HeapMaxSize>0x20000000</HeapMaxSize>
+  <!-- 256MB The heap size for the enclave (in bytes)-->
+  <HeapMaxSize>0x200000000</HeapMaxSize>
 
   <!-- 3GB The heap size for the enclave (in bytes)--> 
   <!-- <HeapMaxSize>0xC0000000</HeapMaxSize>   -->
