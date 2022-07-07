@@ -22,6 +22,7 @@
 #![feature(core_intrinsics)]
 
 extern crate cess_bncurve;
+extern crate libc;
 extern crate merkletree;
 extern crate serde;
 extern crate serde_json;
@@ -37,38 +38,32 @@ extern crate crypto;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::vec::Vec;
-use cess_bncurve::*;
-use merkletree::merkle::MerkleTree;
-
-use core::ops::{Index, IndexMut};
-use sgx_rand::{Rng, StdRng};
-use sgx_types::*;
-use std::time::Instant;
-use std::untrusted::time::InstantEx;
-use std::untrusted::time::SystemTimeEx;
-use std::{
-    ptr, slice,
-    sync::{Arc, SgxMutex},
-    thread, time,
-};
-
-use crate::podr2_proof_commit::podr2_proof_commit;
-
 mod merkletree_generator;
+mod ocall_def;
 mod param;
 mod pbc;
 mod podr2_proof_commit;
 
-struct Signatures(Vec<G1>, PublicKey);
-
-static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
-
-struct Sigmas(Vec<G1>);
-struct U(Vec<G1>);
-const CONTEXT_LENGTH: usize = 16;
-static mut SIGMAS_CONTEXT: Sigmas = Sigmas(vec![]);
-static mut U_CONTEXT: U = U(vec![]);
+use crate::podr2_proof_commit::podr2_proof_commit;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use cess_bncurve::*;
+use core::intrinsics::forget;
+use core::ops::{Index, IndexMut};
+use merkletree::merkle::MerkleTree;
+use ocall_def::ocall_post_podr2_commit_data;
+use sgx_rand::{Rng, StdRng};
+use sgx_types::*;
+use std::ffi::CString;
+use std::time::Instant;
+use std::untrusted::time::InstantEx;
+use std::untrusted::time::SystemTimeEx;
+use std::{
+    ffi::CStr,
+    ptr, slice,
+    sync::{Arc, SgxMutex},
+    thread, time,
+};
 
 struct Keys {
     skey: SecretKey,
@@ -93,9 +88,6 @@ impl Keys {
             self.skey = skey;
             self.pkey = pkey;
             self.sig = sig;
-            unsafe {
-                SIGNATURES.1 = pkey;
-            }
             self.generated = true;
         }
     }
@@ -134,7 +126,6 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
     unsafe {
         KEYS.gen_keys(s);
     }
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -151,27 +142,21 @@ pub extern "C" fn process_data(
     data_len: usize,
     block_size: usize,
     segment_size: usize,
-    sigmas_len: &mut usize,
-    u_len: &mut usize,
-    name_len: usize,
-    name_out: *mut u8,
-    sig_len: usize,
-    sig_out: *mut u8,
-    // context:usize,
+    callback_url: *const c_char,
 ) -> sgx_status_t {
-    let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let elapsed = now.elapsed();
-
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
-    let result = podr2_proof_commit::podr2_proof_commit(
+    let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
         skey.clone(),
         pkey.clone(),
         d.clone(),
         block_size,
         segment_size,
     );
+
+    let c_str = unsafe { CStr::from_ptr(callback_url) };
+    podr2_data.callback_url = c_str.to_str().unwrap().to_string();
 
     // for s in &result.sigmas {
     //     println!("s: {}", u8v_to_hexstr(&s));
@@ -182,134 +167,12 @@ pub extern "C" fn process_data(
     // println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
     // println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
     // println!("pkey:{:?}", pkey.to_str());
-
-    *sigmas_len = result.sigmas.len();
-    *u_len = result.t.t0.u.len();
-    //put sigmas
-    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
-    let mut i = 0;
-    for mut per_sigmas in result.sigmas {
-        let g1 = pbc::get_g1_from_byte(&per_sigmas);
-        sigmas.lock().unwrap()[i] = g1;
-        i = i + 1
-    }
-    unsafe { SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec()) }
-    //put U
-    let Ur = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
-    let mut j = 0;
-    for mut per_u in result.t.t0.u {
-        let g1 = pbc::get_g1_from_byte(&per_u);
-        Ur.lock().unwrap()[j] = g1;
-        j = j + 1
-    }
+    
+    let json_data = serde_json::to_string(&podr2_data).unwrap();
+    let c_json_data = CString::new(json_data.as_bytes().to_vec()).unwrap();
     unsafe {
-        U_CONTEXT = U(Ur.lock().unwrap().to_vec());
+        ocall_post_podr2_commit_data(c_json_data.as_ptr());
     }
-
-    //get name
-    unsafe {
-        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), name_out, name_len);
-    }
-    //get sig
-    unsafe {
-        ptr::copy_nonoverlapping(result.t.signature.as_ptr(), sig_out, sig_len);
-    }
-
-    // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-    // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    // if multi_thread {
-    //     let mut handles = vec![];
-    //     let now = Instant::now();
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let skey = skey.clone();
-    //         let signatures = Arc::clone(&signatures);
-    //         let handle = thread::spawn(move || {
-    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //             let mut signature = signatures.lock().unwrap();
-    //             *signature.index_mut(i) = sig;
-    //         });
-    //         handles.push(handle);
-    //     });
-    //     for handle in handles {
-    //         handle.join().unwrap();
-    //     }
-    //     let elapsed = now.elapsed();
-    //     println!("Signatures computed in {:.2?}!", elapsed);
-    // } else {
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //         signatures.lock().unwrap()[i] = sig;
-    //     });
-    // }
-    //
-    // // *sig_len = n_sig;
-    //
-    // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
-
-    sgx_status_t::SGX_SUCCESS
-}
-
-#[no_mangle]
-pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u8) {
-    unsafe {
-        let per_sigmas = &SIGMAS_CONTEXT.0[index];
-        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn get_u(index: usize, u_len: usize, u_out: *mut u8) {
-    unsafe {
-        let per_u = &U_CONTEXT.0[index];
-        ptr::copy_nonoverlapping(per_u.base_vector().as_ptr(), u_out, u_len);
-    }
-}
-
-/// For public key Enclave EDL requires the length of array to be passed along
-/// Make sure to pass the correct length of publickey being retrieved
-///
-#[no_mangle]
-pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
-    unsafe {
-        let signature = &SIGNATURES.0[index];
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
-    }
-}
-
-/// For public key Enclave EDL requires the length of array to be passed along
-/// Make sure to pass the correct length of publickey being retrieved
-///
-#[no_mangle]
-pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
-    unsafe {
-        let public_key = SIGNATURES.1;
-        ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
-    }
-}
-
-/// Arguments:
-/// `data` is the data that needs to be processed. It should not exceed SGX max memory size
-/// `data_len` argument is the number of **elements**, not the number of bytes.
-/// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
-/// `sig_len` is the number of signatures generated. This should be used to allocate
-/// memory to call `get_signatures`
-#[no_mangle]
-pub extern "C" fn sign_message(
-    data: *mut u8,
-    data_len: usize,
-    sig_len: usize,
-    sig: *mut u8,
-) -> sgx_status_t {
-    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-
-    let signature = cess_bncurve::sign_message(&d, &skey);
-    unsafe {
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
-    }
-
+    
     sgx_status_t::SGX_SUCCESS
 }

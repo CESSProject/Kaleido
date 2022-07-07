@@ -19,8 +19,8 @@ pub fn podr2_proof_commit(
     data: Vec<u8>,
     block_size: usize,
     segment_size: usize,
-) -> PoDR2CommitResponse {
-    let mut result = PoDR2CommitResponse::new();
+) -> PoDR2CommitData {
+    let mut result = PoDR2CommitData::new();
 
     let mut t = FileTagT::new();
     let mut matrix: Vec<Vec<u8>> = Vec::new();
@@ -79,7 +79,7 @@ pub fn podr2_proof_commit(
 
     let verify = cess_bncurve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
     result.t = t;
-
+    result.pkey = pkey.base_vector().to_vec();
     result
 }
 

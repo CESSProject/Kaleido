@@ -22,19 +22,15 @@ extern crate log;
 
 use actix_web::middleware::Logger;
 use actix_web::{web, App, HttpServer};
-use log::{debug, error, info, log_enabled, Level};
+use log::{error, info};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::ops::IndexMut;
 use std::{
-    env, fs, str,
-    sync::{Arc, Mutex},
-    thread,
-    time::Instant,
+    env, str,
 };
 
 mod app;
-mod enclave_def;
+mod enclave;
 mod models;
 mod routes;
 
@@ -78,7 +74,7 @@ async fn main() -> std::io::Result<()> {
             unsafe {
                 // Generate Deterministic Key using ENCLAVE_KEY_SEED
                 // This will be removed later as the keys will be generated within enclave.
-                enclave_def::gen_keys(eid, &mut retval, seed.as_ptr(), seed.len());
+                enclave::ecalls::gen_keys(eid, &mut retval, seed.as_ptr(), seed.len());
             }
             if retval != sgx_status_t::SGX_SUCCESS {
                 enclave.destroy();
@@ -116,7 +112,7 @@ async fn main() -> std::io::Result<()> {
 //     let mut retval = sgx_status_t::SGX_SUCCESS;
 
 //     let result = unsafe {
-//         enclave_def::get_rng(
+//         enclave::ecalls::get_rng(
 //             enclave.geteid(),
 //             &mut retval,
 //             length,
@@ -136,7 +132,7 @@ async fn main() -> std::io::Result<()> {
 
 // fn test_pbc_lib(enclave: &SgxEnclave) {
 //     let mut retval = sgx_status_t::SGX_SUCCESS;
-//     let result = unsafe { enclave_def::test_pbc(enclave.geteid(), &mut retval) };
+//     let result = unsafe { enclave::ecalls::test_pbc(enclave.geteid(), &mut retval) };
 //     match result {
 //         sgx_status_t::SGX_SUCCESS => {}
 //         _ => {
@@ -164,7 +160,7 @@ async fn main() -> std::io::Result<()> {
 //     let block_size: usize = 1024 * 1024; // 1MB block size gives the best results interms of speed.
 
 //     unsafe {
-//         enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+//         enclave::ecalls::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
 //     }
 //     let sig_len: usize = 0;
 
@@ -179,7 +175,7 @@ async fn main() -> std::io::Result<()> {
 //         let handle = thread::spawn(move || {
 //             let mut sig = vec![0u8; 33];
 //             let result = unsafe {
-//                 enclave_def::sign_message(
+//                 enclave::ecalls::sign_message(
 //                     eid,
 //                     &mut retval,
 //                     chunk.as_ptr() as *mut _,
@@ -215,7 +211,7 @@ async fn main() -> std::io::Result<()> {
 //     let mut pkey = vec![0u8; 65];
 
 //     let result = unsafe {
-//         enclave_def::get_public_key(
+//         enclave::ecalls::get_public_key(
 //             enclave.geteid(),
 //             &mut retval,
 //             pkey.len(),
@@ -260,14 +256,14 @@ async fn main() -> std::io::Result<()> {
 //     let mut signatures: Vec<Vec<u8>> = Vec::new();
 
 //     unsafe {
-//         enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+//         enclave::ecalls::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
 //     }
 
 //     let now = Instant::now();
 //     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
 //         let mut sig = vec![0u8; 33];
 //         let result = unsafe {
-//             enclave_def::sign_message(
+//             enclave::ecalls::sign_message(
 //                 enclave.geteid(),
 //                 &mut retval,
 //                 chunk.as_ptr() as *mut _,
@@ -296,7 +292,7 @@ async fn main() -> std::io::Result<()> {
 //     let mut pkey = vec![0u8; 65];
 
 //     let result = unsafe {
-//         enclave_def::get_public_key(
+//         enclave::ecalls::get_public_key(
 //             enclave.geteid(),
 //             &mut retval,
 //             pkey.len(),
@@ -353,7 +349,7 @@ async fn main() -> std::io::Result<()> {
 //     let mut signatures = Arc::new(Mutex::new(vec![vec![0u8; 33]; n_sig]));
 
 //     unsafe {
-//         enclave_def::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
+//         enclave::ecalls::gen_keys(enclave.geteid(), &mut retval, seed.as_ptr(), seed.len());
 //     }
 
 //     let now = Instant::now();
@@ -367,7 +363,7 @@ async fn main() -> std::io::Result<()> {
 //         let handle = thread::spawn(move || {
 //             let mut sig = vec![0u8; 33];
 //             let result = unsafe {
-//                 enclave_def::sign_message(
+//                 enclave::ecalls::sign_message(
 //                     eid,
 //                     &mut retval,
 //                     chunk.as_ptr() as *mut _,
@@ -403,7 +399,7 @@ async fn main() -> std::io::Result<()> {
 //     let mut pkey = vec![0u8; 65];
 
 //     let result = unsafe {
-//         enclave_def::get_public_key(
+//         enclave::ecalls::get_public_key(
 //             enclave.geteid(),
 //             &mut retval,
 //             pkey.len(),

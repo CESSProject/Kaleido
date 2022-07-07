@@ -50,3 +50,4 @@ serde         = { git = "https://github.com/mesalock-linux/serde-sgx", features 
 rust-crypto   = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
 serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
 merkletree    = { git = "https://github.com/tehsunnliu/merkletree.git", package = "merkle_light" }
+libc = "0.2.126"
