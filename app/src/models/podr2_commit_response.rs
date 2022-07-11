@@ -6,20 +6,22 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-//filetag struct
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
-pub struct FileTagT {
-    pub t0: T0,
-    pub signature: String,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
+#[repr(C)]
 pub struct T0 {
     pub name: String,
     pub n: usize,
     pub u: Vec<String>,
+}
+
+//filetag struct
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+#[repr(C)]
+pub struct FileTagT {
+    pub t0: T0,
+    pub signature: String,
 }
 
 impl FileTagT {
@@ -38,6 +40,7 @@ impl FileTagT {
 //PoDR2CommitResponse structure
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
+#[repr(C)]
 pub struct PoDR2CommitResponse {
     pub t: FileTagT,
     pub sigmas: Vec<String>,
@@ -60,6 +63,7 @@ pub struct PoDR2CommitRequest {
     pub data: String,
     pub block_size: usize,
     pub segment_size: usize,
+    pub callback_url: String,
 }
 
 #[derive(Debug)]

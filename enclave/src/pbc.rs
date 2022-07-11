@@ -127,7 +127,7 @@ pub fn get_g1() -> G1 {
 
 pub fn get_g2() -> G2 {
     let context = BN_CURVE_INFO.context as u64;
-    let mut g2 = G2::zero();
+    let g2 = G2::zero();
     unsafe {
         let len = cess_pbc::get_g2(
             context,
