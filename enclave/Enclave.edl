@@ -21,6 +21,7 @@ enclave {
     from "sgx_backtrace.edl" import *;
     from "sgx_thread.edl" import *;
     from "sgx_tstdc.edl" import *;
+    from "sgx_net.edl" import *;
     
     trusted {
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
@@ -36,6 +37,6 @@ enclave {
     };
 
     untrusted {
-        void ocall_post_podr2_commit_data([in, string] const char* data);
+        // void ocall_post_podr2_commit_data([in, string] const char* data);
     };
 };

@@ -22,6 +22,7 @@
 #![feature(core_intrinsics)]
 
 extern crate cess_bncurve;
+extern crate http_req;
 extern crate libc;
 extern crate merkletree;
 extern crate serde;
@@ -50,19 +51,30 @@ use alloc::vec::Vec;
 use cess_bncurve::*;
 use core::intrinsics::forget;
 use core::ops::{Index, IndexMut};
+use http_req::response::{self, Headers};
+use http_req::tls::Conn;
+use http_req::{
+    request::{Method, RequestBuilder},
+    response::Response,
+    tls,
+    uri::Uri,
+};
 use merkletree::merkle::MerkleTree;
-use ocall_def::ocall_post_podr2_commit_data;
+// use ocall_def::ocall_post_podr2_commit_data;
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
 use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
-use std::ffi::CString;
-use std::time::Instant;
-use std::untrusted::time::InstantEx;
-use std::untrusted::time::SystemTimeEx;
 use std::{
     ffi::CStr,
+    ffi::CString,
+    net::TcpStream,
     ptr, slice,
+    string::String,
     sync::{Arc, SgxMutex},
     thread, time,
+    time::{Duration, Instant},
+    untrusted::time::InstantEx,
+    untrusted::time::SystemTimeEx,
 };
 
 struct Keys {
@@ -147,6 +159,12 @@ pub extern "C" fn process_data(
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url,
+        Err(e) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
     let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
         skey.clone(),
         pkey.clone(),
@@ -155,24 +173,145 @@ pub extern "C" fn process_data(
         segment_size,
     );
 
-    let c_str = unsafe { CStr::from_ptr(callback_url) };
-    podr2_data.callback_url = c_str.to_str().unwrap().to_string();
+    // Post PoDR2CommitData to callback url.
+    let status = post_podr2_data(podr2_data, callback_url_str);
+    if status != sgx_status_t::SGX_SUCCESS {
+        return status;
+    }
 
-    // for s in &result.sigmas {
+    // Print PoDR2CommitData
+    // for s in &podr2_data.sigmas {
     //     println!("s: {}", u8v_to_hexstr(&s));
     // }
-    // for u in &result.t.t0.u {
+    // for u in &podr2_data.t.t0.u {
     //     println!("u: {}", u8v_to_hexstr(&u));
     // }
-    // println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
-    // println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
+    // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
+    // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
     // println!("pkey:{:?}", pkey.to_str());
-    
-    let json_data = serde_json::to_string(&podr2_data).unwrap();
-    let c_json_data = CString::new(json_data.as_bytes().to_vec()).unwrap();
-    unsafe {
-        ocall_post_podr2_commit_data(c_json_data.as_ptr());
-    }
-    
+
     sgx_status_t::SGX_SUCCESS
+}
+
+fn post_podr2_data(data: PoDR2CommitData, callback_url: &str) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data);
+
+    let json_data = serde_json::to_string(&podr2_res);
+    let json_data = match json_data {
+        Ok(data) => data,
+        Err(_) => {
+            println!("Failed to seralize PoDR2CommitResponse");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+
+    let addr = callback_url.parse();
+    let addr: Uri = match addr {
+        Ok(add) => add,
+        Err(_) => {
+            println!("Failed to Parse Url");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+
+    let conn_addr = get_host_with_port(&addr);
+
+    //Connect to remote host
+    let mut stream = TcpStream::connect(&conn_addr);
+    let mut stream = match stream {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to connect to {}, {}", addr, e);
+            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+        }
+    };
+
+    let json_bytes = json_data.as_bytes();
+    let mut writer = Vec::new();
+    let time_out = Some(Duration::from_millis(200));
+    if addr.scheme() == "https" {
+        //Open secure connection over TlsStream, because of `addr` (https)
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
+
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                println!("Failed to connect to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+            }
+        };
+
+        let response = RequestBuilder::new(&addr)
+            .header("Connection", "Close")
+            .header("Content-Type", "Application/Json")
+            .header("Content-Length", &json_bytes.len())
+            .timeout(time_out)
+            .body(json_bytes)
+            .send(&mut stream, &mut writer);
+        let response = match response {
+            Ok(res) => res,
+            Err(e) => {
+                println!("Failed to send request to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED;
+            }
+        };
+
+        println!("Status: {} {}", response.status_code(), response.reason());
+    } else {
+        let response = RequestBuilder::new(&addr)
+            .header("Connection", "Close")
+            .header("Content-Type", "Application/Json")
+            .header("Content-Length", &json_bytes.len())
+            .timeout(time_out)
+            .body(json_bytes)
+            .send(&mut stream, &mut writer);
+        let response = match response {
+            Ok(res) => res,
+            Err(e) => {
+                println!("Failed to send request to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED;
+            }
+        };
+
+        println!("Status: {} {}", response.status_code(), response.reason());
+    }
+    println!("{}", String::from_utf8_lossy(&writer));
+    return sgx_status_t::SGX_SUCCESS;
+}
+
+fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
+    let mut podr2_res = PoDR2CommitResponse::new();
+    podr2_res.pkey = base64::encode(data.pkey);
+
+    let mut sigmas_encoded: Vec<String> = Vec::new();
+    for sigma in data.sigmas {
+        sigmas_encoded.push(base64::encode(sigma))
+    }
+
+    let mut u_encoded: Vec<String> = Vec::new();
+    for u in data.t.t0.u {
+        u_encoded.push(base64::encode(u))
+    }
+
+    podr2_res.sigmas = sigmas_encoded;
+    podr2_res.t.signature = base64::encode(data.t.signature);
+    podr2_res.t.t0.name = base64::encode(data.t.t0.name);
+    podr2_res.t.t0.n = data.t.t0.n;
+    podr2_res.t.t0.u = u_encoded;
+    podr2_res
+}
+
+fn get_host_with_port(addr: &Uri) -> String {
+    let port = addr.port();
+    let port: u16 = if port.is_none() {
+        let scheme = addr.scheme();
+        if scheme == "http" {
+            80
+        } else {
+            443
+        }
+    } else {
+        port.unwrap()
+    };
+    format!("{}:{}", addr.host().unwrap(), port)
 }
