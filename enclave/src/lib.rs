@@ -22,6 +22,8 @@
 #![feature(core_intrinsics)]
 
 extern crate cess_bncurve;
+extern crate http_req;
+extern crate libc;
 extern crate merkletree;
 extern crate serde;
 extern crate serde_json;
@@ -37,38 +39,43 @@ extern crate crypto;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-use alloc::vec::Vec;
-use cess_bncurve::*;
-use merkletree::merkle::MerkleTree;
-
-use core::ops::{Index, IndexMut};
-use sgx_rand::{Rng, StdRng};
-use sgx_types::*;
-use std::time::Instant;
-use std::untrusted::time::InstantEx;
-use std::untrusted::time::SystemTimeEx;
-use std::{
-    ptr, slice,
-    sync::{Arc, SgxMutex},
-    thread, time,
-};
-
-use crate::podr2_proof_commit::podr2_proof_commit;
-
 mod merkletree_generator;
+mod ocall_def;
 mod param;
 mod pbc;
 mod podr2_proof_commit;
 
-struct Signatures(Vec<G1>, PublicKey);
-
-static mut SIGNATURES: Signatures = Signatures(vec![], PublicKey::new(G2::zero()));
-
-struct Sigmas(Vec<G1>);
-struct U(Vec<G1>);
-const CONTEXT_LENGTH: usize = 16;
-static mut SIGMAS_CONTEXT: Sigmas = Sigmas(vec![]);
-static mut U_CONTEXT: U = U(vec![]);
+use crate::podr2_proof_commit::podr2_proof_commit;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use cess_bncurve::*;
+use core::intrinsics::forget;
+use core::ops::{Index, IndexMut};
+use http_req::response::{self, Headers};
+use http_req::tls::Conn;
+use http_req::{
+    request::{Method, RequestBuilder},
+    response::Response,
+    tls,
+    uri::Uri,
+};
+use merkletree::merkle::MerkleTree;
+// use ocall_def::ocall_post_podr2_commit_data;
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
+use sgx_rand::{Rng, StdRng};
+use sgx_types::*;
+use std::{
+    ffi::CStr,
+    ffi::CString,
+    net::TcpStream,
+    ptr, slice,
+    string::String,
+    sync::{Arc, SgxMutex},
+    thread, time,
+    time::{Duration, Instant},
+    untrusted::time::InstantEx,
+    untrusted::time::SystemTimeEx,
+};
 
 struct Keys {
     skey: SecretKey,
@@ -93,9 +100,6 @@ impl Keys {
             self.skey = skey;
             self.pkey = pkey;
             self.sig = sig;
-            unsafe {
-                SIGNATURES.1 = pkey;
-            }
             self.generated = true;
         }
     }
@@ -134,7 +138,6 @@ pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
     unsafe {
         KEYS.gen_keys(s);
     }
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -151,21 +154,18 @@ pub extern "C" fn process_data(
     data_len: usize,
     block_size: usize,
     segment_size: usize,
-    sigmas_len: &mut usize,
-    u_len: &mut usize,
-    name_len: usize,
-    name_out: *mut u8,
-    sig_len: usize,
-    sig_out: *mut u8,
-    // context:usize,
+    callback_url: *const c_char,
 ) -> sgx_status_t {
-    let now = Instant::now();
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let elapsed = now.elapsed();
-
     let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
 
-    let result = podr2_proof_commit::podr2_proof_commit(
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url,
+        Err(e) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
+    let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
         skey.clone(),
         pkey.clone(),
         d.clone(),
@@ -173,143 +173,145 @@ pub extern "C" fn process_data(
         segment_size,
     );
 
-    // for s in &result.sigmas {
+    // Post PoDR2CommitData to callback url.
+    let status = post_podr2_data(podr2_data, callback_url_str);
+    if status != sgx_status_t::SGX_SUCCESS {
+        return status;
+    }
+
+    // Print PoDR2CommitData
+    // for s in &podr2_data.sigmas {
     //     println!("s: {}", u8v_to_hexstr(&s));
     // }
-    // for u in &result.t.t0.u {
+    // for u in &podr2_data.t.t0.u {
     //     println!("u: {}", u8v_to_hexstr(&u));
     // }
-    // println!("name: {}", u8v_to_hexstr(&result.t.t0.name));
-    // println!("t.signature:{:?}", u8v_to_hexstr(&result.t.signature));
+    // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
+    // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
     // println!("pkey:{:?}", pkey.to_str());
 
-    *sigmas_len = result.sigmas.len();
-    *u_len = result.t.t0.u.len();
-    //put sigmas
-    let sigmas = Arc::new(SgxMutex::new(vec![G1::zero(); *sigmas_len]));
-    let mut i = 0;
-    for mut per_sigmas in result.sigmas {
-        let g1 = pbc::get_g1_from_byte(&per_sigmas);
-        sigmas.lock().unwrap()[i] = g1;
-        i = i + 1
-    }
-    unsafe { SIGMAS_CONTEXT = Sigmas(sigmas.lock().unwrap().to_vec()) }
-    //put U
-    let Ur = Arc::new(SgxMutex::new(vec![G1::zero(); *u_len]));
-    let mut j = 0;
-    for mut per_u in result.t.t0.u {
-        let g1 = pbc::get_g1_from_byte(&per_u);
-        Ur.lock().unwrap()[j] = g1;
-        j = j + 1
-    }
-    unsafe {
-        U_CONTEXT = U(Ur.lock().unwrap().to_vec());
-    }
-
-    //get name
-    unsafe {
-        ptr::copy_nonoverlapping(result.t.t0.name.as_ptr(), name_out, name_len);
-    }
-    //get sig
-    unsafe {
-        ptr::copy_nonoverlapping(result.t.signature.as_ptr(), sig_out, sig_len);
-    }
-
-    // let n_sig = (d.len() as f32 / block_size as f32).ceil() as usize;
-    // let signatures = Arc::new(SgxMutex::new(vec![G1::zero(); n_sig]));
-    // if multi_thread {
-    //     let mut handles = vec![];
-    //     let now = Instant::now();
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let skey = skey.clone();
-    //         let signatures = Arc::clone(&signatures);
-    //         let handle = thread::spawn(move || {
-    //             let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //             let mut signature = signatures.lock().unwrap();
-    //             *signature.index_mut(i) = sig;
-    //         });
-    //         handles.push(handle);
-    //     });
-    //     for handle in handles {
-    //         handle.join().unwrap();
-    //     }
-    //     let elapsed = now.elapsed();
-    //     println!("Signatures computed in {:.2?}!", elapsed);
-    // } else {
-    //     d.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-    //         let chunk = chunk.to_vec().clone();
-    //         let sig = cess_bncurve::sign_message(&chunk, &skey);
-    //         signatures.lock().unwrap()[i] = sig;
-    //     });
-    // }
-    //
-    // // *sig_len = n_sig;
-    //
-    // unsafe { SIGNATURES = Signatures(signatures.lock().unwrap().to_vec(), pkey) }
-
     sgx_status_t::SGX_SUCCESS
 }
 
-#[no_mangle]
-pub extern "C" fn get_sigmas(index: usize, sigmas_len: usize, sigmas_out: *mut u8) {
-    unsafe {
-        let per_sigmas = &SIGMAS_CONTEXT.0[index];
-        ptr::copy_nonoverlapping(per_sigmas.base_vector().as_ptr(), sigmas_out, sigmas_len);
+fn post_podr2_data(data: PoDR2CommitData, callback_url: &str) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data);
+
+    let json_data = serde_json::to_string(&podr2_res);
+    let json_data = match json_data {
+        Ok(data) => data,
+        Err(_) => {
+            println!("Failed to seralize PoDR2CommitResponse");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+
+    let addr = callback_url.parse();
+    let addr: Uri = match addr {
+        Ok(add) => add,
+        Err(_) => {
+            println!("Failed to Parse Url");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+
+    let conn_addr = get_host_with_port(&addr);
+
+    //Connect to remote host
+    let mut stream = TcpStream::connect(&conn_addr);
+    let mut stream = match stream {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to connect to {}, {}", addr, e);
+            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+        }
+    };
+
+    let json_bytes = json_data.as_bytes();
+    let mut writer = Vec::new();
+    let time_out = Some(Duration::from_millis(200));
+    if addr.scheme() == "https" {
+        //Open secure connection over TlsStream, because of `addr` (https)
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
+
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(e) => {
+                println!("Failed to connect to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+            }
+        };
+
+        let response = RequestBuilder::new(&addr)
+            .header("Connection", "Close")
+            .header("Content-Type", "Application/Json")
+            .header("Content-Length", &json_bytes.len())
+            .timeout(time_out)
+            .body(json_bytes)
+            .send(&mut stream, &mut writer);
+        let response = match response {
+            Ok(res) => res,
+            Err(e) => {
+                println!("Failed to send request to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED;
+            }
+        };
+
+        println!("Status: {} {}", response.status_code(), response.reason());
+    } else {
+        let response = RequestBuilder::new(&addr)
+            .header("Connection", "Close")
+            .header("Content-Type", "Application/Json")
+            .header("Content-Length", &json_bytes.len())
+            .timeout(time_out)
+            .body(json_bytes)
+            .send(&mut stream, &mut writer);
+        let response = match response {
+            Ok(res) => res,
+            Err(e) => {
+                println!("Failed to send request to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED;
+            }
+        };
+
+        println!("Status: {} {}", response.status_code(), response.reason());
     }
+    println!("{}", String::from_utf8_lossy(&writer));
+    return sgx_status_t::SGX_SUCCESS;
 }
 
-#[no_mangle]
-pub extern "C" fn get_u(index: usize, u_len: usize, u_out: *mut u8) {
-    unsafe {
-        let per_u = &U_CONTEXT.0[index];
-        ptr::copy_nonoverlapping(per_u.base_vector().as_ptr(), u_out, u_len);
+fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
+    let mut podr2_res = PoDR2CommitResponse::new();
+    podr2_res.pkey = base64::encode(data.pkey);
+
+    let mut sigmas_encoded: Vec<String> = Vec::new();
+    for sigma in data.sigmas {
+        sigmas_encoded.push(base64::encode(sigma))
     }
+
+    let mut u_encoded: Vec<String> = Vec::new();
+    for u in data.t.t0.u {
+        u_encoded.push(base64::encode(u))
+    }
+
+    podr2_res.sigmas = sigmas_encoded;
+    podr2_res.t.signature = base64::encode(data.t.signature);
+    podr2_res.t.t0.name = base64::encode(data.t.t0.name);
+    podr2_res.t.t0.n = data.t.t0.n;
+    podr2_res.t.t0.u = u_encoded;
+    podr2_res
 }
 
-/// For public key Enclave EDL requires the length of array to be passed along
-/// Make sure to pass the correct length of publickey being retrieved
-///
-#[no_mangle]
-pub extern "C" fn get_signature(index: usize, sig_len: usize, sig: *mut u8) {
-    unsafe {
-        let signature = &SIGNATURES.0[index];
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
-    }
-}
-
-/// For public key Enclave EDL requires the length of array to be passed along
-/// Make sure to pass the correct length of publickey being retrieved
-///
-#[no_mangle]
-pub extern "C" fn get_public_key(pkey_len: usize, pkey: *mut u8) {
-    unsafe {
-        let public_key = SIGNATURES.1;
-        ptr::copy_nonoverlapping(public_key.base_vector().as_ptr(), pkey, pkey_len);
-    }
-}
-
-/// Arguments:
-/// `data` is the data that needs to be processed. It should not exceed SGX max memory size
-/// `data_len` argument is the number of **elements**, not the number of bytes.
-/// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
-/// `sig_len` is the number of signatures generated. This should be used to allocate
-/// memory to call `get_signatures`
-#[no_mangle]
-pub extern "C" fn sign_message(
-    data: *mut u8,
-    data_len: usize,
-    sig_len: usize,
-    sig: *mut u8,
-) -> sgx_status_t {
-    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
-
-    let signature = cess_bncurve::sign_message(&d, &skey);
-    unsafe {
-        ptr::copy_nonoverlapping(signature.base_vector().as_ptr(), sig, sig_len);
-    }
-
-    sgx_status_t::SGX_SUCCESS
+fn get_host_with_port(addr: &Uri) -> String {
+    let port = addr.port();
+    let port: u16 = if port.is_none() {
+        let scheme = addr.scheme();
+        if scheme == "http" {
+            80
+        } else {
+            443
+        }
+    } else {
+        port.unwrap()
+    };
+    format!("{}:{}", addr.host().unwrap(), port)
 }

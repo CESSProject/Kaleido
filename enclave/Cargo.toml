@@ -2,6 +2,7 @@
 name = "cess_enclave"
 version = "1.0.0"
 authors = ["CESS Labs"]
+# edition = "2021"
 
 [lib]
 name = "cess_enclave"
@@ -12,7 +13,7 @@ default = []
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
-sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["thread", "backtrace"] }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = ["net", "thread", "backtrace"] }
 # sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
@@ -44,9 +45,12 @@ sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 # sgx_urts = { path = "../../../teaclave-sgx-sdk/sgx_urts" }
 
 [dependencies]
-cess_pbc      = { path = "../cess_pbc" }
-cess_bncurve  = { path = "../cess_bncurve" }
-serde         = { git = "https://github.com/mesalock-linux/serde-sgx", features = ["derive"] }
-rust-crypto   = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
-serde_json    = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
-merkletree    = { git = "https://github.com/tehsunnliu/merkletree.git", package = "merkle_light" }
+cess_pbc        = { path = "../cess_pbc" }
+cess_bncurve    = { path = "../cess_bncurve" }
+base64          = { git = "https://github.com/mesalock-linux/rust-base64-sgx" }
+serde           = { git = "https://github.com/mesalock-linux/serde-sgx", features = ["derive"] }
+rust-crypto     = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
+serde_json      = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
+merkletree      = { git = "https://github.com/tehsunnliu/merkletree.git", package = "merkle_light" }
+http_req        = { git = "https://github.com/mesalock-linux/http_req-sgx" }
+libc            = "0.2.126"
