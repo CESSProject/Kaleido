@@ -21,6 +21,6 @@ extern "C" {
         data_len: usize,
         block_size: usize,
         segment_size: usize,
-        data: *const c_char,
+        callback_url: *const c_char,
     ) -> sgx_status_t;
 }
