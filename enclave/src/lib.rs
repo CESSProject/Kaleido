@@ -161,39 +161,42 @@ pub extern "C" fn process_data(
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
-        Ok(url) => url,
+        Ok(url) => url.to_string(),
         Err(e) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
-        skey.clone(),
-        pkey.clone(),
-        d.clone(),
-        block_size,
-        segment_size,
-    );
+    thread::Builder::new()
+        .name("process_data".to_string())
+        .spawn(move || {
+            let call_back_url = callback_url_str.clone();
+            let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
+                skey.clone(),
+                pkey.clone(),
+                d.clone(),
+                block_size,
+                segment_size,
+            );
 
-    // Post PoDR2CommitData to callback url.
-    let status = post_podr2_data(podr2_data, callback_url_str);
-    if status != sgx_status_t::SGX_SUCCESS {
-        return status;
-    }
+            // Print PoDR2CommitData
+            // for s in &podr2_data.sigmas {
+            //     println!("s: {}", u8v_to_hexstr(&s));
+            // }
+            // for u in &podr2_data.t.t0.u {
+            //     println!("u: {}", u8v_to_hexstr(&u));
+            // }
+            // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
+            // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
+            // println!("pkey:{:?}", pkey.to_str());
 
-    // Print PoDR2CommitData
-    // for s in &podr2_data.sigmas {
-    //     println!("s: {}", u8v_to_hexstr(&s));
-    // }
-    // for u in &podr2_data.t.t0.u {
-    //     println!("u: {}", u8v_to_hexstr(&u));
-    // }
-    // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
-    // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
-    // println!("pkey:{:?}", pkey.to_str());
+            // Post PoDR2CommitData to callback url.
+            let _ = post_podr2_data(podr2_data, call_back_url);
+        })
+        .expect("Failed to launch process_data thread");
 
     sgx_status_t::SGX_SUCCESS
 }
 
-fn post_podr2_data(data: PoDR2CommitData, callback_url: &str) -> sgx_status_t {
+fn post_podr2_data(data: PoDR2CommitData, callback_url: String) -> sgx_status_t {
     let mut podr2_res = get_podr2_resp(data);
 
     let json_data = serde_json::to_string(&podr2_res);
