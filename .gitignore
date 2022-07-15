@@ -43,3 +43,5 @@ Cargo.lock
 /cess_pbc/pbc/install-sh
 /cess_pbc/pbc/missing
 /cess_pbc/pbc/stamp-h1
+
+/teaclave-sgx-sdk
