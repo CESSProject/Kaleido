@@ -16,12 +16,16 @@
 // under the License.
 
 enclave {
+    include "sgx_key_exchange.h"
+    include "sgx_trts.h"
+
     from "sgx_tstd.edl" import *;
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_thread.edl" import *;
     from "sgx_tstdc.edl" import *;
     from "sgx_net.edl" import *;
+    from "sgx_tkey_exchange.edl" import *;
     
     trusted {
         public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
@@ -34,6 +38,24 @@ enclave {
             size_t segment_size,
             [in, string] const char* callback_url
         );
+
+        //remote attestation function
+        public sgx_status_t enclave_init_ra(int b_pse, [out] sgx_ra_context_t *p_context);
+
+        public sgx_status_t enclave_ra_close(sgx_ra_context_t context);
+
+        public sgx_status_t verify_att_result_mac(sgx_ra_context_t context,
+													[in,size=message_size] uint8_t* message,
+													size_t message_size,
+													[in,size=mac_size] uint8_t* mac,
+													size_t mac_size);
+
+        public sgx_status_t verify_secret_data(sgx_ra_context_t context,
+												[in,size=secret_size] uint8_t* p_secret,
+												uint32_t secret_size,
+												[in,count=16] uint8_t* gcm_mac,
+												uint32_t max_verification_length,
+												[out, count=16] uint8_t *p_ret);
     };
 
     untrusted {

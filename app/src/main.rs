@@ -79,6 +79,16 @@ async fn main() -> std::io::Result<()> {
             if retval != sgx_status_t::SGX_SUCCESS {
                 enclave.destroy();
                 panic!("Failed to generate key pair");
+
+            }
+            unsafe {
+                let mut p_context:sgx_ra_context_t=0;
+                enclave::ecalls::enclave_init_ra(eid, &mut retval,false,&mut p_context);
+                println!("{:}",p_context);
+            }
+            if retval != sgx_status_t::SGX_SUCCESS {
+                enclave.destroy();
+                panic!("Failed to Enclave init ra");
             }
 
             let res = HttpServer::new(move || {
@@ -86,7 +96,7 @@ async fn main() -> std::io::Result<()> {
                 let eid = eid.clone();
                 App::new()
                     .wrap(logger)
-                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024*8))
+                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024*3))
                     .app_data(web::Data::new(app::AppState { eid }))
                     .service(routes::r_process_data)
             })
