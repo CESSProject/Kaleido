@@ -128,7 +128,7 @@ cd bin
 
 To run with log
 ```bash
-RUST_LOG=into ./app
+RUST_LOG=info ./app
 ```
 
 Optionally you can set `SGX_MODE` environment variable before running `make` command to run in simulation mode
