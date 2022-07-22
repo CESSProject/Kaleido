@@ -62,37 +62,6 @@ For testing and development purpose
 docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
 ```
 
-### Kaleido API Calls.
-
-#### process_data
-**Request**
-```bash
-    curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
-```
-**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
-
-**Response**
-```json
-{
-  "t": {
-    "t0": {
-      "name": "70FB321WFqzc9w67hcNF81rh2/b4T9lJKjy9YL8r8sA=",
-      "n": 1,
-      "u": [
-        "QAK+f/glOhEIZfy16LX5K9n+pwE/sSg9+y/uNedJWq8B",
-        "Pz7f+BOiRIUaRA4o3aQ7pUR61OKl5m4zyMPnXJ2L9VcB",
-        "+5X5w9nbAWgkSj0zUE66aHVGSxDvKb/UPD/bwWmXFPQB"
-      ]
-    },
-    "signature": "xNvKLcODuNqkEyPYqMK/+acPOQ+70SaSJP/nVnuEjHIA"
-  },
-  "sigmas": [
-    "CDmNieOMKub3+DiFzssvnzOyXuaSjLhC1kUypab8dpkB"
-  ],
-  "pkey": "1IMbGs/VlFJ+x55igbsrPfWpONBAk+Dx4BqVnMMFL11WY2ROoraEESY2y9fHTrggvpHukH+wbSaTfbY+MinhRQA="
-}
-```
-
 ## Build the Source Code
 
 ### Install GMP
@@ -119,20 +88,60 @@ make
 
 ### Run Kaleido
 
-To run Kaleido navigate to `/bin` and execute `app`
+*NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
+
+Optionally, you can also set logging and debugging options envrionment variable. To do so set the follwing
+
+```bash
+export RUST_LOG="debug"
+export RUST_BACKTRACE=1
+```
+
+To run Kaleido in enclave simulation mode set 
+```bash
+export SGX_MODE=SW
+```
+
+If you are running Kaleido in SGX(Hardware) mode you will have to start `AESM`, execute those commands in your terminal.
+```bash
+LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
+/opt/intel/sgx-aesm-service/aesm/aesm_service
+```
+
+Finally, To run Kaleido navigate to `/bin` and execute `app`
 
 ```bash
 cd bin
 ./app
 ```
 
-To run with log
+### Kaleido API Calls.
+
+#### * `process_data`
+**Request**
 ```bash
-RUST_LOG=info ./app
+    curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
 ```
+**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
 
-Optionally you can set `SGX_MODE` environment variable before running `make` command to run in simulation mode
-
-```bash
-export SGX_MODE=SW
+**Response**
+```json
+{
+  "t": {
+    "t0": {
+      "name": "70FB321WFqzc9w67hcNF81rh2/b4T9lJKjy9YL8r8sA=",
+      "n": 1,
+      "u": [
+        "QAK+f/glOhEIZfy16LX5K9n+pwE/sSg9+y/uNedJWq8B",
+        "Pz7f+BOiRIUaRA4o3aQ7pUR61OKl5m4zyMPnXJ2L9VcB",
+        "+5X5w9nbAWgkSj0zUE66aHVGSxDvKb/UPD/bwWmXFPQB"
+      ]
+    },
+    "signature": "xNvKLcODuNqkEyPYqMK/+acPOQ+70SaSJP/nVnuEjHIA"
+  },
+  "sigmas": [
+    "CDmNieOMKub3+DiFzssvnzOyXuaSjLhC1kUypab8dpkB"
+  ],
+  "pkey": "1IMbGs/VlFJ+x55igbsrPfWpONBAk+Dx4BqVnMMFL11WY2ROoraEESY2y9fHTrggvpHukH+wbSaTfbY+MinhRQA="
+}
 ```
