@@ -41,14 +41,17 @@ or
 `/dev/sgx/enclave` and `/dev/sgx/provision`
 and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
 
+By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
+To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
+
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
 ```
 
 for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
 ```
 
 ### To run the container in simulation mode
@@ -56,7 +59,38 @@ docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/sgx_enclave
 For testing and development purpose
 
 ```bash
-docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -ti cesslab/sgx-rust
+docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
+```
+
+### Kaleido API Calls.
+
+#### process_data
+**Request**
+```bash
+    curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
+```
+**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
+
+**Response**
+```json
+{
+  "t": {
+    "t0": {
+      "name": "70FB321WFqzc9w67hcNF81rh2/b4T9lJKjy9YL8r8sA=",
+      "n": 1,
+      "u": [
+        "QAK+f/glOhEIZfy16LX5K9n+pwE/sSg9+y/uNedJWq8B",
+        "Pz7f+BOiRIUaRA4o3aQ7pUR61OKl5m4zyMPnXJ2L9VcB",
+        "+5X5w9nbAWgkSj0zUE66aHVGSxDvKb/UPD/bwWmXFPQB"
+      ]
+    },
+    "signature": "xNvKLcODuNqkEyPYqMK/+acPOQ+70SaSJP/nVnuEjHIA"
+  },
+  "sigmas": [
+    "CDmNieOMKub3+DiFzssvnzOyXuaSjLhC1kUypab8dpkB"
+  ],
+  "pkey": "1IMbGs/VlFJ+x55igbsrPfWpONBAk+Dx4BqVnMMFL11WY2ROoraEESY2y9fHTrggvpHukH+wbSaTfbY+MinhRQA="
+}
 ```
 
 ## Build the Source Code
@@ -83,11 +117,18 @@ then run the following command to build Kaleido
 make
 ```
 
-finally to run
+### Run Kaleido
+
+To run Kaleido navigate to `/bin` and execute `app`
 
 ```bash
 cd bin
 ./app
+```
+
+To run with log
+```bash
+RUST_LOG=into ./app
 ```
 
 Optionally you can set `SGX_MODE` environment variable before running `make` command to run in simulation mode

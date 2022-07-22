@@ -4,7 +4,7 @@ use actix_web::http::header::ContentType;
 use actix_web::{error, post, web, HttpResponse, Responder};
 use sgx_types::*;
 
-use crate::app::AppState;
+use crate::models::app_state::AppState;
 use crate::enclave;
 use crate::models::podr2_commit_response::{
     PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,

@@ -25,11 +25,8 @@ use actix_web::{web, App, HttpServer};
 use log::{error, info};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::{
-    env, str,
-};
+use std::{env, str};
 
-mod app;
 mod enclave;
 mod models;
 mod routes;
@@ -64,7 +61,7 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
 
     env_logger::init();
-
+    info!("Initializing Enclave");
     let result = match init_enclave() {
         Ok(enclave) => {
             let eid = enclave.geteid();
@@ -87,7 +84,7 @@ async fn main() -> std::io::Result<()> {
                 App::new()
                     .wrap(logger)
                     .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024))
-                    .app_data(web::Data::new(app::AppState { eid }))
+                    .app_data(web::Data::new(models::app_state::AppState { eid }))
                     .service(routes::r_process_data)
             })
             .bind(("0.0.0.0", port))?
