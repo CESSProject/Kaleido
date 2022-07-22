@@ -130,7 +130,7 @@ cd bin
 curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
 ```
 
-**Response**
+**Response**: The data will be posted back to the `callback_url` provided above with the following sample content.
 ```json
 {
   "t": {
