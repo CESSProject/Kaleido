@@ -90,7 +90,11 @@ make
 
 *NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
 
-Optionally, you can also set logging and debugging options envrionment variable. To do so set the follwing
+```bash
+export ENCLAVE_KEY_SEED="TEST_SEED"
+```
+
+Optionally, you can also set logging and debugging envrionment variable. To do so set the follwing
 
 ```bash
 export RUST_LOG="debug"
@@ -99,7 +103,7 @@ export RUST_BACKTRACE=1
 
 To run Kaleido in enclave simulation mode set 
 ```bash
-export SGX_MODE=SW
+export SGX_MODE=SW      # SGX_MODE=HW for Hardware Mode
 ```
 
 If you are running Kaleido in SGX(Hardware) mode you will have to start `AESM`, execute those commands in your terminal.
@@ -115,14 +119,16 @@ cd bin
 ./app
 ```
 
-### Kaleido API Calls.
+## Kaleido API Calls.
 
-#### * `process_data`
+### `process_data`
+
+**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
+
 **Request**
 ```bash
     curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
 ```
-**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
 
 **Response**
 ```json
