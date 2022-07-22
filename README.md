@@ -88,7 +88,7 @@ make
 
 ### Run Kaleido
 
-*NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
+> *NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
 
 ```bash
 export ENCLAVE_KEY_SEED="TEST_SEED"
@@ -127,7 +127,7 @@ cd bin
 
 **Request**
 ```bash
-    curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
+curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
 ```
 
 **Response**
