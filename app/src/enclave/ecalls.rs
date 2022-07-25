@@ -1,19 +1,8 @@
 use sgx_types::*;
 
 extern "C" {
-    pub fn get_rng(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        length: usize,
-        value: *mut u8,
-    ) -> sgx_status_t;
-    pub fn test_pbc(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
-    pub fn gen_keys(
-        eid: sgx_enclave_id_t,
-        retval: *mut sgx_status_t,
-        seed: *const u8,
-        seed_len: usize,
-    );
+    pub fn init(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
+    pub fn gen_keys(eid: sgx_enclave_id_t, retval: *mut sgx_status_t);
     pub fn process_data(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,

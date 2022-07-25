@@ -31,6 +31,10 @@ extern crate sgx_rand;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
 
+#[macro_use] 
+extern crate log;
+extern crate env_logger;
+
 #[cfg(not(target_env = "sgx"))]
 extern crate crypto;
 
@@ -54,6 +58,7 @@ use core::intrinsics::forget;
 use core::ops::{Index, IndexMut};
 use http_req::response::{self, Headers};
 use http_req::tls::Conn;
+use log::{info, trace, warn};
 use http_req::{
     request::{Method, RequestBuilder},
     response::Response,
@@ -96,7 +101,6 @@ struct Keys {
     skey: SecretKey,
     pkey: PublicKey,
     sig: G1,
-    generated: bool,
 }
 
 impl Keys {
@@ -105,18 +109,14 @@ impl Keys {
             skey: SecretKey::zero(),
             pkey: PublicKey::zero(),
             sig: G1::zero(),
-            generated: false,
         }
     }
 
-    pub fn gen_keys(self: &mut Self, seed: &[u8]) {
-        if !self.generated {
-            let (skey, pkey, sig) = pbc::key_gen_deterministic(seed);
-            self.skey = skey;
-            self.pkey = pkey;
-            self.sig = sig;
-            self.generated = true;
-        }
+    pub fn gen_keys(self: &mut Self) {
+        let (skey, pkey, sig) = pbc::key_gen();
+        self.skey = skey;
+        self.pkey = pkey;
+        self.sig = sig;
     }
 
     pub fn get_keys(self: &Self) -> (SecretKey, PublicKey, G1) {
@@ -146,13 +146,19 @@ pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
 }
 
 #[no_mangle]
-pub extern "C" fn gen_keys(seed: *const u8, seed_len: usize) -> sgx_status_t {
-    let s = unsafe { slice::from_raw_parts(seed, seed_len) };
-
+pub extern "C" fn init() -> sgx_status_t {
     pbc::init_pairings();
+    env_logger::init();
+    sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn gen_keys() -> sgx_status_t {
     unsafe {
-        KEYS.gen_keys(s);
+        KEYS.gen_keys();
     }
+
+    info!("Signing keys generated!");
     sgx_status_t::SGX_SUCCESS
 }
 

@@ -54,8 +54,6 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    test_rma();
-    let seed = env::var("ENCLAVE_KEY_SEED").unwrap_or("TEST_SEED".to_string());
     let port: u16 = env::var("KALEIDO_PORT")
         .unwrap_or("8080".to_string())
         .parse()
@@ -70,9 +68,15 @@ async fn main() -> std::io::Result<()> {
 
             let mut retval = sgx_status_t::SGX_SUCCESS;
             unsafe {
-                // Generate Deterministic Key using ENCLAVE_KEY_SEED
-                // This will be removed later as the keys will be generated within enclave.
-                enclave::ecalls::gen_keys(eid, &mut retval, seed.as_ptr(), seed.len());
+                enclave::ecalls::init(eid, &mut retval);
+            }
+            if retval != sgx_status_t::SGX_SUCCESS {
+                enclave.destroy();
+                panic!("Failed to initialize enclave libraries");
+            }
+
+            unsafe {
+                enclave::ecalls::gen_keys(eid, &mut retval);
             }
             if retval != sgx_status_t::SGX_SUCCESS {
                 enclave.destroy();
