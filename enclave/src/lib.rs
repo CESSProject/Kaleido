@@ -1,7 +1,7 @@
 // Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
-// regarding copyright ownership.  The ASF licenses this file
+// regarding c&opyright ownership.  The ASF licenses this file
 // to you under the Apache License, Version 2.0 (the
 // "License"); you may not use this file except in compliance
 // with the License.  You may obtain a copy of the License at
@@ -28,10 +28,16 @@ extern crate merkletree;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate sgx_serialize;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
 
-#[macro_use] 
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate sgx_serialize_derive;
+
+#[macro_use]
 extern crate log;
 extern crate env_logger;
 
@@ -54,27 +60,34 @@ use crate::podr2_proof_commit::podr2_proof_commit;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
+use core::borrow::BorrowMut;
+use core::convert::TryInto;
+use core::fmt::{Display, Formatter, Result};
 use core::intrinsics::forget;
 use core::ops::{Index, IndexMut};
 use http_req::response::{self, Headers};
 use http_req::tls::Conn;
-use log::{info, trace, warn};
 use http_req::{
     request::{Method, RequestBuilder},
     response::Response,
     tls,
     uri::Uri,
 };
+use log::{info, trace, warn};
 use merkletree::merkle::MerkleTree;
+use sgx_serialize::{DeSerializeHelper, SerializeHelper};
+
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
-use sgx_rand::{Rng, StdRng};
 use sgx_types::*;
 use std::{
     ffi::CStr,
     ffi::CString,
+    io::{Read, Write},
     net::TcpStream,
-    ptr, slice,
+    ptr,
+    sgxfs::SgxFile,
+    slice,
     string::String,
     sync::{Arc, SgxMutex},
     thread, time,
@@ -83,6 +96,7 @@ use std::{
     untrusted::time::SystemTimeEx,
 };
 
+<<<<<<< HEAD
 //mra dependence
 extern crate rustls;
 extern crate webpki;
@@ -97,6 +111,9 @@ extern crate webpki_roots;
 extern crate sgx_trts;
 extern crate sgx_tse;
 
+=======
+#[derive(Serializable, DeSerializable)]
+>>>>>>> Added Serialization and DeSerialization of Keys and encrypted File Storage
 struct Keys {
     skey: SecretKey,
     pkey: PublicKey,
@@ -122,28 +139,19 @@ impl Keys {
     pub fn get_keys(self: &Self) -> (SecretKey, PublicKey, G1) {
         (self.skey, self.pkey, self.sig)
     }
-}
 
-static mut KEYS: Keys = Keys::new();
-
-#[no_mangle]
-pub extern "C" fn get_rng(length: usize, value: *mut u8) -> sgx_status_t {
-    let mut random_vec = vec![0u8; length];
-    let random_slice = &mut random_vec[..];
-
-    let mut rng = match StdRng::new() {
-        Ok(rng) => rng,
-        Err(_) => {
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-    rng.fill_bytes(random_slice);
-
-    unsafe {
-        ptr::copy_nonoverlapping(random_slice.as_ptr(), value, length);
+    pub fn get_instance(self: &mut Self) -> Keys {
+        let mut keys = Keys::new();
+        keys.pkey = self.pkey.clone();
+        keys.skey = self.skey.clone();
+        keys.sig = self.sig.clone();
+        keys
     }
-    sgx_status_t::SGX_SUCCESS
 }
+
+lazy_static! (
+    static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
+);
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
@@ -154,9 +162,76 @@ pub extern "C" fn init() -> sgx_status_t {
 
 #[no_mangle]
 pub extern "C" fn gen_keys() -> sgx_status_t {
-    unsafe {
-        KEYS.gen_keys();
-    }
+    let filename = "keys";
+    let mut file = match SgxFile::open(filename) {
+        Ok(f) => f,
+        Err(fopen_err) => {
+            info!(
+                "{} file not found, creating new file. Error: {}",
+                filename, fopen_err
+            );
+
+            // Generate Keys
+            KEYS.lock().unwrap().gen_keys();
+
+            let helper = SerializeHelper::new();
+            let keys = KEYS.lock().unwrap().get_instance();
+            let data = match helper.encode(&keys) {
+                Some(d) => d,
+                None => {
+                    println!("encode data failed.");
+                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+                }
+            };
+
+            let mut file = match SgxFile::create(filename) {
+                Ok(f) => f,
+                Err(e) => {
+                    println!(
+                        "SgxFile::create failed to create file {}. Error: {}",
+                        filename, e
+                    );
+                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+                }
+            };
+
+            let write_size = match file.write(data.as_slice()) {
+                Ok(len) => len,
+                Err(_) => {
+                    println!("SgxFile::write failed to write data to the file {}.", filename);
+                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+                }
+            };
+
+            return sgx_status_t::SGX_SUCCESS;
+        }
+    };
+
+    // While encoding 4 bits are added by the encoder
+    let mut data = [0_u8; config::ZR_SIZE_FR256 + config::G2_SIZE_FR256 + config::HASH_SIZE + 4];
+
+    let read_size = match file.read(&mut data) {
+        Ok(len) => len,
+        Err(_) => {
+            println!("SgxFile::read failed.");
+            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+        }
+    };
+
+    let helper = DeSerializeHelper::<Keys>::new(data.to_vec());
+    let keys = match helper.decode() {
+        Some(d) => d,
+        None => {
+            println!("decode data failed.");
+            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+        }
+    };
+
+    let (skey, pkey, sig) = keys.get_keys();
+    let mut keys = KEYS.lock().unwrap();
+    keys.pkey = pkey;
+    keys.skey = skey;
+    keys.sig = sig;
 
     info!("Signing keys generated!");
     sgx_status_t::SGX_SUCCESS
@@ -178,7 +253,7 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let (skey, pkey, _sig) = unsafe { KEYS.get_keys() };
+    let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {

@@ -18,6 +18,7 @@ sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tcrypto = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tse     = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+sgx_serialize = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 
 [patch.'https://github.com/apache/teaclave-sgx-sdk.git']
 sgx_types = { path = "../teaclave-sgx-sdk/sgx_types" }
@@ -26,7 +27,10 @@ sgx_rand = { path = "../teaclave-sgx-sdk/sgx_rand" }
 sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 sgx_trts = { path = "../teaclave-sgx-sdk/sgx_trts" }
 sgx_tse = { path = "../teaclave-sgx-sdk/sgx_tse" }
-
+sgx_serialize = { path = "../teaclave-sgx-sdk/sgx_serialize" }
+sgx_serialize_derive = { path = "../teaclave-sgx-sdk/sgx_serialize_derive" }
+sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
+sgx_tprotected_fs = { path = "../teaclave-sgx-sdk/sgx_tprotected_fs" }
 #sgx_align_struct_attribute = { path = "../teaclave-sgx-sdk/sgx_align_struct_attribute" }
 #sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }
 #sgx_backtrace = { path = "../teaclave-sgx-sdk/sgx_backtrace" }
@@ -50,9 +54,9 @@ sgx_tse = { path = "../teaclave-sgx-sdk/sgx_tse" }
 #sgx_unwind = { path = "../teaclave-sgx-sdk/sgx_unwind" }
 
 [dependencies]
-libc = "0.2.126"
 cess_pbc = { path = "../cess_pbc" }
 cess_bncurve = { path = "../cess_bncurve" }
+sgx_serialize_derive = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 base64 = { git = "https://github.com/mesalock-linux/rust-base64-sgx" }
 serde = { git = "https://github.com/mesalock-linux/serde-sgx", features = ["derive"] }
 rust-crypto = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
@@ -70,9 +74,9 @@ webpki-roots= { git = "https://github.com/mesalock-linux/webpki-roots", branch =
 lazy_static = { version = "*", default-features = false, features = ["spin_no_std"] }
 log = { git = "https://github.com/mesalock-linux/log-sgx" }
 env_logger = {git = "https://github.com/mesalock-linux/env_logger-sgx"}
+libc = "0.2.126"
 
 [dependencies.rustls]
 git = "https://github.com/mesalock-linux/rustls"
 branch = "mesalock_sgx"
 features = ["dangerous_configuration"]
-

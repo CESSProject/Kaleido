@@ -23,6 +23,7 @@ bin/sgx_driver.txt
 **/*_t.c
 **/*_t.h
 **/bin/app
+**/bin/keys
 
 #vscode
 .vscode

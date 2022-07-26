@@ -3,62 +3,6 @@ use core::convert::TryFrom;
 use sgx_types::*;
 use std::string::String;
 
-#[no_mangle]
-pub extern "C" fn test_pbc() -> sgx_status_t {
-    println!("Hello, Testing PBC!");
-    let input = "Hello!".as_bytes();
-    let output = vec![0u8; input.len()];
-    unsafe {
-        let echo_out = cess_pbc::echo(
-            input.len() as u64,
-            input.as_ptr() as *mut _,
-            output.as_ptr() as *mut _,
-        );
-        assert_eq!(echo_out, input.len() as u64);
-        assert_eq!(input.to_vec(), output);
-    }
-
-    // Rust style convertion
-    let mut out_str = String::from("");
-    out_str += String::from_utf8(output).expect("Invalid UTF-8").as_str();
-
-    println!("PBC Echo Output: {}", out_str);
-
-    pbc::init_pairings();
-
-    // -------------------------------------
-    // on Secure pairings
-    // test PRNG
-    println!("rand Zr = {}", cess_bncurve::Zr::random().to_str());
-
-    // Test Hash
-    let h = Hash::from_vector(b" ");
-    println!("hash(\"\") = {}", h.to_str());
-    assert_eq!(
-        h.to_str(),
-        "H(36a9e7f1c95b82ffb99743e0c5c4ce95d83c9a430aac59f84ef3cbfab6145068)"
-    );
-    println!("");
-
-    // test keying...
-    let (skey, pkey, sig) = pbc::key_gen();
-    println!("-------RANDOM KEY-------");
-    println!("skey = {}", skey);
-    println!("pkey = {}", pkey);
-    println!("sig  = {}", sig);
-    assert!(check_keying(&pkey, &sig));
-
-    // test keying...
-    let (skey, pkey, sig) = pbc::key_gen_deterministic(b"TestKey");
-    println!("-------DETERMINISTIC KEY-------");
-    println!("skey = {}", skey);
-    println!("pkey = {}", pkey);
-    println!("sig  = {}", sig);
-    assert!(check_keying(&pkey, &sig));
-
-    sgx_status_t::SGX_SUCCESS
-}
-
 pub fn init_pairings() {
     let context = BN_CURVE_INFO.context as u64;
     unsafe {
