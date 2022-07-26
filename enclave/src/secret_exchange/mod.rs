@@ -94,60 +94,61 @@ pub const CERTEXPIRYDAYS: i64 = 90i64;
 
 
 fn parse_response_attn_report(resp : &[u8]) -> (String, String, String){
-    println!("parse_response_attn_report");
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut respp   = httparse::Response::new(&mut headers);
-    let result = respp.parse(resp);
-    println!("parse result {:?}", result);
-
-    let msg : &'static str;
-
-    match respp.code {
-        Some(200) => msg = "OK Operation Successful",
-        Some(401) => msg = "Unauthorized Failed to authenticate or authorize request.",
-        Some(404) => msg = "Not Found GID does not refer to a valid EPID group ID.",
-        Some(500) => msg = "Internal error occurred",
-        Some(503) => msg = "Service is currently not able to process the request (due to
-            a temporary overloading or maintenance). This is a
-            temporary state – the same request can be repeated after
-            some time. ",
-        _ => {println!("DBG:{}", respp.code.unwrap()); msg = "Unknown error occured"},
-    }
-
-    println!("{}", msg);
-    let mut len_num : u32 = 0;
+    // println!("parse_response_attn_report");
+    // let mut headers = [httparse::EMPTY_HEADER; 16];
+    // let mut respp   = httparse::Response::new(&mut headers);
+    // let result = respp.parse(resp);
+    // println!("parse result {:?}", result);
+    //
+    // let msg : &'static str;
+    //
+    // match respp.code {
+    //     Some(200) => msg = "OK Operation Successful",
+    //     Some(401) => msg = "Unauthorized Failed to authenticate or authorize request.",
+    //     Some(404) => msg = "Not Found GID does not refer to a valid EPID group ID.",
+    //     Some(500) => msg = "Internal error occurred",
+    //     Some(503) => msg = "Service is currently not able to process the request (due to
+    //         a temporary overloading or maintenance). This is a
+    //         temporary state – the same request can be repeated after
+    //         some time. ",
+    //     _ => {println!("DBG:{}", respp.code.unwrap()); msg = "Unknown error occured"},
+    // }
+    //
+    // println!("{}", msg);
+    // let mut len_num : u32 = 0;
 
     let mut sig = String::new();
     let mut cert = String::new();
     let mut attn_report = String::new();
+    let mut sig_cert = String::new();
 
-    for i in 0..respp.headers.len() {
-        let h = respp.headers[i];
-        //println!("{} : {}", h.name, str::from_utf8(h.value).unwrap());
-        match h.name{
-            "Content-Length" => {
-                let len_str = String::from_utf8(h.value.to_vec()).unwrap();
-                len_num = len_str.parse::<u32>().unwrap();
-                println!("content length = {}", len_num);
-            }
-            "X-IASReport-Signature" => sig = str::from_utf8(h.value).unwrap().to_string(),
-            "X-IASReport-Signing-Certificate" => cert = str::from_utf8(h.value).unwrap().to_string(),
-            _ => (),
-        }
-    }
-
-    // Remove %0A from cert, and only obtain the signing cert
-    cert = cert.replace("%0A", "");
-    cert = cert::percent_decode(cert);
-    let v: Vec<&str> = cert.split("-----").collect();
-    let sig_cert = v[2].to_string();
-
-    if len_num != 0 {
-        let header_len = result.unwrap().unwrap();
-        let resp_body = &resp[header_len..];
-        attn_report = str::from_utf8(resp_body).unwrap().to_string();
-        println!("Attestation report: {}", attn_report);
-    }
+    // for i in 0..respp.headers.len() {
+    //     let h = respp.headers[i];
+    //     //println!("{} : {}", h.name, str::from_utf8(h.value).unwrap());
+    //     match h.name{
+    //         "Content-Length" => {
+    //             let len_str = String::from_utf8(h.value.to_vec()).unwrap();
+    //             len_num = len_str.parse::<u32>().unwrap();
+    //             println!("content length = {}", len_num);
+    //         }
+    //         "X-IASReport-Signature" => sig = str::from_utf8(h.value).unwrap().to_string(),
+    //         "X-IASReport-Signing-Certificate" => cert = str::from_utf8(h.value).unwrap().to_string(),
+    //         _ => (),
+    //     }
+    // }
+    //
+    // // Remove %0A from cert, and only obtain the signing cert
+    // cert = cert.replace("%0A", "");
+    // cert = cert::percent_decode(cert);
+    // let v: Vec<&str> = cert.split("-----").collect();
+    // let sig_cert = v[2].to_string();
+    //
+    // if len_num != 0 {
+    //     let header_len = result.unwrap().unwrap();
+    //     let resp_body = &resp[header_len..];
+    //     attn_report = str::from_utf8(resp_body).unwrap().to_string();
+    //     println!("Attestation report: {}", attn_report);
+    // }
 
     // len_num == 0
     (attn_report, sig, sig_cert)
@@ -155,46 +156,46 @@ fn parse_response_attn_report(resp : &[u8]) -> (String, String, String){
 
 
 fn parse_response_sigrl(resp : &[u8]) -> Vec<u8> {
-    println!("parse_response_sigrl");
-    let mut headers = [httparse::EMPTY_HEADER; 16];
-    let mut respp   = httparse::Response::new(&mut headers);
-    let result = respp.parse(resp);
-    println!("parse result {:?}", result);
-    println!("parse response{:?}", respp);
-
-    let msg : &'static str;
-
-    match respp.code {
-        Some(200) => msg = "OK Operation Successful",
-        Some(401) => msg = "Unauthorized Failed to authenticate or authorize request.",
-        Some(404) => msg = "Not Found GID does not refer to a valid EPID group ID.",
-        Some(500) => msg = "Internal error occurred",
-        Some(503) => msg = "Service is currently not able to process the request (due to
-            a temporary overloading or maintenance). This is a
-            temporary state – the same request can be repeated after
-            some time. ",
-        _ => msg = "Unknown error occured",
-    }
-
-    println!("{}", msg);
-    let mut len_num : u32 = 0;
-
-    for i in 0..respp.headers.len() {
-        let h = respp.headers[i];
-        if h.name == "content-length" {
-            let len_str = String::from_utf8(h.value.to_vec()).unwrap();
-            len_num = len_str.parse::<u32>().unwrap();
-            println!("content length = {}", len_num);
-        }
-    }
-
-    if len_num != 0 {
-        let header_len = result.unwrap().unwrap();
-        let resp_body = &resp[header_len..];
-        println!("Base64-encoded SigRL: {:?}", resp_body);
-
-        return base64::decode(str::from_utf8(resp_body).unwrap()).unwrap();
-    }
+    // println!("parse_response_sigrl");
+    // let mut headers = [httparse::EMPTY_HEADER; 16];
+    // let mut respp   = httparse::Response::new(&mut headers);
+    // let result = respp.parse(resp);
+    // println!("parse result {:?}", result);
+    // println!("parse response{:?}", respp);
+    //
+    // let msg : &'static str;
+    //
+    // match respp.code {
+    //     Some(200) => msg = "OK Operation Successful",
+    //     Some(401) => msg = "Unauthorized Failed to authenticate or authorize request.",
+    //     Some(404) => msg = "Not Found GID does not refer to a valid EPID group ID.",
+    //     Some(500) => msg = "Internal error occurred",
+    //     Some(503) => msg = "Service is currently not able to process the request (due to
+    //         a temporary overloading or maintenance). This is a
+    //         temporary state – the same request can be repeated after
+    //         some time. ",
+    //     _ => msg = "Unknown error occured",
+    // }
+    //
+    // println!("{}", msg);
+    // let mut len_num : u32 = 0;
+    //
+    // for i in 0..respp.headers.len() {
+    //     let h = respp.headers[i];
+    //     if h.name == "content-length" {
+    //         let len_str = String::from_utf8(h.value.to_vec()).unwrap();
+    //         len_num = len_str.parse::<u32>().unwrap();
+    //         println!("content length = {}", len_num);
+    //     }
+    // }
+    //
+    // if len_num != 0 {
+    //     let header_len = result.unwrap().unwrap();
+    //     let resp_body = &resp[header_len..];
+    //     println!("Base64-encoded SigRL: {:?}", resp_body);
+    //
+    //     return base64::decode(str::from_utf8(resp_body).unwrap()).unwrap();
+    // }
 
     // len_num == 0
     Vec::new()
