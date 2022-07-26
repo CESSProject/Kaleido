@@ -82,6 +82,7 @@ use std::{
 extern crate rustls;
 extern crate webpki;
 extern crate itertools;
+extern crate base64;
 extern crate httparse;
 extern crate yasna;
 extern crate bit_vec;
