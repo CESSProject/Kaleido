@@ -23,7 +23,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use chrono::TimeZone;
 use chrono::Utc as TzUtc;
-use itertools::Itertools;
+// use itertools::Itertools;
 
 type SignatureAlgorithms = &'static [&'static webpki::SignatureAlgorithm];
 static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[

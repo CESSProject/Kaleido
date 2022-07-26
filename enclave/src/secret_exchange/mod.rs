@@ -60,7 +60,7 @@ use std::str;
 use std::io::{Write, Read};
 use std::untrusted::fs;
 use std::vec::Vec;
-use itertools::Itertools;
+// use itertools::Itertools;
 
 
 pub const DEV_HOSTNAME:&'static str = "api.trustedservices.intel.com";

@@ -81,7 +81,7 @@ use std::{
 //mra dependence
 extern crate rustls;
 extern crate webpki;
-extern crate itertools;
+// extern crate itertools;
 extern crate base64;
 // extern crate httparse;
 extern crate yasna;
