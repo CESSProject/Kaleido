@@ -1,7 +1,7 @@
-use crate::std::prelude::v1::*;
-use crate::std::{str, ptr};
-use crate::std::time::*;
-use crate::std::untrusted::time::SystemTimeEx;
+use std::prelude::v1::*;
+use std::{str, ptr};
+use std::time::*;
+use std::untrusted::time::SystemTimeEx;
 //use std::untrusted::fs::File;
 //use std::io::prelude::*;
 
@@ -9,7 +9,7 @@ use sgx_tcrypto::*;
 use sgx_types::*;
 
 use super::CERTEXPIRYDAYS;
-use crate::std::io::BufReader;
+use std::io::BufReader;
 use rustls;
 use yasna;
 use base64;

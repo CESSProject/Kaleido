@@ -43,23 +43,23 @@ pub mod hex;
 // extern crate chrono;
 // extern crate webpki_roots;
 
-use crate::std::backtrace::{self, PrintFormat};
+use std::backtrace::{self, PrintFormat};
 use sgx_types::*;
 use sgx_tse::*;
 //use sgx_trts::trts::{rsgx_raw_is_outside_enclave, rsgx_lfence};
 use sgx_tcrypto::*;
 use sgx_rand::*;
 
-use crate::std::prelude::v1::*;
-use crate::std::sync::Arc;
-use crate::std::net::TcpStream;
-use crate::std::string::String;
-use crate::std::io;
-use crate::std::ptr;
-use crate::std::str;
-use crate::std::io::{Write, Read};
-use crate::std::untrusted::fs;
-use crate::std::vec::Vec;
+use std::prelude::v1::*;
+use std::sync::Arc;
+use std::net::TcpStream;
+use std::string::String;
+use std::io;
+use std::ptr;
+use std::str;
+use std::io::{Write, Read};
+use std::untrusted::fs;
+use std::vec::Vec;
 use itertools::Itertools;
 
 
