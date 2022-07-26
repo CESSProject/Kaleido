@@ -78,6 +78,21 @@ use std::{
     untrusted::time::SystemTimeEx,
 };
 
+//mra dependence
+extern crate rustls;
+extern crate webpki;
+extern crate itertools;
+extern crate base64;
+extern crate httparse;
+extern crate yasna;
+extern crate bit_vec;
+extern crate num_bigint;
+extern crate serde_json;
+extern crate chrono;
+extern crate webpki_roots;
+extern crate sgx_trts;
+extern crate sgx_tse;
+
 struct Keys {
     skey: SecretKey,
     pkey: PublicKey,
