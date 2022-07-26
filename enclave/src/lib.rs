@@ -44,6 +44,7 @@ mod ocall_def;
 mod param;
 mod pbc;
 mod podr2_proof_commit;
+mod secret_exchange;
 
 use crate::podr2_proof_commit::podr2_proof_commit;
 use alloc::string::ToString;
