@@ -72,7 +72,7 @@ pub fn encode_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod test {
-
+    use alloc::string::ToString;
     use super::decode_hex;
     use super::encode_hex;
 
