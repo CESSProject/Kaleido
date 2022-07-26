@@ -143,7 +143,7 @@ $(RustEnclave_Name): enclave enclave/Enclave_t.o
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	mkdir -p bin
-	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
+	@$(SGX_ENCLAVE_SIGNER) sign -ignore-rel-error -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
 .PHONY: enclave

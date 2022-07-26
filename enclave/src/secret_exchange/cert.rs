@@ -12,7 +12,6 @@ use super::CERTEXPIRYDAYS;
 use std::io::BufReader;
 use rustls;
 use yasna;
-use base64;
 use webpki;
 use serde_json;
 use serde_json::Value;
@@ -24,15 +23,6 @@ use chrono::Duration;
 use chrono::TimeZone;
 use chrono::Utc as TzUtc;
 use itertools::Itertools;
-
-extern "C" {
-    #[allow(dead_code)]
-    pub fn ocall_get_update_info (ret_val: *mut sgx_status_t,
-                                  platformBlob: * const sgx_platform_info_t,
-                                  enclaveTrusted: i32,
-                                  update_info: * mut sgx_update_info_bit_t) -> sgx_status_t;
-}
-
 
 type SignatureAlgorithms = &'static [&'static webpki::SignatureAlgorithm];
 static SUPPORTED_SIG_ALGS: SignatureAlgorithms = &[

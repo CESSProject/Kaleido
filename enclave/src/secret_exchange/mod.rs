@@ -68,24 +68,29 @@ pub const SIGRL_SUFFIX:&'static str = "/sgx/dev/attestation/v4/sigrl/";
 pub const REPORT_SUFFIX:&'static str = "/sgx/dev/attestation/v4/report";
 pub const CERTEXPIRYDAYS: i64 = 90i64;
 
-extern "C" {
-    pub fn ocall_sgx_init_quote ( ret_val : *mut sgx_status_t,
-                                  ret_ti  : *mut sgx_target_info_t,
-                                  ret_gid : *mut sgx_epid_group_id_t) -> sgx_status_t;
-    pub fn ocall_get_ias_socket ( ret_val : *mut sgx_status_t,
-                                  ret_fd  : *mut i32) -> sgx_status_t;
-    pub fn ocall_get_quote (ret_val            : *mut sgx_status_t,
-                            p_sigrl            : *const u8,
-                            sigrl_len          : u32,
-                            p_report           : *const sgx_report_t,
-                            quote_type         : sgx_quote_sign_type_t,
-                            p_spid             : *const sgx_spid_t,
-                            p_nonce            : *const sgx_quote_nonce_t,
-                            p_qe_report        : *mut sgx_report_t,
-                            p_quote            : *mut u8,
-                            maxlen             : u32,
-                            p_quote_len        : *mut u32) -> sgx_status_t;
-}
+// extern "C" {
+//     pub fn ocall_sgx_init_quote ( ret_val : *mut sgx_status_t,
+//                                   ret_ti  : *mut sgx_target_info_t,
+//                                   ret_gid : *mut sgx_epid_group_id_t) -> sgx_status_t;
+//     pub fn ocall_get_ias_socket ( ret_val : *mut sgx_status_t,
+//                                   ret_fd  : *mut i32) -> sgx_status_t;
+//     pub fn ocall_get_quote (ret_val            : *mut sgx_status_t,
+//                             p_sigrl            : *const u8,
+//                             sigrl_len          : u32,
+//                             p_report           : *const sgx_report_t,
+//                             quote_type         : sgx_quote_sign_type_t,
+//                             p_spid             : *const sgx_spid_t,
+//                             p_nonce            : *const sgx_quote_nonce_t,
+//                             p_qe_report        : *mut sgx_report_t,
+//                             p_quote            : *mut u8,
+//                             maxlen             : u32,
+//                             p_quote_len        : *mut u32) -> sgx_status_t;
+//     #[allow(dead_code)]
+//     pub fn ocall_get_update_info (ret_val: *mut sgx_status_t,
+//                                   platformBlob: * const sgx_platform_info_t,
+//                                   enclaveTrusted: i32,
+//                                   update_info: * mut sgx_update_info_bit_t) -> sgx_status_t;
+// }
 
 
 fn parse_response_attn_report(resp : &[u8]) -> (String, String, String){
@@ -301,7 +306,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
     let mut rt : sgx_status_t = sgx_status_t::SGX_ERROR_UNEXPECTED;
 
     let res = unsafe {
-        ocall_sgx_init_quote(&mut rt as *mut sgx_status_t,
+        super::ocall_sgx_init_quote(&mut rt as *mut sgx_status_t,
                              &mut ti as *mut sgx_target_info_t,
                              &mut eg as *mut sgx_epid_group_id_t)
     };
@@ -322,7 +327,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
     let mut ias_sock : i32 = 0;
 
     let res = unsafe {
-        ocall_get_ias_socket(&mut rt as *mut sgx_status_t,
+        super::ocall_get_ias_socket(&mut rt as *mut sgx_status_t,
                              &mut ias_sock as *mut i32)
     };
 
@@ -399,7 +404,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
     let p_quote_len = &mut quote_len as *mut u32;
 
     let result = unsafe {
-        ocall_get_quote(&mut rt as *mut sgx_status_t,
+        super::ocall_get_quote(&mut rt as *mut sgx_status_t,
                         p_sigrl,
                         sigrl_len,
                         p_report,
@@ -471,7 +476,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
 
     let quote_vec : Vec<u8> = return_quote_buf[..quote_len as usize].to_vec();
     let res = unsafe {
-        ocall_get_ias_socket(&mut rt as *mut sgx_status_t,
+        super::ocall_get_ias_socket(&mut rt as *mut sgx_status_t,
                              &mut ias_sock as *mut i32)
     };
 
