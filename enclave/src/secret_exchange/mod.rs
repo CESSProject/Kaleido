@@ -444,7 +444,7 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
         println!("qe_report does not match current target_info!");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
-    println!("sgx quote mr_enclave = {:02x}", ti.mr_enclave.m.iter().format(""));
+    // println!("sgx quote mr_enclave = {:02x}", ti.mr_enclave.m.iter().format(""));
     println!("qe_report check passed");
 
     // Debug
@@ -467,8 +467,8 @@ pub fn create_attestation_report(pub_k: &sgx_ec256_public_t, sign_type: sgx_quot
     let rhs_hash = rsgx_sha256_slice(&rhs_vec[..]).unwrap();
     let lhs_hash = &qe_report.body.report_data.d[..32];
 
-    println!("rhs hash = {:02X}", rhs_hash.iter().format(""));
-    println!("report hs= {:02X}", lhs_hash.iter().format(""));
+    // println!("rhs hash = {:02X}", rhs_hash.iter().format(""));
+    // println!("report hs= {:02X}", lhs_hash.iter().format(""));
 
     if rhs_hash != lhs_hash {
         println!("Quote is tampered!");
