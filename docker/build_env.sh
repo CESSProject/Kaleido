@@ -44,6 +44,7 @@ fi
 IMAGEID="cesslab/${dockerfile_prefix}:latest"
 
 echo "building $IMAGEID image"
+#docker build -f $DOCKER_FILE_DIR/env/${dockerfile_prefix}.Dockerfile -t $IMAGEID --build-arg https_proxy=172.16.2.137:7890 $DOCKER_FILE_DIR/env
 docker build -f $DOCKER_FILE_DIR/env/${dockerfile_prefix}.Dockerfile -t $IMAGEID $DOCKER_FILE_DIR/env
 if [ "$?" -ne "0" ]; then
     echo "$IMAGEID build failed!"
