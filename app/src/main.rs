@@ -31,12 +31,6 @@ use std::io::Read;
 mod enclave;
 mod models;
 mod routes;
-#[derive(Debug, Deserialize)]
-struct Document {
-    param: Option<String>,
-    first_element: String,
-    second_element: SecondElement,
-}
 //Request fusing
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
