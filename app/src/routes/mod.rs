@@ -5,7 +5,7 @@ use actix_web::{error, post, web, HttpResponse, Responder};
 use sgx_types::*;
 
 use crate::models::app_state::AppState;
-use crate::enclave;
+use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
     PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,
 };
@@ -52,6 +52,16 @@ pub async fn r_process_data(
     let sigmas_len: usize = 0;
 
     debug!("Processing file data");
+    //Determine the remaining enclave memory size
+    if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)-file_data.len()<0{
+        println!("Enclave memory is full, please request again later");
+        return Err(PoDR2CommitError {
+            message: Some("Enclave memory is full, please request again later".to_string()),
+        })
+    }else {
+        let total=Enclave_Cap.fetch_sub(file_data.len(),super::Ordering::SeqCst);
+        println!("The enclave request succeeded, the remaining space {}",total)
+    }
     let result = unsafe {
         enclave::ecalls::process_data(
             eid,
@@ -75,7 +85,8 @@ pub async fn r_process_data(
             HttpResponse::InternalServerError();
         }
     }
-
+    let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
+    println!("remain enclave cap is {}",remain);
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
