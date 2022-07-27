@@ -3,4 +3,4 @@ extern crate awc;
 extern crate tokio;
 extern crate futures;
 pub mod ecalls;
-// pub mod ocalls;
+pub mod ocalls;

@@ -54,6 +54,7 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    test_rma();
     let seed = env::var("ENCLAVE_KEY_SEED").unwrap_or("TEST_SEED".to_string());
     let port: u16 = env::var("KALEIDO_PORT")
         .unwrap_or("8080".to_string())
@@ -101,6 +102,93 @@ async fn main() -> std::io::Result<()> {
     };
 
     result
+}
+
+enum Mode {
+    Client,
+    Server,
+}
+
+fn test_rma(){
+    use std::os::unix::io::{IntoRawFd, AsRawFd};
+    use std::env;
+    use std::net::{TcpListener, TcpStream, SocketAddr};
+    use std::str;
+
+    let mut mode:Mode = Mode::Server;
+    let mut args: Vec<_> = env::args().collect();
+    let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
+    args.remove(0);
+    while !args.is_empty() {
+        match args.remove(0).as_ref() {
+            "--client" => mode = Mode::Client,
+            "--server" => mode = Mode::Server,
+            "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
+            _ => {
+                panic!("Only --client/server/unlink is accepted");
+            }
+        }
+    }
+
+    let enclave = match init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+            r
+        },
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+            return;
+        },
+    };
+
+    match mode {
+        Mode::Server => {
+            println!("Running as server...");
+            let listener = TcpListener::bind("0.0.0.0:3443").unwrap();
+            //loop{
+            match listener.accept() {
+                Ok((socket, addr)) => {
+                    println!("new client from {:?}", addr);
+                    let mut retval = sgx_status_t::SGX_SUCCESS;
+                    let result = unsafe {
+                        enclave::ecalls::run_server(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
+                    };
+                    match result {
+                        sgx_status_t::SGX_SUCCESS => {
+                            println!("ECALL success!");
+                        },
+                        _ => {
+                            println!("[-] ECALL Enclave Failed {}!", result.as_str());
+                            return;
+                        }
+                    }
+                }
+                Err(e) => println!("couldn't get client: {:?}", e),
+            }
+            //} //loop
+        }
+        Mode::Client => {
+            println!("Running as client...");
+            let socket = TcpStream::connect("127.0.0.1:3443").unwrap();
+            let mut retval = sgx_status_t::SGX_SUCCESS;
+            let result = unsafe {
+                enclave::ecalls::run_client(enclave.geteid(), &mut retval, socket.as_raw_fd(), sign_type)
+            };
+            match result {
+                sgx_status_t::SGX_SUCCESS => {
+                    println!("ECALL success!");
+                },
+                _ => {
+                    println!("[-] ECALL Enclave Failed {}!", result.as_str());
+                    return;
+                }
+            }
+        }
+    }
+
+    println!("[+] Done!");
+
+    enclave.destroy();
 }
 
 // fn test_rng(enclave: &SgxEnclave) {
