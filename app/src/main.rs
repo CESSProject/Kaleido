@@ -103,7 +103,8 @@ async fn main() -> std::io::Result<()> {
                 let eid = eid.clone();
                 App::new()
                     .wrap(logger)
-                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024))
+                    //3G limmit
+                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3))
                     .app_data(web::Data::new(models::app_state::AppState { eid }))
                     .service(routes::r_process_data)
             })
