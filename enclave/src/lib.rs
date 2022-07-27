@@ -96,7 +96,6 @@ use std::{
     untrusted::time::SystemTimeEx,
 };
 
-<<<<<<< HEAD
 //mra dependence
 extern crate rustls;
 extern crate webpki;
@@ -111,9 +110,7 @@ extern crate webpki_roots;
 extern crate sgx_trts;
 extern crate sgx_tse;
 
-=======
 #[derive(Serializable, DeSerializable)]
->>>>>>> Added Serialization and DeSerialization of Keys and encrypted File Storage
 struct Keys {
     skey: SecretKey,
     pkey: PublicKey,

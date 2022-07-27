@@ -29,7 +29,6 @@ sgx_trts = { path = "../teaclave-sgx-sdk/sgx_trts" }
 sgx_tse = { path = "../teaclave-sgx-sdk/sgx_tse" }
 sgx_serialize = { path = "../teaclave-sgx-sdk/sgx_serialize" }
 sgx_serialize_derive = { path = "../teaclave-sgx-sdk/sgx_serialize_derive" }
-sgx_tcrypto = { path = "../teaclave-sgx-sdk/sgx_tcrypto" }
 sgx_tprotected_fs = { path = "../teaclave-sgx-sdk/sgx_tprotected_fs" }
 #sgx_align_struct_attribute = { path = "../teaclave-sgx-sdk/sgx_align_struct_attribute" }
 #sgx_alloc = { path = "../teaclave-sgx-sdk/sgx_alloc" }
