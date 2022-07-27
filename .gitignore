@@ -1,6 +1,11 @@
 **/target
 
 Cargo.lock
+.cargo
+.cargo_cache
+build
+bin/start.sh
+bin/sgx_driver.txt
 
 #object file
 *.o

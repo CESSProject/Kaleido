@@ -2,6 +2,8 @@
 .gitignore
 .gitmodules
 .cache
+.cargo_cache
+.cargo
 sgx-gmp
 pbc-sgx
 app/target
