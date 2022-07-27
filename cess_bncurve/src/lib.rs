@@ -63,14 +63,20 @@ impl DeSerializable for Zr {
             for i in 0..len {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
-            let arr: [u8; config::ZR_SIZE_FR256] = v.try_into().unwrap_or_else(|v: Vec<u8>| {
-                // TODO: Remove Panic and return Decoder::Error.
-                panic!(
-                    "Expected a Vec of length {} but it was {}",
-                    config::ZR_SIZE_FR256,
-                    v.len()
-                )
-            });
+            let result = v.try_into();
+            let arr: [u8; config::ZR_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::ZR_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
 
             Ok(Zr(arr))
         })
@@ -130,14 +136,20 @@ impl DeSerializable for Hash {
             for i in 0..len {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
-            let arr: [u8; config::HASH_SIZE] = v.try_into().unwrap_or_else(|v: Vec<u8>| {
-                // TODO: Remove Panic and return Decoder::Error.
-                panic!(
-                    "Expected a Vec of length {} but it was {}",
-                    config::HASH_SIZE,
-                    v.len()
-                )
-            });
+            let result = v.try_into();
+            let arr: [u8; config::HASH_SIZE] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::HASH_SIZE,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
 
             Ok(Hash(arr))
         })
@@ -184,14 +196,20 @@ impl DeSerializable for G1 {
             for i in 0..len {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
-            let arr: [u8; config::G1_SIZE_FR256] = v.try_into().unwrap_or_else(|v: Vec<u8>| {
-                // TODO: Remove Panic and return Decoder::Error.
-                panic!(
-                    "Expected a Vec of length {} but it was {}",
-                    config::G1_SIZE_FR256,
-                    v.len()
-                )
-            });
+            let result = v.try_into();
+            let arr: [u8; config::G1_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::G1_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
 
             Ok(G1(arr))
         })
@@ -241,14 +259,20 @@ impl DeSerializable for G2 {
             for i in 0..len {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
-            let arr: [u8; config::G2_SIZE_FR256] = v.try_into().unwrap_or_else(|v: Vec<u8>| {
-                // TODO: Remove Panic and return Decoder::Error.
-                panic!(
-                    "Expected a Vec of length {} but it was {}",
-                    config::G2_SIZE_FR256,
-                    v.len()
-                )
-            });
+            let result = v.try_into();
+            let arr: [u8; config::G2_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::G2_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
 
             Ok(G2(arr))
         })
@@ -297,14 +321,20 @@ impl DeSerializable for GT {
             for i in 0..len {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
-            let arr: [u8; config::GT_SIZE_FR256] = v.try_into().unwrap_or_else(|v: Vec<u8>| {
-                // TODO: Remove Panic and return Decoder::Error.
-                panic!(
-                    "Expected a Vec of length {} but it was {}",
-                    config::GT_SIZE_FR256,
-                    v.len()
-                )
-            });
+            let result = v.try_into();
+            let arr: [u8; config::GT_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::GT_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
 
             Ok(GT(arr))
         })
