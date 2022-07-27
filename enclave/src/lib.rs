@@ -165,10 +165,10 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     let filename = "keys";
     let mut file = match SgxFile::open(filename) {
         Ok(f) => f,
-        Err(fopen_err) => {
+        Err(_) => {
             info!(
-                "{} file not found, creating new file. Error: {}",
-                filename, fopen_err
+                "{} file not found, creating new file.",
+                filename
             );
 
             // Generate Keys
@@ -179,7 +179,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
             let data = match helper.encode(&keys) {
                 Some(d) => d,
                 None => {
-                    println!("encode data failed.");
+                    error!("Failed to encode Keys.");
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
                 }
             };
@@ -187,8 +187,8 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
             let mut file = match SgxFile::create(filename) {
                 Ok(f) => f,
                 Err(e) => {
-                    println!(
-                        "SgxFile::create failed to create file {}. Error: {}",
+                    error!(
+                        "Failed to create file {}. Error: {}",
                         filename, e
                     );
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
@@ -198,11 +198,11 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
             let write_size = match file.write(data.as_slice()) {
                 Ok(len) => len,
                 Err(_) => {
-                    println!("SgxFile::write failed to write data to the file {}.", filename);
+                    error!("Failed to write data to the file {}.", filename);
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
                 }
             };
-
+            info!("Signing keys generated!");
             return sgx_status_t::SGX_SUCCESS;
         }
     };
@@ -213,7 +213,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     let read_size = match file.read(&mut data) {
         Ok(len) => len,
         Err(_) => {
-            println!("SgxFile::read failed.");
+            error!("SgxFile::read failed.");
             return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
         }
     };
@@ -222,7 +222,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     let keys = match helper.decode() {
         Some(d) => d,
         None => {
-            println!("decode data failed.");
+            error!("decode data failed.");
             return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
         }
     };
@@ -233,7 +233,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     keys.skey = skey;
     keys.sig = sig;
 
-    info!("Signing keys generated!");
+    info!("Signing keys loaded successfully!");
     sgx_status_t::SGX_SUCCESS
 }
 
