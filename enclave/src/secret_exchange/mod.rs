@@ -20,28 +20,9 @@
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+#[macro_use]
 pub mod cert;
 pub mod hex;
-// extern crate sgx_types;
-// extern crate sgx_tcrypto;
-// extern crate sgx_trts;
-// extern crate sgx_tse;
-#[cfg(not(target_env = "sgx"))]
-#[macro_use]
-// extern crate sgx_tstd as std;
-// extern crate sgx_rand;
-
-// extern crate rustls;
-// extern crate webpki;
-// extern crate itertools;
-// extern crate base64;
-// extern crate httparse;
-// extern crate yasna;
-// extern crate bit_vec;
-// extern crate num_bigint;
-// extern crate serde_json;
-// extern crate chrono;
-// extern crate webpki_roots;
 
 use std::backtrace::{self, PrintFormat};
 use sgx_types::*;
