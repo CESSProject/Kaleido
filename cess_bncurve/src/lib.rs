@@ -1,40 +1,20 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
+pub mod config;
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+#[macro_use]
+extern crate sgx_serialize_derive;
+extern crate sgx_serialize;
 
-pub mod config;
+use sgx_serialize::{DeSerializable, Decoder, Encoder, Serializable};
 
 use sgx_tcrypto::rsgx_sha256_slice;
 
-use core::fmt;
+use core::fmt::{self, Error};
 use std::string::String;
 use std::vec::Vec;
-
-#[derive(Copy, Clone)]
-pub struct Zr([u8; config::ZR_SIZE_FR256]);
-
-#[derive(Copy, Clone)]
-pub struct Hash([u8; config::HASH_SIZE]);
-
-impl Hash {
-    pub fn new(hash: &[u8; 32]) -> Hash {
-        Hash(*hash)
-    }
-
-    pub fn base_vector(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn from_vector(msg: &[u8]) -> Hash {
-        hash(msg)
-    }
-
-    pub fn to_str(&self) -> String {
-        u8v_to_typed_str("H", &self.base_vector())
-    }
-}
 
 pub struct PBCInfo {
     pub context: u8, // which slot in the gluelib context table
@@ -61,6 +41,47 @@ pub const BN_CURVE_INFO: PBCInfo = PBCInfo {
     g1: config::G1_FR256,
     g2: config::G2_FR256,
 };
+
+#[derive(Copy, Clone)]
+pub struct Zr([u8; config::ZR_SIZE_FR256]);
+
+impl Serializable for Zr {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_seq(self.0.len(), |s| {
+            for (i, e) in self.0.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        })
+    }
+}
+
+impl DeSerializable for Zr {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Zr, D::Error> {
+        d.read_seq(|d, len| {
+            let mut v = Vec::with_capacity(len);
+            for i in 0..len {
+                v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+            let result = v.try_into();
+            let arr: [u8; config::ZR_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::ZR_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            Ok(Zr(arr))
+        })
+    }
+}
 
 impl Zr {
     pub const fn zero() -> Zr {
@@ -94,9 +115,106 @@ impl fmt::Display for Zr {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct Hash([u8; config::HASH_SIZE]);
+
+impl Serializable for Hash {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_seq(self.0.len(), |s| {
+            for (i, e) in self.0.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        })
+    }
+}
+
+impl DeSerializable for Hash {
+    fn decode<D: Decoder>(d: &mut D) -> Result<Hash, D::Error> {
+        d.read_seq(|d, len| {
+            let mut v = Vec::with_capacity(len);
+            for i in 0..len {
+                v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+            let result = v.try_into();
+            let arr: [u8; config::HASH_SIZE] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::HASH_SIZE,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            Ok(Hash(arr))
+        })
+    }
+}
+
+impl Hash {
+    pub fn new(hash: &[u8; 32]) -> Hash {
+        Hash(*hash)
+    }
+
+    pub fn base_vector(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn from_vector(msg: &[u8]) -> Hash {
+        hash(msg)
+    }
+
+    pub fn to_str(&self) -> String {
+        u8v_to_typed_str("H", &self.base_vector())
+    }
+}
+
 // -----------------------------------------
 #[derive(Copy, Clone)]
 pub struct G1([u8; config::G1_SIZE_FR256]);
+
+impl Serializable for G1 {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_seq(self.0.len(), |s| {
+            for (i, e) in self.0.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        })
+    }
+}
+
+impl DeSerializable for G1 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<G1, D::Error> {
+        d.read_seq(|d, len| {
+            let mut v = Vec::with_capacity(len);
+            for i in 0..len {
+                v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+            let result = v.try_into();
+            let arr: [u8; config::G1_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::G1_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            Ok(G1(arr))
+        })
+    }
+}
 
 impl G1 {
     pub const fn zero() -> G1 {
@@ -123,6 +241,44 @@ impl fmt::Display for G1 {
 #[derive(Copy, Clone)]
 pub struct G2([u8; config::G2_SIZE_FR256]);
 
+impl Serializable for G2 {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_seq(self.0.len(), |s| {
+            for (i, e) in self.0.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        })
+    }
+}
+
+impl DeSerializable for G2 {
+    fn decode<D: Decoder>(d: &mut D) -> Result<G2, D::Error> {
+        d.read_seq(|d, len| {
+            let mut v = Vec::with_capacity(len);
+            for i in 0..len {
+                v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+            let result = v.try_into();
+            let arr: [u8; config::G2_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::G2_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            Ok(G2(arr))
+        })
+    }
+}
+
 impl G2 {
     pub const fn zero() -> G2 {
         G2([0u8; config::G2_SIZE_FR256])
@@ -147,6 +303,44 @@ impl fmt::Display for G2 {
 #[derive(Copy, Clone)]
 pub struct GT([u8; config::GT_SIZE_FR256]);
 
+impl Serializable for GT {
+    fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        s.emit_seq(self.0.len(), |s| {
+            for (i, e) in self.0.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        })
+    }
+}
+
+impl DeSerializable for GT {
+    fn decode<D: Decoder>(d: &mut D) -> Result<GT, D::Error> {
+        d.read_seq(|d, len| {
+            let mut v = Vec::with_capacity(len);
+            for i in 0..len {
+                v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+            let result = v.try_into();
+            let arr: [u8; config::GT_SIZE_FR256] = match result {
+                Ok(arr) => arr,
+                Err(v) => {
+                    return Err(d.error(
+                        format!(
+                            "Expected a Vec of length {} but it was {}",
+                            config::GT_SIZE_FR256,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            Ok(GT(arr))
+        })
+    }
+}
+
 impl GT {
     pub fn zero() -> GT {
         GT([0u8; config::GT_SIZE_FR256])
@@ -168,11 +362,10 @@ impl fmt::Display for GT {
 }
 
 // -----------------------------------------
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serializable, DeSerializable)]
 pub struct SecretKey(Zr);
 
 impl SecretKey {
-
     pub fn base_vector(&self) -> &[u8] {
         self.0.base_vector()
     }
@@ -193,7 +386,7 @@ impl fmt::Display for SecretKey {
 }
 
 // -----------------------------------------
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serializable, DeSerializable)]
 pub struct PublicKey(G2);
 
 impl PublicKey {

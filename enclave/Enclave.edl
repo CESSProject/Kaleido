@@ -17,20 +17,20 @@
 
 enclave {
     from "sgx_tstd.edl" import *;
+    from "sgx_tstdc.edl" import *;
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_thread.edl" import *;
-    from "sgx_tstdc.edl" import *;
     from "sgx_net.edl" import *;
-
     from "sgx_fs.edl" import *;
     from "sgx_time.edl" import *;
     include "sgx_quote.h"
-    
+    from "sgx_env.edl" import *;
+    from "sgx_tprotected_fs.edl" import *;
+
     trusted {
-        public sgx_status_t get_rng(size_t len, [out, size=len] uint8_t* value);
-        public sgx_status_t test_pbc();
-        public sgx_status_t gen_keys([in, size=seed_len] uint8_t* seed, size_t seed_len);
+        public sgx_status_t init();
+        public sgx_status_t gen_keys();
         public sgx_status_t process_data(
             [in, size=data_len] uint8_t* data, 
             size_t data_len, 

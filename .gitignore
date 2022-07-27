@@ -22,7 +22,7 @@ bin/sgx_driver.txt
 **/*_u.h
 **/*_t.c
 **/*_t.h
-**/bin/app
+**/bin/**
 
 #vscode
 .vscode
