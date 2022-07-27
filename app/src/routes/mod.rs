@@ -60,7 +60,7 @@ pub async fn r_process_data(
         })
     }else {
         let total=Enclave_Cap.fetch_sub(file_data.len(),super::Ordering::SeqCst);
-        println!("The enclave request succeeded, the remaining space {}",total)
+        println!("The enclave request succeeded, the remaining space {}",total-file_data.len())
     }
     let result = unsafe {
         enclave::ecalls::process_data(
@@ -86,7 +86,7 @@ pub async fn r_process_data(
         }
     }
     let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
-    println!("remain enclave cap is {}",remain);
+    println!("remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
