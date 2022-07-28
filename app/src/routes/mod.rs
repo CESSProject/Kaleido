@@ -100,6 +100,6 @@ pub async fn enclave_memory_counter(
     req: web::Json<MemoryCounter>
 )-> Result<impl Responder, PoDR2CommitError>{
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
-    info!("Remain enclave cap is {}",remain+req.data_len);
+    println!()("Remain enclave cap is {}",remain+req.data_len);
     Ok(HttpResponse::Ok())
 }
