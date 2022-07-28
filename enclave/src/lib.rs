@@ -407,7 +407,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             break
         }
         Err(e) => {
-            println!("Failed to send request to {}, {}", local_memory_counter_addr, e);
+            println!("Failed to send request to {}, {}", counter_addr, e);
             continue
         }
     };
