@@ -371,7 +371,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
 
         println!("Status: {} {}", response.status_code(), response.reason());
     }
-    while 1 {
+    while true {
     let addr = callback_url.parse();
     let local_memory_counter_addr="127.0.0.1:8080/enclave_memory_counter".to_string().parse();
     let counter_addr: Uri = match local_memory_counter_addr {
@@ -407,7 +407,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             break
         }
         Err(e) => {
-            println!("Failed to send request to {}, {}", addr, e);
+            println!("Failed to send request to {}, {}", local_memory_counter_addr, e);
             continue
         }
     };
