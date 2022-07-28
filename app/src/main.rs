@@ -67,14 +67,13 @@ async fn main() -> std::io::Result<()> {
     let heap_max_size_str:Vec<&str>=pos[pos.len()-1].split("</HeapMaxSize>").collect();
     let max_value_in_conf =i64::from_str_radix(heap_max_size_str[0].clone().trim_start_matches("0x"), 16).unwrap();
     let all_cap=Enclave_Cap.fetch_add((max_value_in_conf as f32 * 0.65) as usize,Ordering::SeqCst);
-    info!("All enclave capture is {}",all_cap+(max_value_in_conf as f32 * 0.65) as usize);
     // test_rma();
     let port: u16 = env::var("KALEIDO_PORT")
         .unwrap_or("8080".to_string())
         .parse()
         .unwrap();
-
     env_logger::init();
+    info!("All enclave capture is {}",all_cap+(max_value_in_conf as f32 * 0.65) as usize);
     info!("Initializing Enclave");
     let result = match init_enclave() {
         Ok(enclave) => {
