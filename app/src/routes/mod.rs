@@ -98,4 +98,5 @@ pub async fn r_process_data(
 #[post("/memory_counter")]
 pub async fn memory_counter()-> Result<impl Responder, PoDR2CommitError>{
     println!("hello this is memory_counter");
+    Ok(HttpResponse::Ok())
 }
