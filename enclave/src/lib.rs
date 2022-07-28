@@ -327,7 +327,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     let time_out = Some(Duration::from_millis(200));
     if addr.scheme() == "https" {
         //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
 
         let mut stream = match stream {
             Ok(s) => s,
@@ -380,15 +380,15 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
-    let conn_counter_addr = get_host_with_port(&counter_addr);
-    let mut stream1 = TcpStream::connect(&conn_counter_addr);
-    let mut stream1 = match stream1 {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Failed to connect to {}, {}", counter_addr, e);
-            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-        }
-    };
+    // let conn_counter_addr = get_host_with_port(&counter_addr);
+    // let mut stream1 = TcpStream::connect(&conn_counter_addr);
+    // let mut stream1 = match stream1 {
+    //     Ok(s) => s,
+    //     Err(e) => {
+    //         println!("Failed to connect to {}, {}", counter_addr, e);
+    //         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    //     }
+    // };
     let mut mem_counter:EnclaveMemoryCounter = EnclaveMemoryCounter::new();
     mem_counter.data_len=data_len;
 
@@ -408,7 +408,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         .timeout(time_out)
         .body(post_bytes)
         .method(Method::POST)
-        .send(&mut stream1, &mut writer);
+        .send(&mut stream, &mut writer);
     let response = match response {
         Ok(res) => {
             println!("post to enclave memory counter success");
