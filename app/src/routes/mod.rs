@@ -96,6 +96,6 @@ pub async fn r_process_data(
 
 // r_ is appended to identify routes
 #[post("/memory_counter")]
-pub async fn memory_counter()-> Result<impl Responder>{
+pub async fn memory_counter()-> Result<impl Responder, PoDR2CommitError>{
     println!("hello this is memory_counter");
 }
