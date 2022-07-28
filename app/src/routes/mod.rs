@@ -7,7 +7,7 @@ use sgx_types::*;
 use crate::models::app_state::AppState;
 use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,
+    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,MemoryCounter
 };
 use std::ffi::CString;
 use std::time::Instant;
@@ -85,9 +85,9 @@ pub async fn r_process_data(
             HttpResponse::InternalServerError();
         }
     }
-    //todo:The memory counter number increment should not be here, it should wait for the post_podr2_data function in the enclave to complete before proceeding
-    let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
-    info!("Remain enclave cap is {}",remain+file_data.len());
+    // //todo:The memory counter number increment should not be here, it should wait for the post_podr2_data function in the enclave to complete before proceeding
+    // let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
+    // info!("Remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
@@ -96,7 +96,10 @@ pub async fn r_process_data(
 
 // r_ is appended to identify routes
 #[post("/memory_counter")]
-pub async fn memory_counter()-> Result<impl Responder, PoDR2CommitError>{
-    println!("hello this is memory_counter");
-    Ok(HttpResponse::Ok())
+pub async fn memory_counter(
+    req: web::Json<MemoryCounter>
+)-> Result<impl Responder, PoDR2CommitError>{
+    info!("hello this is memory_counter");
+    let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
+    info!("Remain enclave cap is {}",remain+req.data_len);
 }
