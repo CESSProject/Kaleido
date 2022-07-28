@@ -338,6 +338,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         };
 
         let response = RequestBuilder::new(&addr)
+            .method(Method::POST)
             .header("Connection", "Close")
             .header("Content-Type", "Application/Json")
             .header("Content-Length", &json_bytes.len())
@@ -402,7 +403,6 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     };
     let post_bytes = post_data.as_bytes();
     let response = RequestBuilder::new(&counter_addr)
-        .header("Method","Post")
         .header("Connection", "Close")
         .header("Content-Type", "Application/Json")
         .header("Content-Length", &post_bytes.len())
