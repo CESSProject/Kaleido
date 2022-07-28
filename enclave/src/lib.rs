@@ -327,7 +327,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     let time_out = Some(Duration::from_millis(200));
     if addr.scheme() == "https" {
         //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
 
         let mut stream = match stream {
             Ok(s) => s,
