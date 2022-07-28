@@ -85,10 +85,17 @@ pub async fn r_process_data(
             HttpResponse::InternalServerError();
         }
     }
+    //todo:The memory counter number increment should not be here, it should wait for the post_podr2_data function in the enclave to complete before proceeding
     let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
     info!("Remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
     Ok(HttpResponse::Ok())
+}
+
+// r_ is appended to identify routes
+#[post("/memory_counter")]
+pub async fn memory_counter(){
+    println!("hello this is memory_counter")
 }
