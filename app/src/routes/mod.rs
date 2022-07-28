@@ -102,4 +102,5 @@ pub async fn memory_counter(
     info!("hello this is memory_counter");
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
     info!("Remain enclave cap is {}",remain+req.data_len);
+    Ok(HttpResponse::Ok())
 }
