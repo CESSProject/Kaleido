@@ -327,7 +327,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     let time_out = Some(Duration::from_millis(200));
     if addr.scheme() == "https" {
         //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
 
         let mut stream = match stream {
             Ok(s) => s,
@@ -371,7 +371,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
 
         println!("Status: {} {}", response.status_code(), response.reason());
     }
-    while true {
+    // while true {
     let local_memory_counter_addr="http://localhost:8080/enclave_memory_counter".to_string().parse();
     let counter_addr: Uri = match local_memory_counter_addr {
         Ok(add) => add,
@@ -380,7 +380,14 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
-
+        let mut stream1 = TcpStream::connect("http://localhost:8080".to_string());
+        let mut stream1 = match stream1 {
+            Ok(s) => s,
+            Err(e) => {
+                println!("Failed to connect to {}, {}", addr, e);
+                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+            }
+        };
     let mut mem_counter:EnclaveMemoryCounter = EnclaveMemoryCounter::new();
     mem_counter.data_len=data_len;
 
@@ -399,18 +406,18 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         .header("Content-Length", &post_bytes.len())
         .timeout(time_out)
         .body(post_bytes)
-        .send(&mut stream, &mut writer);
+        .send(&mut stream1, &mut writer);
     let response = match response {
         Ok(res) => {
             println!("post to enclave memory counter success");
-            break
+            // break
         }
         Err(e) => {
             println!("Failed to send request to {}, {}", counter_addr, e);
-            continue
+            // continue
         }
     };
-    }
+    // }
     println!("{}", String::from_utf8_lossy(&writer));
     return sgx_status_t::SGX_SUCCESS;
 }
