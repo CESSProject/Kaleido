@@ -78,7 +78,7 @@ use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse,podr2_commit_response::EnclaveMemoryCounter};
 use sgx_types::*;
 use std::{
     ffi::CStr,
@@ -149,20 +149,6 @@ impl Keys {
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
 );
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
-#[repr(C)]
-pub struct EnclaveMemoryCounter{
-    data_len:usize
-}
-impl EnclaveMemoryCounter {
-    pub fn new() -> EnclaveMemoryCounter {
-        EnclaveMemoryCounter {
-            data_len:0
-        }
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
