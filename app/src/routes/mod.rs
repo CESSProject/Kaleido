@@ -54,7 +54,7 @@ pub async fn r_process_data(
 
     debug!("Processing file data");
     //Determine the remaining enclave memory size
-    if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)-file_data.len()<0{
+    if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)<file_data.len(){
         error!("Enclave memory is full, please request again later");
         return Err(PoDR2CommitError {
             message: Some("Enclave memory is full, please request again later".to_string()),
