@@ -95,12 +95,11 @@ pub async fn r_process_data(
 }
 
 // r_ is appended to identify routes
-#[post("/memory_counter")]
-pub async fn memory_counter(
+#[post("/enclave_memory_counter")]
+pub async fn enclave_memory_counter(
     req: web::Json<MemoryCounter>
 )-> Result<impl Responder, PoDR2CommitError>{
-    info!("hello this is memory_counter");
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
     info!("Remain enclave cap is {}",remain+req.data_len);
-    Ok(HttpResponse::Ok())
+    OK(HttpResponse::Ok())
 }

@@ -106,7 +106,7 @@ async fn main() -> std::io::Result<()> {
                     .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3))
                     .app_data(web::Data::new(models::app_state::AppState { eid }))
                     .service(routes::r_process_data)
-                    .service(routes::memory_counter)
+                    .service(routes::enclave_memory_counter)
             })
             .bind(("0.0.0.0", port))?
             .run()
