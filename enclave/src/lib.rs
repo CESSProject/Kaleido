@@ -338,7 +338,6 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         };
 
         let response = RequestBuilder::new(&addr)
-            .method(Method::POST)
             .header("Connection", "Close")
             .header("Content-Type", "Application/Json")
             .header("Content-Length", &json_bytes.len())
@@ -408,6 +407,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         .header("Content-Length", &post_bytes.len())
         .timeout(time_out)
         .body(post_bytes)
+        .method(Method::POST)
         .send(&mut stream1, &mut writer);
     let response = match response {
         Ok(res) => {
