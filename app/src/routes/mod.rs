@@ -101,6 +101,6 @@ pub async fn enclave_memory_counter(
     req: web::Json<EnclaveMemoryCounter>
 )-> Result<impl Responder, PoDR2CommitError>{
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
-    info!("The information processing is completed, the enclave has released the memory, and the remaining space: {}",remain+req.data_len);
+    info!("Processing of PoDR2 Commit has been completed, the enclave has released the memory, and the remaining space: {}",remain+req.data_len);
     Ok(HttpResponse::Ok())
 }
