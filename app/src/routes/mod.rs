@@ -54,13 +54,13 @@ pub async fn r_process_data(
     debug!("Processing file data");
     //Determine the remaining enclave memory size
     if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)-file_data.len()<0{
-        println!("Enclave memory is full, please request again later");
+        error!("Enclave memory is full, please request again later");
         return Err(PoDR2CommitError {
             message: Some("Enclave memory is full, please request again later".to_string()),
         })
     }else {
         let total=Enclave_Cap.fetch_sub(file_data.len(),super::Ordering::SeqCst);
-        println!("The enclave request succeeded, the remaining space {}",total-file_data.len())
+        info!("The enclave request succeeded, the remaining space {}",total-file_data.len())
     }
     let result = unsafe {
         enclave::ecalls::process_data(
@@ -86,7 +86,7 @@ pub async fn r_process_data(
         }
     }
     let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
-    println!("remain enclave cap is {}",remain+file_data.len());
+    info!("Remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
