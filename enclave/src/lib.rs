@@ -372,7 +372,6 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
         println!("Status: {} {}", response.status_code(), response.reason());
     }
     while true {
-    let addr = callback_url.parse();
     let local_memory_counter_addr="127.0.0.1:8080/enclave_memory_counter".to_string().parse();
     let counter_addr: Uri = match local_memory_counter_addr {
         Ok(add) => add,
