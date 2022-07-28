@@ -94,6 +94,7 @@ use std::{
     time::{Duration, Instant},
     untrusted::time::InstantEx,
     untrusted::time::SystemTimeEx,
+    mem
 };
 
 //mra dependence
@@ -269,7 +270,7 @@ pub extern "C" fn process_data(
                 block_size,
                 segment_size,
             );
-
+            mem::forget(d);
             // Print PoDR2CommitData
             // for s in &podr2_data.sigmas {
             //     println!("s: {}", u8v_to_hexstr(&s));
