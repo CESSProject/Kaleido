@@ -57,11 +57,6 @@ impl PoDR2CommitResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
-pub struct EnclaveMemoryCounter{
-    pub data_len:usize
-}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]

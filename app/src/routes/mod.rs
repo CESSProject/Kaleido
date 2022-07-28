@@ -7,8 +7,9 @@ use sgx_types::*;
 use crate::models::app_state::AppState;
 use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,EnclaveMemoryCounter
+    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse
 };
+use crate::models::app_state::EnclaveMemoryCounter;
 use std::ffi::CString;
 use std::time::Instant;
 use url::{ParseError, Url};
@@ -100,6 +101,6 @@ pub async fn enclave_memory_counter(
     req: web::Json<EnclaveMemoryCounter>
 )-> Result<impl Responder, PoDR2CommitError>{
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
-    println!("Remain enclave cap is {}",remain+req.data_len);
+    info!("The information processing is completed, the enclave has released the memory, and the remaining space: {}",remain+req.data_len);
     Ok(HttpResponse::Ok())
 }
