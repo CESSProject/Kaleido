@@ -371,7 +371,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
 
         println!("Status: {} {}", response.status_code(), response.reason());
     }
-    for _ in 3 {
+    for _ in 0..3 {
     let local_memory_counter_addr=ENCLAVE_MEMORY_COUNTER_PATH.clone().to_string().parse();
     let counter_addr: Uri = match local_memory_counter_addr {
         Ok(add) => add,
