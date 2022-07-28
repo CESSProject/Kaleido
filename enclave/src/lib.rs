@@ -78,7 +78,7 @@ use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse,podr2_commit_response::EnclaveMemoryCounter};
 use sgx_types::*;
 use std::{
     ffi::CStr,
@@ -94,6 +94,7 @@ use std::{
     time::{Duration, Instant},
     untrusted::time::InstantEx,
     untrusted::time::SystemTimeEx,
+    mem
 };
 
 //mra dependence
@@ -149,7 +150,7 @@ impl Keys {
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
 );
-
+const ENCLAVE_MEMORY_COUNTER_PATH: &str ="http://localhost:8080/enclave_memory_counter";
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
     pbc::init_pairings();
@@ -269,7 +270,7 @@ pub extern "C" fn process_data(
                 block_size,
                 segment_size,
             );
-
+            mem::forget(d);
             // Print PoDR2CommitData
             // for s in &podr2_data.sigmas {
             //     println!("s: {}", u8v_to_hexstr(&s));
@@ -282,14 +283,14 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url);
+            let _ = post_podr2_data(podr2_data, call_back_url,data_len);
         })
         .expect("Failed to launch process_data thread");
 
     sgx_status_t::SGX_SUCCESS
 }
 
-fn post_podr2_data(data: PoDR2CommitData, callback_url: String) -> sgx_status_t {
+fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize) -> sgx_status_t {
     let mut podr2_res = get_podr2_resp(data);
 
     let json_data = serde_json::to_string(&podr2_res);
@@ -327,7 +328,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String) -> sgx_status_t 
     let time_out = Some(Duration::from_millis(200));
     if addr.scheme() == "https" {
         //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), stream);
+        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
 
         let mut stream = match stream {
             Ok(s) => s,
@@ -370,6 +371,55 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String) -> sgx_status_t 
         };
 
         println!("Status: {} {}", response.status_code(), response.reason());
+    }
+    for _ in 0..3 {
+    let local_memory_counter_addr=ENCLAVE_MEMORY_COUNTER_PATH.clone().to_string().parse();
+    let counter_addr: Uri = match local_memory_counter_addr {
+        Ok(add) => add,
+        Err(_) => {
+            println!("Failed to Parse Url");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+    let conn_counter_addr = get_host_with_port(&counter_addr);
+    let mut counter_stream = TcpStream::connect(&conn_counter_addr);
+    let mut counter_stream = match counter_stream {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to connect to {}, {}", counter_addr, e);
+            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+        }
+    };
+    let mut mem_counter:EnclaveMemoryCounter = EnclaveMemoryCounter::new();
+    mem_counter.data_len=data_len;
+
+    let post_data = serde_json::to_string(&mem_counter);
+    let post_data = match post_data {
+        Ok(data) => data,
+        Err(_) => {
+            println!("Failed to seralize EnclaveMemoryCounter");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+    let post_bytes = post_data.as_bytes();
+    let response = RequestBuilder::new(&counter_addr)
+        .header("Connection", "Close")
+        .header("Content-Type", "Application/Json")
+        .header("Content-Length", &post_bytes.len())
+        .timeout(time_out)
+        .body(post_bytes)
+        .method(Method::POST)
+        .send(&mut counter_stream, &mut writer);
+    let response = match response {
+        Ok(res) => {
+            println!("post to enclave memory counter success");
+            break
+        }
+        Err(e) => {
+            println!("Failed to send request to {}, {}", counter_addr, e);
+            continue
+        }
+    };
     }
     println!("{}", String::from_utf8_lossy(&writer));
     return sgx_status_t::SGX_SUCCESS;

@@ -5,10 +5,11 @@ use actix_web::{error, post, web, HttpResponse, Responder};
 use sgx_types::*;
 
 use crate::models::app_state::AppState;
-use crate::enclave;
+use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,
+    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse
 };
+use crate::models::app_state::EnclaveMemoryCounter;
 use std::ffi::CString;
 use std::time::Instant;
 use url::{ParseError, Url};
@@ -52,6 +53,16 @@ pub async fn r_process_data(
     let sigmas_len: usize = 0;
 
     debug!("Processing file data");
+    //Determine the remaining enclave memory size
+    if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)<file_data.len(){
+        error!("Enclave memory is full, please request again later");
+        return Err(PoDR2CommitError {
+            message: Some("Enclave memory is full, please request again later".to_string()),
+        })
+    }else {
+        let total=Enclave_Cap.fetch_sub(file_data.len(),super::Ordering::SeqCst);
+        info!("The enclave request succeeded, the remaining space {}",total-file_data.len())
+    }
     let result = unsafe {
         enclave::ecalls::process_data(
             eid,
@@ -75,9 +86,21 @@ pub async fn r_process_data(
             HttpResponse::InternalServerError();
         }
     }
-
+    // //todo:The memory counter number increment should not be here, it should wait for the post_podr2_data function in the enclave to complete before proceeding
+    // let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
+    // info!("Remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
+    Ok(HttpResponse::Ok())
+}
+
+// r_ is appended to identify routes
+#[post("/enclave_memory_counter")]
+pub async fn enclave_memory_counter(
+    req: web::Json<EnclaveMemoryCounter>
+)-> Result<impl Responder, PoDR2CommitError>{
+    let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
+    info!("Processing of PoDR2 Commit has been completed, the enclave has released the memory, and the remaining space: {}",remain+req.data_len);
     Ok(HttpResponse::Ok())
 }

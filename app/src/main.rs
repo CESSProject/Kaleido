@@ -26,10 +26,15 @@ use log::{error, info};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::{env, str};
+use std::io::Read;
 
 mod enclave;
 mod models;
 mod routes;
+//Request fusing
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+static Enclave_Cap: AtomicUsize = AtomicUsize::new(0);
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -54,13 +59,21 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    //init enclave cap
+    let mut file = std::fs::File::open("../enclave/Enclave.config.xml").unwrap();
+    let mut enclave_conf_data:String=String::new();
+    file.read_to_string(&mut enclave_conf_data);
+    let pos :Vec<&str> = enclave_conf_data.split("<HeapMaxSize>").collect();
+    let heap_max_size_str:Vec<&str>=pos[pos.len()-1].split("</HeapMaxSize>").collect();
+    let max_value_in_conf =i64::from_str_radix(heap_max_size_str[0].clone().trim_start_matches("0x"), 16).unwrap();
+    let all_cap=Enclave_Cap.fetch_add((max_value_in_conf as f32 * 0.65) as usize,Ordering::SeqCst);
     // test_rma();
     let port: u16 = env::var("KALEIDO_PORT")
         .unwrap_or("8080".to_string())
         .parse()
         .unwrap();
-
     env_logger::init();
+    info!("All enclave capture is {}",all_cap+(max_value_in_conf as f32 * 0.65) as usize);
     info!("Initializing Enclave");
     let result = match init_enclave() {
         Ok(enclave) => {
@@ -89,9 +102,11 @@ async fn main() -> std::io::Result<()> {
                 let eid = eid.clone();
                 App::new()
                     .wrap(logger)
-                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024))
+                    //3G limmit
+                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3))
                     .app_data(web::Data::new(models::app_state::AppState { eid }))
                     .service(routes::r_process_data)
+                    .service(routes::enclave_memory_counter)
             })
             .bind(("0.0.0.0", port))?
             .run()
