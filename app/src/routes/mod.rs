@@ -96,6 +96,6 @@ pub async fn r_process_data(
 
 // r_ is appended to identify routes
 #[post("/memory_counter")]
-pub async fn memory_counter(){
-    println!("hello this is memory_counter")
+pub async fn memory_counter()-> Result<impl Responder>{
+    println!("hello this is memory_counter");
 }
