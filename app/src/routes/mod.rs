@@ -7,7 +7,7 @@ use sgx_types::*;
 use crate::models::app_state::AppState;
 use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,MemoryCounter
+    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,EnclaveMemoryCounter
 };
 use std::ffi::CString;
 use std::time::Instant;
@@ -97,7 +97,7 @@ pub async fn r_process_data(
 // r_ is appended to identify routes
 #[post("/enclave_memory_counter")]
 pub async fn enclave_memory_counter(
-    req: web::Json<MemoryCounter>
+    req: web::Json<EnclaveMemoryCounter>
 )-> Result<impl Responder, PoDR2CommitError>{
     let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
     println!("Remain enclave cap is {}",remain+req.data_len);
