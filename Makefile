@@ -107,7 +107,7 @@ RustEnclave_Name := enclave/enclave.so
 Signed_RustEnclave_Name := bin/enclave.signed.so
 
 .PHONY: all
-all: $(App_Name) $(Signed_RustEnclave_Name)
+all: create_env $(App_Name) $(Signed_RustEnclave_Name)
 
 ######## EDL Objects ########
 
@@ -146,10 +146,26 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -ignore-rel-error -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
 
+######## Environment variables ########
+
+Enclave_XML_File_Path = ./enclave/Enclave.config.xml
+
+.PHONY: install_xml_package 
+install_xml_package:
+ifeq (, $(shell which xmllint))
+	@echo "Installing xmllint"
+	apt update && apt install -y libxml2-utils
+	@echo "xmllint installed"
+endif
+
+.PHONY: create_env
+create_env: install_xml_package
+	@echo "Creating .env from $(Enclave_XML_File_Path)"
+	@echo "# Generated file, Please do not edit.\n\nHEAP_MAX_SIZE=$(shell xmllint --xpath 'string(/EnclaveConfiguration/HeapMaxSize)' $(Enclave_XML_File_Path))" > ./bin/.env
+
 .PHONY: enclave
 enclave:
 	$(MAKE) -C ./enclave/
-
 
 .PHONY: clean
 clean:

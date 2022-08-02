@@ -49,6 +49,19 @@ extern crate crypto;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
+//mra dependence
+extern crate base64;
+extern crate bit_vec;
+extern crate chrono;
+extern crate httparse;
+extern crate num_bigint;
+extern crate rustls;
+extern crate sgx_trts;
+extern crate sgx_tse;
+extern crate webpki;
+extern crate webpki_roots;
+extern crate yasna;
+
 mod merkletree_generator;
 mod ocall_def;
 mod param;
@@ -56,60 +69,42 @@ mod pbc;
 mod podr2_proof_commit;
 mod secret_exchange;
 
-use crate::podr2_proof_commit::podr2_proof_commit;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
-use core::borrow::BorrowMut;
 use core::convert::TryInto;
-use core::fmt::{Display, Formatter, Result};
-use core::intrinsics::forget;
-use core::ops::{Index, IndexMut};
-use http_req::response::{self, Headers};
-use http_req::tls::Conn;
+use core::sync::atomic::AtomicUsize;
+use http_req::response;
 use http_req::{
-    request::{Method, RequestBuilder},
-    response::Response,
+    request:: RequestBuilder,
     tls,
     uri::Uri,
 };
-use log::{info, trace, warn};
+use log::{info, warn};
 use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
+use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse,podr2_commit_response::EnclaveMemoryCounter};
+use param::{
+    podr2_commit_data::PoDR2CommitData,
+    podr2_commit_response::PoDR2CommitResponse,
+};
 use sgx_types::*;
 use std::{
+    env,
     ffi::CStr,
-    ffi::CString,
     io::{Read, Write},
     net::TcpStream,
-    ptr,
     sgxfs::SgxFile,
     slice,
     string::String,
-    sync::{Arc, SgxMutex},
-    thread, time,
-    time::{Duration, Instant},
-    untrusted::time::InstantEx,
-    untrusted::time::SystemTimeEx,
-    mem
+    sync::SgxMutex,
+    thread,
+    time::Duration,
 };
 
-//mra dependence
-extern crate rustls;
-extern crate webpki;
-// extern crate itertools;
-extern crate base64;
-extern crate httparse;
-extern crate yasna;
-extern crate bit_vec;
-extern crate num_bigint;
-extern crate chrono;
-extern crate webpki_roots;
-extern crate sgx_trts;
-extern crate sgx_tse;
+static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -150,11 +145,17 @@ impl Keys {
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
 );
-const ENCLAVE_MEMORY_COUNTER_PATH: &str ="http://localhost:8080/enclave_memory_counter";
+
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
-    pbc::init_pairings();
     env_logger::init();
+    pbc::init_pairings();
+    let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
+    let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
+    debug!("HEAP_MAX_SIZE: {} MB", heap_max_size / (1024 * 1024));
+    let max_file_size = (heap_max_size as f32 * 0.65) as usize;
+    ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
+    info!("Max supported File size: {} bytes", max_file_size);
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -164,10 +165,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     let mut file = match SgxFile::open(filename) {
         Ok(f) => f,
         Err(_) => {
-            info!(
-                "{} file not found, creating new file.",
-                filename
-            );
+            info!("{} file not found, creating new file.", filename);
 
             // Generate Keys
             KEYS.lock().unwrap().gen_keys();
@@ -185,15 +183,12 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
             let mut file = match SgxFile::create(filename) {
                 Ok(f) => f,
                 Err(e) => {
-                    error!(
-                        "Failed to create file {}. Error: {}",
-                        filename, e
-                    );
+                    error!("Failed to create file {}. Error: {}", filename, e);
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
                 }
             };
 
-            let write_size = match file.write(data.as_slice()) {
+            let _write_size = match file.write(data.as_slice()) {
                 Ok(len) => len,
                 Err(_) => {
                     error!("Failed to write data to the file {}.", filename);
@@ -208,7 +203,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     // While encoding 4 bits are added by the encoder
     let mut data = [0_u8; config::ZR_SIZE_FR256 + config::G2_SIZE_FR256 + config::HASH_SIZE + 4];
 
-    let read_size = match file.read(&mut data) {
+    let _read_size = match file.read(&mut data) {
         Ok(len) => len,
         Err(_) => {
             error!("SgxFile::read failed.");
@@ -239,9 +234,8 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
 /// `data_len` argument is the number of **elements**, not the number of bytes.
 /// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
-/// `sig_len` is the number of signatures generated. This should be used to allocate
-/// memory to call `get_signatures`
-/// `muilti_thread` if set to true the enclave will use multi thread to compute signatures.
+/// `segment_size` 
+/// `callback_url` PoDR2 data will be posted back to this url 
 #[no_mangle]
 pub extern "C" fn process_data(
     data: *mut u8,
@@ -250,20 +244,30 @@ pub extern "C" fn process_data(
     segment_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
+    // Check for enough memory before proceeding
+    if !has_enough_mem(data_len) {
+        warn!("Enclave Busy.");
+        return sgx_status_t::SGX_ERROR_BUSY;
+    }
+
+    // fetch_sub returns previous value. Therefore substract the data_len
+    let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
+    info!("Enclave remaining memory {}", mem - data_len);
+
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
         Ok(url) => url.to_string(),
-        Err(e) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
     thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let mut podr2_data = podr2_proof_commit::podr2_proof_commit(
+            let podr2_data = podr2_proof_commit::podr2_proof_commit(
                 skey.clone(),
                 pkey.clone(),
                 d.clone(),
@@ -283,11 +287,19 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url,data_len);
+            let _ = post_podr2_data(podr2_data, call_back_url, data_len);
         })
         .expect("Failed to launch process_data thread");
-
     sgx_status_t::SGX_SUCCESS
+}
+
+fn has_enough_mem(data_len: usize) -> bool {
+    //Determine the remaining enclave memory size
+    let mem = ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
+    if mem < data_len {
+        return false;
+    }
+    true
 }
 
 fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize) -> sgx_status_t {
@@ -372,56 +384,10 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
 
         println!("Status: {} {}", response.status_code(), response.reason());
     }
-    for _ in 0..3 {
-    let local_memory_counter_addr=ENCLAVE_MEMORY_COUNTER_PATH.clone().to_string().parse();
-    let counter_addr: Uri = match local_memory_counter_addr {
-        Ok(add) => add,
-        Err(_) => {
-            println!("Failed to Parse Url");
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-    let conn_counter_addr = get_host_with_port(&counter_addr);
-    let mut counter_stream = TcpStream::connect(&conn_counter_addr);
-    let mut counter_stream = match counter_stream {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Failed to connect to {}, {}", counter_addr, e);
-            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-        }
-    };
-    let mut mem_counter:EnclaveMemoryCounter = EnclaveMemoryCounter::new();
-    mem_counter.data_len=data_len;
 
-    let post_data = serde_json::to_string(&mem_counter);
-    let post_data = match post_data {
-        Ok(data) => data,
-        Err(_) => {
-            println!("Failed to seralize EnclaveMemoryCounter");
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-    let post_bytes = post_data.as_bytes();
-    let response = RequestBuilder::new(&counter_addr)
-        .header("Connection", "Close")
-        .header("Content-Type", "Application/Json")
-        .header("Content-Length", &post_bytes.len())
-        .timeout(time_out)
-        .body(post_bytes)
-        .method(Method::POST)
-        .send(&mut counter_stream, &mut writer);
-    let response = match response {
-        Ok(res) => {
-            println!("post to enclave memory counter success");
-            break
-        }
-        Err(e) => {
-            println!("Failed to send request to {}, {}", counter_addr, e);
-            continue
-        }
-    };
-    }
-    println!("{}", String::from_utf8_lossy(&writer));
+    // Update available memory.
+    ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+
     return sgx_status_t::SGX_SUCCESS;
 }
 

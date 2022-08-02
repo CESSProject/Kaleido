@@ -4,12 +4,12 @@ use actix_web::http::header::ContentType;
 use actix_web::{error, post, web, HttpResponse, Responder};
 use sgx_types::*;
 
+use crate::enclave;
 use crate::models::app_state::AppState;
-use crate::{enclave, Enclave_Cap};
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse
+    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,
 };
-use crate::models::app_state::EnclaveMemoryCounter;
+
 use std::ffi::CString;
 use std::time::Instant;
 use url::{ParseError, Url};
@@ -49,24 +49,16 @@ pub async fn r_process_data(
     debug!("File data decoded");
 
     let now = Instant::now();
-    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let mut result = sgx_status_t::SGX_SUCCESS;
     let sigmas_len: usize = 0;
 
     debug!("Processing file data");
-    //Determine the remaining enclave memory size
-    if Enclave_Cap.fetch_sub(0,super::Ordering::SeqCst)<file_data.len(){
-        error!("Enclave memory is full, please request again later");
-        return Err(PoDR2CommitError {
-            message: Some("Enclave memory is full, please request again later".to_string()),
-        })
-    }else {
-        let total=Enclave_Cap.fetch_sub(file_data.len(),super::Ordering::SeqCst);
-        info!("The enclave request succeeded, the remaining space {}",total-file_data.len())
-    }
-    let result = unsafe {
+
+    // The sgx_status_t returned from ecall is reflected in `result` and not from the returned value here
+    unsafe {
         enclave::ecalls::process_data(
             eid,
-            &mut retval,
+            &mut result,
             file_data.as_ptr() as *mut u8,
             file_data.len(),
             block_size, // 1MB block size gives the best results interms of speed.
@@ -75,9 +67,14 @@ pub async fn r_process_data(
         )
     };
 
-    debug!("Processing complete");
+    debug!("Processing complete. Status: {}", result.as_str());
     match result {
         sgx_status_t::SGX_SUCCESS => {}
+        sgx_status_t::SGX_ERROR_BUSY => {
+            return Err(PoDR2CommitError {
+                message: Some("SGX is busy, please try again later.".to_string()),
+            });
+        }
         _ => {
             error!(
                 "[-] ECALL Enclave Failed for process_data {}!",
@@ -86,21 +83,8 @@ pub async fn r_process_data(
             HttpResponse::InternalServerError();
         }
     }
-    // //todo:The memory counter number increment should not be here, it should wait for the post_podr2_data function in the enclave to complete before proceeding
-    // let remain=Enclave_Cap.fetch_add(file_data.len(), super::Ordering::SeqCst);
-    // info!("Remain enclave cap is {}",remain+file_data.len());
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
-    Ok(HttpResponse::Ok())
-}
-
-// r_ is appended to identify routes
-#[post("/enclave_memory_counter")]
-pub async fn enclave_memory_counter(
-    req: web::Json<EnclaveMemoryCounter>
-)-> Result<impl Responder, PoDR2CommitError>{
-    let remain=Enclave_Cap.fetch_add(req.data_len, super::Ordering::SeqCst);
-    info!("Processing of PoDR2 Commit has been completed, the enclave has released the memory, and the remaining space: {}",remain+req.data_len);
     Ok(HttpResponse::Ok())
 }

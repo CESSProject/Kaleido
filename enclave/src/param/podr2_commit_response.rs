@@ -35,19 +35,6 @@ impl FileTagT {
         }
     }
 }
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "snake_case")]
-#[repr(C)]
-pub struct EnclaveMemoryCounter{
-    pub data_len:usize
-}
-impl EnclaveMemoryCounter {
-    pub fn new() -> EnclaveMemoryCounter {
-        EnclaveMemoryCounter {
-            data_len:0
-        }
-    }
-}
 
 //PoDR2CommitResponse structure
 #[derive(Serialize, Deserialize, Debug)]
