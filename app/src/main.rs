@@ -31,8 +31,18 @@ use dotenv::dotenv;
 use log::{error, info};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
+use std::borrow::{Borrow, BorrowMut};
+use std::fs;
 use std::io::Read;
-use std::{env, str};
+use std::{
+    env,
+    net::{SocketAddr, TcpListener, TcpStream},
+    os::unix::io::{AsRawFd, IntoRawFd},
+    str,
+    str::FromStr,
+};
+
+use crate::models::config::Config;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -57,17 +67,20 @@ fn init_enclave() -> SgxResult<SgxEnclave> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    env_logger::init();
     dotenv().ok();
-    // test_rma();
+
     let port: u16 = env::var("KALEIDO_PORT")
         .unwrap_or("8080".to_string())
         .parse()
         .unwrap();
-    env_logger::init();
-    // info!(
-    //     "All enclave capture is {}",
-    //     all_cap + (max_value_in_conf as f32 * 0.65) as usize
-    // );
+
+    let cfg = fs::read_to_string("./config.toml");
+    let cfg: Config = match cfg {
+        Ok(cfg_str) => toml::from_str(&cfg_str).expect("Invalid configuration file."),
+        Err(_) => Config::default(),
+    };
+
     info!("Initializing Enclave");
     let result = match init_enclave() {
         Ok(enclave) => {
@@ -83,12 +96,18 @@ async fn main() -> std::io::Result<()> {
                 panic!("Failed to initialize enclave libraries");
             }
 
-            unsafe {
-                enclave::ecalls::gen_keys(eid, &mut retval);
-            }
-            if retval != sgx_status_t::SGX_SUCCESS {
+            // Start Remote Attestation server.
+            std::thread::Builder::new()
+                .name("ra_server".to_owned())
+                .spawn(move || {
+                    start_ra_server(eid);
+                })
+                .expect("Failed to launch ra_server thread");
+
+            // Get attested from peers to receive Signing Keys.
+            if !get_attested_keys(eid, cfg.ra_peers.clone()).await {
                 enclave.destroy();
-                panic!("Failed to generate key pair");
+                panic!("Failed to get/generate key pair");
             }
 
             let res = HttpServer::new(move || {
@@ -96,15 +115,17 @@ async fn main() -> std::io::Result<()> {
                 let eid = eid.clone();
                 App::new()
                     .wrap(logger)
-                    //3G limmit
-                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3))
-                    .app_data(web::Data::new(models::app_state::AppState { eid }))
+                    .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3)) //3G limmit
+                    .app_data(web::Data::new(models::app_state::AppState {
+                        eid,
+                        config: cfg.clone(),
+                    }))
                     .service(routes::r_process_data)
-                    // .service(routes::enclave_memory_counter)
             })
             .bind(("0.0.0.0", port))?
             .run()
             .await?;
+
             enclave.destroy();
             info!("Enclave destroyed");
             Ok(res)
@@ -114,7 +135,6 @@ async fn main() -> std::io::Result<()> {
             panic!("Failed to start enclave!");
         }
     };
-
     result
 }
 
@@ -123,92 +143,102 @@ enum Mode {
     Server,
 }
 
-fn test_rma() {
-    use std::net::{SocketAddr, TcpListener, TcpStream};
-    use std::os::unix::io::{AsRawFd, IntoRawFd};
-
-    let mut mode: Mode = Mode::Server;
-    let mut args: Vec<_> = env::args().collect();
-    let mut sign_type = sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE;
-    args.remove(0);
-    while !args.is_empty() {
-        match args.remove(0).as_ref() {
-            "--client" => mode = Mode::Client,
-            "--server" => mode = Mode::Server,
-            "--unlink" => sign_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE,
-            _ => {
-                panic!("Only --client/server/unlink is accepted");
-            }
-        }
-    }
-
-    let enclave = match init_enclave() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-            r
-        }
-        Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
-        }
-    };
-
-    match mode {
-        Mode::Server => {
-            println!("Running as server...");
-            let listener = TcpListener::bind("0.0.0.0:3443").unwrap();
-            //loop{
-            match listener.accept() {
-                Ok((socket, addr)) => {
-                    println!("new client from {:?}", addr);
-                    let mut retval = sgx_status_t::SGX_SUCCESS;
-                    let result = unsafe {
-                        enclave::ecalls::run_server(
-                            enclave.geteid(),
-                            &mut retval,
-                            socket.as_raw_fd(),
-                            sign_type,
-                        )
-                    };
-                    match result {
-                        sgx_status_t::SGX_SUCCESS => {
-                            println!("ECALL success!");
-                        }
-                        _ => {
-                            println!("[-] ECALL Enclave Failed {}!", result.as_str());
-                            return;
-                        }
+fn start_ra_server(eid: u64) {
+    let port = 3443;
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", port.to_string())).unwrap();
+    info!(
+        "Remote attestation server listening on port: {}",
+        port.to_string()
+    );
+    loop {
+        match listener.accept() {
+            Ok((socket, addr)) => {
+                info!("New client from {:?}", addr);
+                let mut retval = sgx_status_t::SGX_SUCCESS;
+                let result = unsafe {
+                    enclave::ecalls::run_server(
+                        eid,
+                        &mut retval,
+                        socket.as_raw_fd(),
+                        sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
+                    )
+                };
+                match result {
+                    sgx_status_t::SGX_SUCCESS => {
+                        info!("Attestation success for client {:?}!", addr);
+                    }
+                    _ => {
+                        error!("Failed to attest client {:?} {}!", addr, result.as_str());
+                        return;
                     }
                 }
-                Err(e) => println!("couldn't get client: {:?}", e),
             }
-            //} //loop
-        }
-        Mode::Client => {
-            println!("Running as client...");
-            let socket = TcpStream::connect("127.0.0.1:3443").unwrap();
-            let mut retval = sgx_status_t::SGX_SUCCESS;
-            let result = unsafe {
-                enclave::ecalls::run_client(
-                    enclave.geteid(),
-                    &mut retval,
-                    socket.as_raw_fd(),
-                    sign_type,
-                )
-            };
-            match result {
-                sgx_status_t::SGX_SUCCESS => {
-                    println!("ECALL success!");
-                }
-                _ => {
-                    println!("[-] ECALL Enclave Failed {}!", result.as_str());
-                    return;
-                }
-            }
+            Err(e) => error!("Failed to get client: {:?}", e),
         }
     }
+}
 
-    println!("[+] Done!");
+/// Get attested from the peer Kaleido server and retrieves the signing keys.
+/// If no peers are available this will generate a new key pair as an independent node.
+/// Returns true when a key pair is received or generated else false.
+async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
+    info!("Connecting to remote attestation server");
+    debug!("Remote Attestation Address: {:?}", ra_servers_addr);
 
-    enclave.destroy();
+    // Attempt to get an IP address and print it.
+    let my_ip = public_ip::addr().await;
+
+    let mut addrs = Vec::new();
+    for addr in ra_servers_addr {
+        let socket_addr = SocketAddr::from_str(&addr)
+            .expect(format!("Invalid ra_peer address {}", addr).as_str());
+
+        // Check if the address belongs to this system, if it does then generate key and return.
+        if let Some(my_ip) = my_ip {
+            debug!("My Server Public IP: {}, Remote Attestation Server IP: {}", my_ip.to_string(), socket_addr.ip().to_string());
+            if socket_addr.ip().to_string().eq(&my_ip.to_string())  {
+                debug!("Remote Attestation is on the same server.");
+                return gen_keys(eid);
+            }
+        }
+
+        addrs.push(socket_addr);
+    }
+
+    info!("Connecting to Remote Attestation server");
+    let socket = TcpStream::connect(addrs.as_slice());
+    let socket = match socket {
+        Ok(s) => s,
+        Err(_) => {
+            warn!("Failed to connect to Remote Attestation server, starting independent Kaleido node.");
+            return gen_keys(eid);
+        }
+    };
+    let mut retval = sgx_status_t::SGX_SUCCESS;
+    let result = unsafe {
+        enclave::ecalls::run_client(
+            eid,
+            &mut retval,
+            socket.as_raw_fd(),
+            sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
+        )
+    };
+    match result {
+        sgx_status_t::SGX_SUCCESS => {
+            info!("Client attested successfully!");
+        }
+        _ => {
+            error!("Client Attestation failed {}!", result.as_str());
+            return false;
+        }
+    }
+    true
+}
+
+fn gen_keys(eid: u64) -> bool {
+    let mut retval = sgx_status_t::SGX_SUCCESS;
+    unsafe {
+        enclave::ecalls::gen_keys(eid, &mut retval);
+    }
+    retval == sgx_status_t::SGX_SUCCESS
 }

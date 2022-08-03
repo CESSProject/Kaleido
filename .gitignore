@@ -22,7 +22,12 @@ bin/sgx_driver.txt
 **/*_u.h
 **/*_t.c
 **/*_t.h
-**/bin/**
+**/bin/app
+**/bin/.env
+**/bin/enclave.signed.so
+**/bin/key.txt
+**/bin/spid.txt
+**/bin/keys
 
 #vscode
 .vscode
