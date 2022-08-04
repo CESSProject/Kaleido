@@ -144,7 +144,11 @@ enum Mode {
 }
 
 fn start_ra_server(eid: u64) {
-    let port = 3443;
+    let port = u16 = env::var("REMOTE_ATTESTATION_PORT")
+        .unwrap_or("8088".to_string())
+        .parse()
+        .unwrap();
+        
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port.to_string())).unwrap();
     info!(
         "Remote attestation server listening on port: {}",
@@ -195,8 +199,12 @@ async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
 
         // Check if the address belongs to this system, if it does then generate key and return.
         if let Some(my_ip) = my_ip {
-            debug!("My Server Public IP: {}, Remote Attestation Server IP: {}", my_ip.to_string(), socket_addr.ip().to_string());
-            if socket_addr.ip().to_string().eq(&my_ip.to_string())  {
+            debug!(
+                "My Server Public IP: {}, Remote Attestation Server IP: {}",
+                my_ip.to_string(),
+                socket_addr.ip().to_string()
+            );
+            if socket_addr.ip().to_string().eq(&my_ip.to_string()) {
                 debug!("Remote Attestation is on the same server.");
                 return gen_keys(eid);
             }
