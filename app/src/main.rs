@@ -144,11 +144,11 @@ enum Mode {
 }
 
 fn start_ra_server(eid: u64) {
-    let port = u16 = env::var("REMOTE_ATTESTATION_PORT")
+    let port: u16 = env::var("REMOTE_ATTESTATION_PORT")
         .unwrap_or("8088".to_string())
         .parse()
         .unwrap();
-        
+
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port.to_string())).unwrap();
     info!(
         "Remote attestation server listening on port: {}",

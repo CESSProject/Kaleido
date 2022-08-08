@@ -49,6 +49,9 @@ extern crate crypto;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
+// #[macro_use] 
+// extern crate itertools;
+
 //mra dependence
 extern crate base64;
 extern crate bit_vec;
@@ -75,21 +78,14 @@ use cess_bncurve::*;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
-use http_req::{
-    request:: RequestBuilder,
-    tls,
-    uri::Uri,
-};
+use http_req::{request::RequestBuilder, tls, uri::Uri};
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{
-    podr2_commit_data::PoDR2CommitData,
-    podr2_commit_response::PoDR2CommitResponse,
-};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
 use sgx_types::*;
 use std::{
     env,
@@ -234,8 +230,8 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
 /// `data_len` argument is the number of **elements**, not the number of bytes.
 /// `block_size` is the size of the chunks that the data will be sliced to, in bytes.
-/// `segment_size` 
-/// `callback_url` PoDR2 data will be posted back to this url 
+/// `segment_size`
+/// `callback_url` PoDR2 data will be posted back to this url
 #[no_mangle]
 pub extern "C" fn process_data(
     data: *mut u8,

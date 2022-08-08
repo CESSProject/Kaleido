@@ -402,6 +402,9 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
         // DO SECURITY CHECK ON DEMAND
         // DO SECURITY CHECK ON DEMAND
         // DO SECURITY CHECK ON DEMAND
+        
+        // TODO: Validate Kaleido Runtime
+        let mr_enclave = sgx_quote.report_body.mr_enclave;
         unsafe {
             println!("sgx quote version = {}", sgx_quote.version);
             println!("sgx quote signature type = {}", sgx_quote.sign_type);
@@ -411,12 +414,13 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
         }
         // println!("Anticipated public key = {:02x}", pub_k.iter().format(""));
         if sgx_quote.report_body.report_data.d.to_vec() == pub_k.to_vec() {
-            println!("Mutual RA done!");
+            info!("Mutual RA done!");
         }
     } else {
-        println!("Failed to fetch isvEnclaveQuoteBody from attestation report");
+        warn!("Failed to fetch isvEnclaveQuoteBody from attestation report");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
 
     Ok(())
 }
+
