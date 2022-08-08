@@ -21,6 +21,7 @@ pub mod cert;
 pub mod hex;
 
 use sgx_rand::*;
+use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use sgx_types::*;
@@ -37,6 +38,8 @@ use std::string::String;
 use std::sync::Arc;
 use std::untrusted::fs;
 use std::vec::Vec;
+
+use crate::{Keys, KEYS};
 // use itertools::Itertools;
 
 pub const DEV_HOSTNAME: &'static str = "api.trustedservices.intel.com";
@@ -309,7 +312,7 @@ pub fn create_attestation_report(
 
     report_data.d[..32].clone_from_slice(&pub_k_gx);
     report_data.d[32..].clone_from_slice(&pub_k_gy);
-    
+
     let rep = match rsgx_create_report(&ti, &report_data) {
         Ok(r) => {
             debug!("Report creation => success");
@@ -612,7 +615,17 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     // };
 
     // TODO: SEND KEYS TO CLIENT
-    tls.write("HERE IS THE KEY".as_bytes()).unwrap();
+    let keys = KEYS.lock().unwrap();
+    let helper = SerializeHelper::new();
+    let data = match helper.encode(&KEYS.lock().unwrap().get_instance()) {
+        Some(d) => d,
+        None => {
+            error!("Failed to encode Keys.");
+            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+        }
+    };
+
+    tls.write(data.as_slice()).unwrap();
 
     sgx_status_t::SGX_SUCCESS
 }
@@ -666,9 +679,24 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
 
     let mut plaintext = Vec::new();
     match tls.read_to_end(&mut plaintext) {
-        Ok(_) => {
+        Ok(data) => {
             // TODO: VERIFY KEY RECEIVED FROM SERVER
             debug!("Server Replied: {}", str::from_utf8(&plaintext).unwrap());
+
+            let helper = DeSerializeHelper::<Keys>::new(plaintext);
+            let keys = match helper.decode() {
+                Some(d) => d,
+                None => {
+                    error!("Failed to encode Keys.");
+                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+                }
+            };
+
+            let (skey, pkey, sig) = keys.get_keys();
+            let mut keys = KEYS.lock().unwrap();
+            keys.pkey = pkey;
+            keys.skey = skey;
+            keys.sig = sig;
         }
         Err(ref err) if err.kind() == io::ErrorKind::ConnectionAborted => {
             warn!("EOF (tls)");
