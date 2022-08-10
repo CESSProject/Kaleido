@@ -27,7 +27,9 @@ use sgx_tse::*;
 use sgx_types::*;
 use std::backtrace::{self, PrintFormat};
 
+use crate::{Keys, KEYS};
 use ocall_def::*;
+use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -38,13 +40,11 @@ use std::string::String;
 use std::sync::Arc;
 use std::untrusted::fs;
 use std::vec::Vec;
-
-use crate::{Keys, KEYS};
 // use itertools::Itertools;
 
-pub const DEV_HOSTNAME: &'static str = "api.trustedservices.intel.com";
-pub const SIGRL_SUFFIX: &'static str = "/sgx/dev/attestation/v4/sigrl/";
-pub const REPORT_SUFFIX: &'static str = "/sgx/dev/attestation/v4/report";
+pub const IAS_HOSTNAME: &'static str = env!("IAS_HOSTNAME");
+pub const IAS_SIGRL_SUFFIX: &'static str = env!("IAS_SIGRL_SUFFIX");
+pub const IAS_REPORT_SUFFIX: &'static str = env!("IAS_REPORT_SUFFIX");
 pub const CERTEXPIRYDAYS: i64 = 90i64;
 
 fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
@@ -176,13 +176,13 @@ pub fn get_sigrl_from_intel(fd: c_int, gid: u32) -> Vec<u8> {
     let ias_key = get_ias_api_key();
 
     let req = format!("GET {}{:08x} HTTP/1.1\r\nHOST: {}\r\nOcp-Apim-Subscription-Key: {}\r\nConnection: Close\r\n\r\n",
-                      SIGRL_SUFFIX,
+                      IAS_SIGRL_SUFFIX,
                       gid,
-                      DEV_HOSTNAME,
+                      IAS_HOSTNAME,
                       ias_key);
     debug!("{}", req);
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str(DEV_HOSTNAME).unwrap();
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(IAS_HOSTNAME).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
     let mut sock = TcpStream::new(fd).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
@@ -214,13 +214,13 @@ pub fn get_report_from_intel(fd: c_int, quote: Vec<u8>) -> (String, String, Stri
     let ias_key = get_ias_api_key();
 
     let req = format!("POST {} HTTP/1.1\r\nHOST: {}\r\nOcp-Apim-Subscription-Key:{}\r\nContent-Length:{}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{}",
-                      REPORT_SUFFIX,
-                      DEV_HOSTNAME,
+                      IAS_REPORT_SUFFIX,
+                      IAS_HOSTNAME,
                       ias_key,
                       encoded_json.len(),
                       encoded_json);
     println!("{}", req);
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str(DEV_HOSTNAME).unwrap();
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(IAS_HOSTNAME).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
     let mut sock = TcpStream::new(fd).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
@@ -462,13 +462,8 @@ fn load_spid(filename: &str) -> sgx_spid_t {
 }
 
 fn get_ias_api_key() -> String {
-    let mut keyfile = fs::File::open("key.txt").expect("cannot open ias key file");
-    let mut key = String::new();
-    keyfile
-        .read_to_string(&mut key)
-        .expect("cannot read the ias key file");
-
-    key.trim_end().to_owned()
+    const IAS_API_KEY_STR: &str = env!("IAS_API_KEY");
+    IAS_API_KEY_STR.to_string()
 }
 
 struct ClientAuth {
@@ -541,7 +536,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
         _hostname: webpki::DNSNameRef,
         _ocsp: &[u8],
     ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
-        println!("server cert: {:?}", _certs);
+        debug!("server cert: {:?}", _certs);
         // This call will automatically verify cert is properly signed
         match cert::verify_mra_cert(&_certs[0].0) {
             Ok(()) => {
@@ -549,7 +544,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
             }
             Err(sgx_status_t::SGX_ERROR_UPDATE_NEEDED) => {
                 if self.outdated_ok {
-                    println!("outdated_ok is set, overriding outdated error");
+                    warn!("outdated_ok is set, overriding outdated error");
                     return Ok(rustls::ServerCertVerified::assertion());
                 } else {
                     return Err(rustls::TLSError::WebPKIError(
@@ -658,11 +653,11 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     };
     ecc_handle.close().unwrap();
 
-    let mut cfg = rustls::ClientConfig::new();
     let mut certs = Vec::new();
     certs.push(rustls::Certificate(cert_der));
     let privkey = rustls::PrivateKey(key_der);
 
+    let mut cfg = rustls::ClientConfig::new();
     cfg.set_single_client_cert(certs, privkey).unwrap();
     cfg.dangerous()
         .set_certificate_verifier(Arc::new(ServerAuth::new(true)));
