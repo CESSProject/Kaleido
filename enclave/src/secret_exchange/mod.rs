@@ -352,8 +352,7 @@ pub fn create_attestation_report(
     let p_report = (&rep.unwrap()) as *const sgx_report_t;
     let quote_type = sign_type;
 
-    let spid: sgx_spid_t = load_spid("spid.txt");
-
+    let spid: sgx_spid_t = get_spid();
     let p_spid = &spid as *const sgx_spid_t;
     let p_nonce = &quote_nonce as *const sgx_quote_nonce_t;
     let p_qe_report = &mut qe_report as *mut sgx_report_t;
@@ -451,14 +450,9 @@ pub fn create_attestation_report(
     Ok((attn_report, sig, cert))
 }
 
-fn load_spid(filename: &str) -> sgx_spid_t {
-    let mut spidfile = fs::File::open(filename).expect("cannot open spid file");
-    let mut contents = String::new();
-    spidfile
-        .read_to_string(&mut contents)
-        .expect("cannot read the spid file");
-
-    hex::decode_spid(&contents)
+fn get_spid() -> sgx_spid_t {
+    const IAS_API_KEY_STR: &str = env!("IAS_SPID");
+    hex::decode_spid(IAS_API_KEY_STR)
 }
 
 fn get_ias_api_key() -> String {
