@@ -16,14 +16,4 @@ fn main() {
             println!("cargo:rustc-env=IAS_REPORT_SUFFIX=/sgx/dev/attestation/v4/report");
         }
     }
-
-    if env::var("IAS_SPID").is_err() {
-        println!("cargo:rustc-env=IAS_SPID=''");
-    }
-    println!("cargo:rerun-if-env-changed=IAS_SPID");
-
-    if env::var("IAS_API_KEY").is_err() {
-        println!("cargo:rustc-env=IAS_API_KEY=''");
-    }
-    println!("cargo:rerun-if-env-changed=IAS_API_KEY");
 }
