@@ -107,7 +107,7 @@ fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
         let header_len = result.unwrap().unwrap();
         let resp_body = &resp[header_len..];
         attn_report = str::from_utf8(resp_body).unwrap().to_string();
-        println!("Attestation report: {}", attn_report);
+        debug!("Attestation report: {}", attn_report);
     }
 
     // len_num == 0
