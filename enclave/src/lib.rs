@@ -287,8 +287,8 @@ pub extern "C" fn process_data(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let podr2_data = podr2_proof_commit::podr2_proof_commit(
-                skey.clone(),
-                pkey.clone(),
+                skey,
+                pkey,
                 d,
                 block_size,
                 segment_size,
