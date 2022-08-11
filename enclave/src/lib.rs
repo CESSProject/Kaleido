@@ -258,8 +258,8 @@ pub extern "C" fn process_data(
     // let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
     //get random key pair
-    let keypair=Keys::new();
-    keypair.gen_keys();
+    let mut keypair=Keys::new();
+    &keypair.gen_keys();
     let (skey, pkey, _sig) = keypair.get_keys();
     info!("skey is {}",skey.clone());
     info!("pkey is {}",pkey.clone());
