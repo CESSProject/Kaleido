@@ -684,12 +684,12 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
                 }
             };
-
             let (skey, pkey, sig) = keys.get_keys();
             let mut keys = KEYS.lock().unwrap();
             keys.pkey = pkey;
             keys.skey = skey;
             keys.sig = sig;
+            keys.save();
         }
         Err(ref err) if err.kind() == io::ErrorKind::ConnectionAborted => {
             warn!("EOF (tls)");
