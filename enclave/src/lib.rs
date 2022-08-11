@@ -255,7 +255,14 @@ pub extern "C" fn process_data(
     info!("Enclave remaining memory {}", mem - data_len);
 
     let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
+    // let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
+
+    //get random key pair
+    let keypair=Keys::new();
+    keypair.gen_keys();
+    let (skey, pkey, _sig) = keypair.get_keys();
+    info!("skey is {}",skey.clone());
+    info!("pkey is {}",pkey.clone());
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
