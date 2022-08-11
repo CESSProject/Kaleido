@@ -608,11 +608,12 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     //         panic!("");
     //     }
     // };
-
-    // TODO: SEND KEYS TO CLIENT
-    let keys = KEYS.lock().unwrap();
+    
+    let keys = KEYS.lock().unwrap().get_instance();
+    let (skey, pkey, sig) = keys.get_keys();
     let helper = SerializeHelper::new();
-    let data = match helper.encode(&KEYS.lock().unwrap().get_instance()) {
+
+    let data = match helper.encode(&keys) {
         Some(d) => d,
         None => {
             error!("Failed to encode Keys.");
@@ -672,13 +673,10 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
 
     // tls.write("hello".as_bytes()).unwrap();
 
-    let mut plaintext = Vec::new();
-    match tls.read_to_end(&mut plaintext) {
-        Ok(data) => {
-            // TODO: VERIFY KEY RECEIVED FROM SERVER
-            debug!("Server Replied: {}", str::from_utf8(&plaintext).unwrap());
-
-            let helper = DeSerializeHelper::<Keys>::new(plaintext);
+    let mut data = Vec::new();
+    match tls.read_to_end(&mut data) {
+        Ok(_bufffer_size) => {
+            let helper = DeSerializeHelper::<Keys>::new(data);
             let keys = match helper.decode() {
                 Some(d) => d,
                 None => {

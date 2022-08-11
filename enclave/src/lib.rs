@@ -49,7 +49,7 @@ extern crate crypto;
 extern crate sgx_tstd as std;
 extern crate alloc;
 
-// #[macro_use] 
+// #[macro_use]
 // extern crate itertools;
 
 //mra dependence
@@ -72,17 +72,19 @@ mod pbc;
 mod podr2_proof_commit;
 mod secret_exchange;
 
+use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use cess_bncurve::*;
-use serde::{Serialize, Deserialize};
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
 use http_req::{request::RequestBuilder, tls, uri::Uri};
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
+use serde::{Deserialize, Serialize};
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
+use std::io::ErrorKind;
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
@@ -91,7 +93,7 @@ use sgx_types::*;
 use std::{
     env,
     ffi::CStr,
-    io::{Read, Write},
+    io::{Error, Read, Write},
     net::TcpStream,
     sgxfs::SgxFile,
     slice,
@@ -111,6 +113,8 @@ struct Keys {
 }
 
 impl Keys {
+    const FILE_NAME: &'static str = "keys";
+
     pub const fn new() -> Keys {
         Keys {
             skey: SecretKey::zero(),
@@ -137,6 +141,54 @@ impl Keys {
         keys.sig = self.sig.clone();
         keys
     }
+
+    pub fn save(self: &mut Self) -> bool {
+        let helper = SerializeHelper::new();
+        let data = match helper.encode(self.get_instance()) {
+            Some(d) => d,
+            None => {
+                return false;
+            }
+        };
+
+        let mut file = match SgxFile::create(Keys::FILE_NAME) {
+            Ok(f) => f,
+            Err(e) => {
+                return false;
+            }
+        };
+
+        let _write_size = match file.write(data.as_slice()) {
+            Ok(len) => len,
+            Err(_) => {
+                return false;
+            }
+        };
+        return true;
+    }
+
+    pub fn load() -> Result<Keys, std::io::Error> {
+        let mut file = SgxFile::open(Keys::FILE_NAME)?;
+
+        // While encoding 4 bits are added by the encoder
+        let mut data =
+            [0_u8; config::ZR_SIZE_FR256 + config::G2_SIZE_FR256 + config::HASH_SIZE + 4];
+
+        file.read(&mut data)?;
+
+        let helper = DeSerializeHelper::<Keys>::new(data.to_vec());
+
+        match helper.decode() {
+            Some(d) => Ok(d),
+            None => {
+                error!("decode data failed.");
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    format!("Failed to decode file {}", Keys::FILE_NAME),
+                ));
+            }
+        }
+    }
 }
 
 lazy_static! (
@@ -159,71 +211,41 @@ pub extern "C" fn init() -> sgx_status_t {
 #[no_mangle]
 pub extern "C" fn gen_keys() -> sgx_status_t {
     let filename = "keys";
-    let mut file = match SgxFile::open(filename) {
-        Ok(f) => f,
-        Err(_) => {
-            info!("{} file not found, creating new file.", filename);
+    {
+        let mut file = match SgxFile::open(filename) {
+            Ok(f) => f,
+            Err(_) => {
+                info!("{} file not found, creating new file.", filename);
 
-            // Generate Keys
-            KEYS.lock().unwrap().gen_keys();
-
-            let helper = SerializeHelper::new();
-            let keys = KEYS.lock().unwrap().get_instance();
-            let data = match helper.encode(&keys) {
-                Some(d) => d,
-                None => {
-                    error!("Failed to encode Keys.");
+                // Generate Keys
+                KEYS.lock().unwrap().gen_keys();
+                let saved = KEYS.lock().unwrap().save();
+                if !saved {
+                    error!("Failed to save keys");
                     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
                 }
-            };
 
-            let mut file = match SgxFile::create(filename) {
-                Ok(f) => f,
-                Err(e) => {
-                    error!("Failed to create file {}. Error: {}", filename, e);
-                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-                }
-            };
-
-            let _write_size = match file.write(data.as_slice()) {
-                Ok(len) => len,
-                Err(_) => {
-                    error!("Failed to write data to the file {}.", filename);
-                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-                }
-            };
-            info!("Signing keys generated!");
-            return sgx_status_t::SGX_SUCCESS;
-        }
-    };
+                info!("Signing keys generated!");
+                return sgx_status_t::SGX_SUCCESS;
+            }
+        };
+    }
 
     // While encoding 4 bits are added by the encoder
-    let mut data = [0_u8; config::ZR_SIZE_FR256 + config::G2_SIZE_FR256 + config::HASH_SIZE + 4];
+    match Keys::load() {
+        Ok(keys) => {
+            let mut guard = KEYS.lock().unwrap();
+            guard.pkey = keys.pkey;
+            guard.skey = keys.skey;
+            guard.sig = keys.sig;
 
-    let _read_size = match file.read(&mut data) {
-        Ok(len) => len,
+            info!("Signing keys loaded successfully!");
+        }
         Err(_) => {
-            error!("SgxFile::read failed.");
             return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
         }
-    };
+    }
 
-    let helper = DeSerializeHelper::<Keys>::new(data.to_vec());
-    let keys = match helper.decode() {
-        Some(d) => d,
-        None => {
-            error!("decode data failed.");
-            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-        }
-    };
-
-    let (skey, pkey, sig) = keys.get_keys();
-    let mut keys = KEYS.lock().unwrap();
-    keys.pkey = pkey;
-    keys.skey = skey;
-    keys.sig = sig;
-
-    info!("Signing keys loaded successfully!");
     sgx_status_t::SGX_SUCCESS
 }
 
