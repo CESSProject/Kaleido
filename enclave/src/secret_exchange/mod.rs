@@ -21,11 +21,15 @@ pub mod cert;
 pub mod hex;
 
 use sgx_rand::*;
+use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use sgx_types::*;
 use std::backtrace::{self, PrintFormat};
 
+use crate::{Keys, KEYS};
+use ocall_def::*;
+use std::env;
 use std::io;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -36,12 +40,11 @@ use std::string::String;
 use std::sync::Arc;
 use std::untrusted::fs;
 use std::vec::Vec;
-use ocall_def::*;
 // use itertools::Itertools;
 
-pub const DEV_HOSTNAME: &'static str = "api.trustedservices.intel.com";
-pub const SIGRL_SUFFIX: &'static str = "/sgx/dev/attestation/v4/sigrl/";
-pub const REPORT_SUFFIX: &'static str = "/sgx/dev/attestation/v4/report";
+pub const IAS_HOSTNAME: &'static str = env!("IAS_HOSTNAME");
+pub const IAS_SIGRL_SUFFIX: &'static str = env!("IAS_SIGRL_SUFFIX");
+pub const IAS_REPORT_SUFFIX: &'static str = env!("IAS_REPORT_SUFFIX");
 pub const CERTEXPIRYDAYS: i64 = 90i64;
 
 fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
@@ -104,7 +107,7 @@ fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
         let header_len = result.unwrap().unwrap();
         let resp_body = &resp[header_len..];
         attn_report = str::from_utf8(resp_body).unwrap().to_string();
-        println!("Attestation report: {}", attn_report);
+        debug!("Attestation report: {}", attn_report);
     }
 
     // len_num == 0
@@ -112,12 +115,11 @@ fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
 }
 
 fn parse_response_sigrl(resp: &[u8]) -> Vec<u8> {
-    println!("parse_response_sigrl");
     let mut headers = [httparse::EMPTY_HEADER; 16];
     let mut respp = httparse::Response::new(&mut headers);
     let result = respp.parse(resp);
-    println!("parse result {:?}", result);
-    println!("parse response{:?}", respp);
+    debug!("Parse SIGRL result {:?}", result);
+    debug!("Parse SIGRL response{:?}", respp);
 
     let msg: &'static str;
 
@@ -135,7 +137,7 @@ fn parse_response_sigrl(resp: &[u8]) -> Vec<u8> {
         _ => msg = "Unknown error occured",
     }
 
-    println!("{}", msg);
+    info!("SIGRL: {}", msg);
     let mut len_num: u32 = 0;
 
     for i in 0..respp.headers.len() {
@@ -143,15 +145,12 @@ fn parse_response_sigrl(resp: &[u8]) -> Vec<u8> {
         if h.name == "content-length" {
             let len_str = String::from_utf8(h.value.to_vec()).unwrap();
             len_num = len_str.parse::<u32>().unwrap();
-            println!("content length = {}", len_num);
         }
     }
 
     if len_num != 0 {
         let header_len = result.unwrap().unwrap();
         let resp_body = &resp[header_len..];
-        println!("Base64-encoded SigRL: {:?}", resp_body);
-
         return base64::decode(str::from_utf8(resp_body).unwrap()).unwrap();
     }
 
@@ -170,28 +169,26 @@ pub fn make_ias_client_config() -> rustls::ClientConfig {
 }
 
 pub fn get_sigrl_from_intel(fd: c_int, gid: u32) -> Vec<u8> {
-    println!("get_sigrl_from_intel fd = {:?}", fd);
+    debug!("get_sigrl_from_intel fd = {:?}", fd);
     let config = make_ias_client_config();
     //let sigrl_arg = SigRLArg { group_id : gid };
     //let sigrl_req = sigrl_arg.to_httpreq();
     let ias_key = get_ias_api_key();
 
     let req = format!("GET {}{:08x} HTTP/1.1\r\nHOST: {}\r\nOcp-Apim-Subscription-Key: {}\r\nConnection: Close\r\n\r\n",
-                      SIGRL_SUFFIX,
+                      IAS_SIGRL_SUFFIX,
                       gid,
-                      DEV_HOSTNAME,
+                      IAS_HOSTNAME,
                       ias_key);
-    println!("{}", req);
+    debug!("{}", req);
 
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str(DEV_HOSTNAME).unwrap();
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(IAS_HOSTNAME).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
     let mut sock = TcpStream::new(fd).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
 
     let _result = tls.write(req.as_bytes());
     let mut plaintext = Vec::new();
-
-    println!("write complete");
 
     match tls.read_to_end(&mut plaintext) {
         Ok(_) => (),
@@ -200,10 +197,9 @@ pub fn get_sigrl_from_intel(fd: c_int, gid: u32) -> Vec<u8> {
             panic!("haha");
         }
     }
-    println!("read_to_end complete");
-    let resp_string = String::from_utf8(plaintext.clone()).unwrap();
 
-    println!("{}", resp_string);
+    let resp_string = String::from_utf8(plaintext.clone()).unwrap();
+    debug!("SIGRL Response: {}", resp_string);
 
     parse_response_sigrl(&plaintext)
 }
@@ -218,13 +214,13 @@ pub fn get_report_from_intel(fd: c_int, quote: Vec<u8>) -> (String, String, Stri
     let ias_key = get_ias_api_key();
 
     let req = format!("POST {} HTTP/1.1\r\nHOST: {}\r\nOcp-Apim-Subscription-Key:{}\r\nContent-Length:{}\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{}",
-                      REPORT_SUFFIX,
-                      DEV_HOSTNAME,
+                      IAS_REPORT_SUFFIX,
+                      IAS_HOSTNAME,
                       ias_key,
                       encoded_json.len(),
                       encoded_json);
     println!("{}", req);
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str(DEV_HOSTNAME).unwrap();
+    let dns_name = webpki::DNSNameRef::try_from_ascii_str(IAS_HOSTNAME).unwrap();
     let mut sess = rustls::ClientSession::new(&Arc::new(config), dns_name);
     let mut sock = TcpStream::new(fd).unwrap();
     let mut tls = rustls::Stream::new(&mut sess, &mut sock);
@@ -276,7 +272,7 @@ pub fn create_attestation_report(
         )
     };
 
-    println!("eg = {:?}", eg);
+    debug!("eg = {:?}", eg);
 
     if res != sgx_status_t::SGX_SUCCESS {
         return Err(res);
@@ -291,9 +287,8 @@ pub fn create_attestation_report(
     // (1.5) get sigrl
     let mut ias_sock: i32 = 0;
 
-    let res = unsafe {
-        ocall_get_ias_socket(&mut rt as *mut sgx_status_t, &mut ias_sock as *mut i32)
-    };
+    let res =
+        unsafe { ocall_get_ias_socket(&mut rt as *mut sgx_status_t, &mut ias_sock as *mut i32) };
 
     if res != sgx_status_t::SGX_SUCCESS {
         return Err(res);
@@ -303,8 +298,6 @@ pub fn create_attestation_report(
         return Err(rt);
     }
 
-    //println!("Got ias_sock = {}", ias_sock);
-
     // Now sigrl_vec is the revocation list, a vec<u8>
     let sigrl_vec: Vec<u8> = get_sigrl_from_intel(ias_sock, eg_num);
 
@@ -313,18 +306,20 @@ pub fn create_attestation_report(
     let mut report_data: sgx_report_data_t = sgx_report_data_t::default();
     let mut pub_k_gx = pub_k.gx.clone();
     pub_k_gx.reverse();
+
     let mut pub_k_gy = pub_k.gy.clone();
     pub_k_gy.reverse();
+
     report_data.d[..32].clone_from_slice(&pub_k_gx);
     report_data.d[32..].clone_from_slice(&pub_k_gy);
 
     let rep = match rsgx_create_report(&ti, &report_data) {
         Ok(r) => {
-            println!("Report creation => success {:?}", r.body.mr_signer.m);
+            debug!("Report creation => success");
             Some(r)
         }
         Err(e) => {
-            println!("Report creation => failed {:?}", e);
+            warn!("Report creation => failed {:?}", e);
             None
         }
     };
@@ -332,7 +327,7 @@ pub fn create_attestation_report(
     let mut quote_nonce = sgx_quote_nonce_t { rand: [0; 16] };
     let mut os_rng = os::SgxRng::new().unwrap();
     os_rng.fill_bytes(&mut quote_nonce.rand);
-    println!("rand finished");
+
     let mut qe_report = sgx_report_t::default();
     const RET_QUOTE_BUF_LEN: u32 = 2048;
     let mut return_quote_buf: [u8; RET_QUOTE_BUF_LEN as usize] = [0; RET_QUOTE_BUF_LEN as usize];
@@ -387,16 +382,16 @@ pub fn create_attestation_report(
     }
 
     if rt != sgx_status_t::SGX_SUCCESS {
-        println!("ocall_get_quote returned {}", rt);
+        warn!("ocall_get_quote returned {}", rt);
         return Err(rt);
     }
 
     // Added 09-28-2018
     // Perform a check on qe_report to verify if the qe_report is valid
     match rsgx_verify_report(&qe_report) {
-        Ok(()) => println!("rsgx_verify_report passed!"),
+        Ok(()) => debug!("rsgx_verify_report passed!"),
         Err(x) => {
-            println!("rsgx_verify_report failed with {:?}", x);
+            warn!("rsgx_verify_report failed with {:?}", x);
             return Err(x);
         }
     }
@@ -406,11 +401,11 @@ pub fn create_attestation_report(
         || ti.attributes.flags != qe_report.body.attributes.flags
         || ti.attributes.xfrm != qe_report.body.attributes.xfrm
     {
-        println!("qe_report does not match current target_info!");
+        warn!("qe_report does not match current target_info!");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
     // println!("sgx quote mr_enclave = {:02x}", ti.mr_enclave.m.iter().format(""));
-    println!("qe_report check passed");
+    debug!("qe_report check passed");
 
     // Debug
     // for i in 0..quote_len {
@@ -436,14 +431,13 @@ pub fn create_attestation_report(
     // println!("report hs= {:02X}", lhs_hash.iter().format(""));
 
     if rhs_hash != lhs_hash {
-        println!("Quote is tampered!");
+        warn!("Quote is tampered!");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
 
     let quote_vec: Vec<u8> = return_quote_buf[..quote_len as usize].to_vec();
-    let res = unsafe {
-        ocall_get_ias_socket(&mut rt as *mut sgx_status_t, &mut ias_sock as *mut i32)
-    };
+    let res =
+        unsafe { ocall_get_ias_socket(&mut rt as *mut sgx_status_t, &mut ias_sock as *mut i32) };
 
     if res != sgx_status_t::SGX_SUCCESS {
         return Err(res);
@@ -468,13 +462,8 @@ fn load_spid(filename: &str) -> sgx_spid_t {
 }
 
 fn get_ias_api_key() -> String {
-    let mut keyfile = fs::File::open("key.txt").expect("cannot open ias key file");
-    let mut key = String::new();
-    keyfile
-        .read_to_string(&mut key)
-        .expect("cannot read the ias key file");
-
-    key.trim_end().to_owned()
+    const IAS_API_KEY_STR: &str = env!("IAS_API_KEY");
+    IAS_API_KEY_STR.to_string()
 }
 
 struct ClientAuth {
@@ -547,7 +536,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
         _hostname: webpki::DNSNameRef,
         _ocsp: &[u8],
     ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
-        println!("server cert: {:?}", _certs);
+        debug!("server cert: {:?}", _certs);
         // This call will automatically verify cert is properly signed
         match cert::verify_mra_cert(&_certs[0].0) {
             Ok(()) => {
@@ -555,7 +544,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
             }
             Err(sgx_status_t::SGX_ERROR_UPDATE_NEEDED) => {
                 if self.outdated_ok {
-                    println!("outdated_ok is set, overriding outdated error");
+                    warn!("outdated_ok is set, overriding outdated error");
                     return Ok(rustls::ServerCertVerified::assertion());
                 } else {
                     return Err(rustls::TLSError::WebPKIError(
@@ -584,7 +573,7 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
-            println!("Error in create_attestation_report: {:?}", e);
+            warn!("Error in create_attestation_report: {:?}", e);
             return e;
         }
     };
@@ -593,7 +582,7 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
         Ok(r) => r,
         Err(e) => {
-            println!("Error in gen_ecc_cert: {:?}", e);
+            warn!("Error in gen_ecc_cert: {:?}", e);
             return e;
         }
     };
@@ -611,16 +600,28 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let mut conn = TcpStream::new(socket_fd).unwrap();
 
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
-    let mut plaintext = [0u8; 1024]; //Vec::new();
-    match tls.read(&mut plaintext) {
-        Ok(_) => println!("Client said: {}", str::from_utf8(&plaintext).unwrap()),
-        Err(e) => {
-            println!("Error in read_to_end: {:?}", e);
-            panic!("");
+    // let mut plaintext = [0u8; 1024]; //Vec::new();
+    // match tls.read(&mut plaintext) {
+    //     Ok(_) => println!("Client said: {}", str::from_utf8(&plaintext).unwrap()),
+    //     Err(e) => {
+    //         warn!("Error in read_to_end: {:?}", e);
+    //         panic!("");
+    //     }
+    // };
+    
+    let keys = KEYS.lock().unwrap().get_instance();
+    let (skey, pkey, sig) = keys.get_keys();
+    let helper = SerializeHelper::new();
+
+    let data = match helper.encode(&keys) {
+        Some(d) => d,
+        None => {
+            error!("Failed to encode Keys.");
+            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
         }
     };
 
-    tls.write("hello back".as_bytes()).unwrap();
+    tls.write(data.as_slice()).unwrap();
 
     sgx_status_t::SGX_SUCCESS
 }
@@ -637,7 +638,7 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
-            println!("Error in create_attestation_report: {:?}", e);
+            warn!("Error in create_attestation_report: {:?}", e);
             return e;
         }
     };
@@ -647,17 +648,17 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
         Ok(r) => r,
         Err(e) => {
-            println!("Error in gen_ecc_cert: {:?}", e);
+            warn!("Error in gen_ecc_cert: {:?}", e);
             return e;
         }
     };
     ecc_handle.close().unwrap();
 
-    let mut cfg = rustls::ClientConfig::new();
     let mut certs = Vec::new();
     certs.push(rustls::Certificate(cert_der));
     let privkey = rustls::PrivateKey(key_der);
 
+    let mut cfg = rustls::ClientConfig::new();
     cfg.set_single_client_cert(certs, privkey).unwrap();
     cfg.dangerous()
         .set_certificate_verifier(Arc::new(ServerAuth::new(true)));
@@ -670,17 +671,30 @@ pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
 
     let mut tls = rustls::Stream::new(&mut sess, &mut conn);
 
-    tls.write("hello".as_bytes()).unwrap();
+    // tls.write("hello".as_bytes()).unwrap();
 
-    let mut plaintext = Vec::new();
-    match tls.read_to_end(&mut plaintext) {
-        Ok(_) => {
-            println!("Server replied: {}", str::from_utf8(&plaintext).unwrap());
+    let mut data = Vec::new();
+    match tls.read_to_end(&mut data) {
+        Ok(_bufffer_size) => {
+            let helper = DeSerializeHelper::<Keys>::new(data);
+            let keys = match helper.decode() {
+                Some(d) => d,
+                None => {
+                    error!("Failed to encode Keys.");
+                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+                }
+            };
+            let (skey, pkey, sig) = keys.get_keys();
+            let mut keys = KEYS.lock().unwrap();
+            keys.pkey = pkey;
+            keys.skey = skey;
+            keys.sig = sig;
+            keys.save();
         }
         Err(ref err) if err.kind() == io::ErrorKind::ConnectionAborted => {
-            println!("EOF (tls)");
+            warn!("EOF (tls)");
         }
-        Err(e) => println!("Error in read_to_end: {:?}", e),
+        Err(e) => warn!("Error in read_to_end: {:?}", e),
     }
 
     sgx_status_t::SGX_SUCCESS

@@ -301,15 +301,15 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
         &chain,
         now_func.unwrap(),
     ) {
-        Ok(_) => println!("Cert is good"),
-        Err(e) => println!("Cert verification error {:?}", e),
+        Ok(_) => info!("Cert is good"),
+        Err(e) => warn!("Cert verification error {:?}", e),
     }
 
     // Verify the signature against the signing cert
     match sig_cert.verify_signature(&webpki::RSA_PKCS1_2048_8192_SHA256, &attn_report_raw, &sig) {
-        Ok(_) => println!("Signature good"),
+        Ok(_) => info!("Signature good"),
         Err(e) => {
-            println!("Signature verification error {:?}", e);
+            warn!("Signature verification error {:?}", e);
             panic!();
         }
     }
@@ -326,15 +326,15 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
-        println!("Time diff = {}", now - ts);
+        debug!("Time diff = {}", now - ts);
     } else {
-        println!("Failed to fetch timestamp from attestation report");
+        warn!("Failed to fetch timestamp from attestation report");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
 
     // 2. Verify quote status (mandatory field)
     if let Value::String(quote_status) = &attn_report["isvEnclaveQuoteStatus"] {
-        println!("isvEnclaveQuoteStatus = {}", quote_status);
+        info!("isvEnclaveQuoteStatus = {}", quote_status);
         match quote_status.as_ref() {
             "OK" => (),
             "GROUP_OUT_OF_DATE" | "GROUP_REVOKED" | "CONFIGURATION_NEEDED" => {
@@ -379,21 +379,21 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
                     //     return Err(rt);
                     // }
                 } else {
-                    println!("Failed to fetch platformInfoBlob from attestation report");
+                    warn!("Failed to fetch platformInfoBlob from attestation report");
                     return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
                 }
             }
             _ => return Err(sgx_status_t::SGX_ERROR_UNEXPECTED),
         }
     } else {
-        println!("Failed to fetch isvEnclaveQuoteStatus from attestation report");
+        warn!("Failed to fetch isvEnclaveQuoteStatus from attestation report");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
 
     // 3. Verify quote body
     if let Value::String(quote_raw) = &attn_report["isvEnclaveQuoteBody"] {
         let quote = base64::decode(&quote_raw).unwrap();
-        println!("Quote = {:?}", quote);
+        debug!("Quote = {:?}", quote);
         // TODO: lack security check here
         let sgx_quote: sgx_quote_t = unsafe { ptr::read(quote.as_ptr() as *const _) };
 
@@ -402,21 +402,25 @@ pub fn verify_mra_cert(cert_der: &[u8]) -> Result<(), sgx_status_t> {
         // DO SECURITY CHECK ON DEMAND
         // DO SECURITY CHECK ON DEMAND
         // DO SECURITY CHECK ON DEMAND
+        
+        // TODO: Validate Kaleido Runtime
+        let mr_enclave = sgx_quote.report_body.mr_enclave;
         unsafe {
-            println!("sgx quote version = {}", sgx_quote.version);
-            println!("sgx quote signature type = {}", sgx_quote.sign_type);
+            debug!("sgx quote version = {}", sgx_quote.version);
+            debug!("sgx quote signature type = {}", sgx_quote.sign_type);
             // println!("sgx quote report_data = {:02x}", sgx_quote.report_body.report_data.d.iter().format(""));
             // println!("sgx quote mr_enclave = {:02x}", sgx_quote.report_body.mr_enclave.m.iter().format(""));
             // println!("sgx quote mr_signer = {:02x}", sgx_quote.report_body.mr_signer.m.iter().format(""));
         }
         // println!("Anticipated public key = {:02x}", pub_k.iter().format(""));
         if sgx_quote.report_body.report_data.d.to_vec() == pub_k.to_vec() {
-            println!("Mutual RA done!");
+            info!("Mutual RA done!");
         }
     } else {
-        println!("Failed to fetch isvEnclaveQuoteBody from attestation report");
+        warn!("Failed to fetch isvEnclaveQuoteBody from attestation report");
         return Err(sgx_status_t::SGX_ERROR_UNEXPECTED);
     }
 
     Ok(())
 }
+

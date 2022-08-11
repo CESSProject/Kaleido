@@ -36,7 +36,7 @@ use std::fs;
 use std::io::Read;
 use std::{
     env,
-    net::{SocketAddr, TcpListener, TcpStream},
+    net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
     os::unix::io::{AsRawFd, IntoRawFd},
     str,
     str::FromStr,
@@ -105,7 +105,7 @@ async fn main() -> std::io::Result<()> {
                 .expect("Failed to launch ra_server thread");
 
             // Get attested from peers to receive Signing Keys.
-            if !get_attested_keys(eid, cfg.ra_peers.clone()).await {
+            if !get_attested_keys(eid, cfg.ra_servers.clone()).await {
                 enclave.destroy();
                 panic!("Failed to get/generate key pair");
             }
@@ -144,11 +144,11 @@ enum Mode {
 }
 
 fn start_ra_server(eid: u64) {
-    let port : u16 = env::var("REMOTE_ATTESTATION_PORT")
+    let port: u16 = env::var("REMOTE_ATTESTATION_PORT")
         .unwrap_or("8088".to_string())
         .parse()
         .unwrap();
-        
+
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port.to_string())).unwrap();
     info!(
         "Remote attestation server listening on port: {}",
@@ -194,23 +194,26 @@ async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
 
     let mut addrs = Vec::new();
     for addr in ra_servers_addr {
-        let socket_addr = SocketAddr::from_str(&addr)
-            .expect(format!("Invalid ra_peer address {}", addr).as_str());
+        let servers: Vec<SocketAddr> = addr
+            .to_socket_addrs()
+            .expect("Unable to resolve domain")
+            .collect();
+        debug!("Peer: {:?}", servers);
 
-        // Check if the address belongs to this system, if it does then generate key and return.
-        if let Some(my_ip) = my_ip {
-            debug!(
-                "My Server Public IP: {}, Remote Attestation Server IP: {}",
-                my_ip.to_string(),
-                socket_addr.ip().to_string()
-            );
-            if socket_addr.ip().to_string().eq(&my_ip.to_string()) {
-                debug!("Remote Attestation is on the same server.");
-                return gen_keys(eid);
+        for server in servers {
+            if let Some(my_ip) = my_ip {
+                debug!(
+                    "My Server Public IP: {}, Remote Attestation Server IP: {}",
+                    my_ip.to_string(),
+                    server.ip().to_string()
+                );
+                if server.ip().to_string().eq(&my_ip.to_string()) {
+                    debug!("Remote Attestation is on the same server.");
+                    return gen_keys(eid);
+                }
             }
+            addrs.push(server);
         }
-
-        addrs.push(socket_addr);
     }
 
     info!("Connecting to Remote Attestation server");

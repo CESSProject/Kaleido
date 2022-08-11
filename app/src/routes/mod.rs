@@ -1,7 +1,7 @@
 extern crate base64;
 
 use actix_web::http::header::ContentType;
-use actix_web::{error, post, web, HttpResponse, Responder};
+use actix_web::{error, post, web, HttpResponse, Responder, HttpRequest};
 use sgx_types::*;
 
 use crate::enclave;
@@ -11,6 +11,7 @@ use crate::models::podr2_commit_response::{
 };
 
 use std::ffi::CString;
+use std::fmt::Debug;
 use std::time::Instant;
 use url::{ParseError, Url};
 
