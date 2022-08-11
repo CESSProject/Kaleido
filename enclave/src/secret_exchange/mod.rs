@@ -451,13 +451,12 @@ pub fn create_attestation_report(
 }
 
 fn get_spid() -> sgx_spid_t {
-    const IAS_API_KEY_STR: &str = env!("IAS_SPID");
-    hex::decode_spid(IAS_API_KEY_STR)
+    let ias_api_key: String = env::var("IAS_SPID").unwrap();
+    hex::decode_spid(ias_api_key.as_str())
 }
 
 fn get_ias_api_key() -> String {
-    const IAS_API_KEY_STR: &str = env!("IAS_API_KEY");
-    IAS_API_KEY_STR.to_string()
+    env::var("IAS_API_KEY").unwrap()
 }
 
 struct ClientAuth {

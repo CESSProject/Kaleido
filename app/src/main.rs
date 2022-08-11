@@ -75,6 +75,9 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .unwrap();
 
+    env::var("IAS_SPID").expect("env 'IAS_SPID' is not set");
+    env::var("IAS_API_KEY").expect("env 'IAS_API_KEY' is not set");
+    
     let cfg = fs::read_to_string("./config.toml");
     let cfg: Config = match cfg {
         Ok(cfg_str) => toml::from_str(&cfg_str).expect("Invalid configuration file."),
