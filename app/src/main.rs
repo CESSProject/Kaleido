@@ -105,7 +105,7 @@ async fn main() -> std::io::Result<()> {
                 .expect("Failed to launch ra_server thread");
 
             // Get attested from peers to receive Signing Keys.
-            if !get_attested_keys(eid, cfg.ra_peers.clone()).await {
+            if !get_attested_keys(eid, cfg.ra_servers.clone()).await {
                 enclave.destroy();
                 panic!("Failed to get/generate key pair");
             }
