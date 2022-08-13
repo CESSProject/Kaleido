@@ -72,16 +72,27 @@ pub fn podr2_proof_commit(
     // Stores MHT leaves.
     // let mut leaves_hashes = vec![vec![0u8; 32]; t.t0.n];
     for i in 0..t.t0.n {
-        result.sigmas.push(generate_authenticator(
-            i,
-            u_num,
-            &mut t.t0,
-            &mut data[i*block_size..(i+1)*block_size].to_vec(),
-            &skey,
-            segment_size,
-            zero_pad_len,
-        ));
-
+        if i==t.t0.n-1{
+            result.sigmas.push(generate_authenticator(
+                i,
+                u_num,
+                &mut t.t0,
+                &mut data[i*block_size..].to_vec(),
+                &skey,
+                segment_size,
+                zero_pad_len,
+            ));
+        }else {
+            result.sigmas.push(generate_authenticator(
+                i,
+                u_num,
+                &mut t.t0,
+                &mut data[i*block_size..(i+1)*block_size].to_vec(),
+                &skey,
+                segment_size,
+                zero_pad_len,
+            ));
+        }
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
 
@@ -124,6 +135,7 @@ pub fn generate_authenticator(
     //     u_num = u_num + 1
     // }
 
+    info!("this is {},block size {}",i,piece.len());
     //0-pad for the last file block
     if t0.n-1==i && zero_pad_len!=0{
         let append_data =&mut vec![0u8; zero_pad_len as usize];
