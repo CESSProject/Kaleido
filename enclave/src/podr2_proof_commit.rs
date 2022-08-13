@@ -29,16 +29,16 @@ pub fn podr2_proof_commit(
     let mut t = FileTagT::new();
     // let mut matrix: Vec<Vec<u8>> = Vec::new();
     //Add zeros after the excess file
+    //For memory reasons, please do not directly expand a large vec
     let extra_len =data.len() as isize %block_size as isize;
+    let mut zero_pad_len =0;
     if extra_len>0{
-        let zero_pad_len=block_size as isize - extra_len;
-        info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
-        let append_data =&mut vec![0u8; zero_pad_len as usize];
-        info!("append data length {}",append_data.len());
-        info!("1data cap:{}",data.capacity());
-        data.append(append_data);
-        info!("2data cap:{}",data.capacity());
-        info!("data length after append1:{}",data.len());
+        zero_pad_len=block_size as isize - extra_len;
+        // info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
+        // let append_data =&mut vec![0u8; zero_pad_len as usize];
+        // info!("append data length {}",append_data.len());
+        // data.append(append_data);
+        // info!("data length after append1:{}",data.len());
     }
     // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
     //     matrix.push(chunk.to_vec());
@@ -76,9 +76,10 @@ pub fn podr2_proof_commit(
             i,
             u_num,
             &mut t.t0,
-            &data[i*block_size..(i+1)*block_size].to_vec(),
+            &mut data[i*block_size..(i+1)*block_size].to_vec(),
             &skey,
             segment_size,
+            zero_pad_len,
         ));
 
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
@@ -108,9 +109,10 @@ pub fn generate_authenticator(
     i: usize,
     u_num: usize,
     t0: &mut T0,
-    piece: &Vec<u8>,
+    piece: &mut Vec<u8>,
     alpha: &cess_bncurve::SecretKey,
     segment_size: usize,
+    zero_pad_len:isize
 ) -> Vec<u8> {
     //H(name||i)
     let mut name = t0.clone().name;
@@ -121,6 +123,15 @@ pub fn generate_authenticator(
     // if s % segment_size != 0 {
     //     u_num = u_num + 1
     // }
+
+    //0-pad for the last file block
+    if t0.n-1=i{
+        let append_data =&mut vec![0u8; zero_pad_len as usize];
+        info!("append data length {}",append_data.len());
+        piece.append(append_data);
+        info!("data length after append:{}",piece.len());
+    }
+
     for j in 0..u_num {
         if j == u_num - 1 {
             //mij
