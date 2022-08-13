@@ -75,7 +75,7 @@ pub fn podr2_proof_commit(
     for i in 0..t.t0.n {
         result.sigmas.push(generate_authenticator(
             i,
-            s,
+            u_num,
             &mut t.t0,
             &matrix[i],
             &skey,
@@ -107,7 +107,7 @@ pub fn podr2_proof_commit(
 
 pub fn generate_authenticator(
     i: usize,
-    s: usize,
+    u_num: usize,
     t0: &mut T0,
     piece: &Vec<u8>,
     alpha: &cess_bncurve::SecretKey,
@@ -117,11 +117,11 @@ pub fn generate_authenticator(
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
     let productory = G1::zero();
-    let mut u_num: usize = 0;
-    u_num = s / segment_size;
-    if s % segment_size != 0 {
-        u_num = u_num + 1
-    }
+    // let mut u_num: usize = 0;
+    // u_num = s / segment_size;
+    // if s % segment_size != 0 {
+    //     u_num = u_num + 1
+    // }
     for j in 0..u_num {
         if j == u_num - 1 {
             //mij
