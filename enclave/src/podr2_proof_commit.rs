@@ -20,7 +20,7 @@ use crate::param::podr2_commit_data::*;
 pub fn podr2_proof_commit(
     skey: cess_bncurve::SecretKey,
     pkey: cess_bncurve::PublicKey,
-    data: Vec<u8>,
+    mut data: Vec<u8>,
     block_size: usize,
     segment_size: usize,
 ) -> PoDR2CommitData {
@@ -28,6 +28,12 @@ pub fn podr2_proof_commit(
 
     let mut t = FileTagT::new();
     let mut matrix: Vec<Vec<u8>> = Vec::new();
+    let zero_pad_len=data.len() as isize %block_size as isize;
+    if zero_pad_len>0{
+        info!("zero_pad_len:{}",zero_pad_len);
+        data.append(&mut vec![0u8; zero_pad_len as usize]);
+        info!("data length after append:{}",data.len());
+    }
     data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
         matrix.push(chunk.to_vec());
     });

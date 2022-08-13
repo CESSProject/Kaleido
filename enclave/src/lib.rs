@@ -254,7 +254,7 @@ pub extern "C" fn process_data(
     let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - data_len);
 
-    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
+    let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     // let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
     //get random key pair
@@ -275,9 +275,9 @@ pub extern "C" fn process_data(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let podr2_data = podr2_proof_commit::podr2_proof_commit(
-                skey.clone(),
-                pkey.clone(),
-                d.clone(),
+                skey,
+                pkey,
+                d,
                 block_size,
                 segment_size,
             );
