@@ -32,12 +32,12 @@ pub fn podr2_proof_commit(
     let mut zero_pad_len =data.len() as isize %block_size as isize;
     if data.len()>block_size{
         if zero_pad_len>0{
-            info!("zero_pad_len:{}",zero_pad_len);
+            info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
             data.append(&mut vec![0u8; zero_pad_len as usize]);
             info!("data length after append1:{}",data.len());
         }
     }else {
-        info!("data length less than block size");
+        info!("data length less than block size,data length {}",data.len());
         zero_pad_len=block_size as isize - data.len() as isize;
         data.append(&mut vec![0u8; zero_pad_len as usize]);
         info!("data length after append2:{}",data.len());
