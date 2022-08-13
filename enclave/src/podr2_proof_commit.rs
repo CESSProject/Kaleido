@@ -20,7 +20,7 @@ use crate::param::podr2_commit_data::*;
 pub fn podr2_proof_commit(
     skey: cess_bncurve::SecretKey,
     pkey: cess_bncurve::PublicKey,
-    mut data: &Vec<u8>,
+    data: &mut Vec<u8>,
     block_size: usize,
     segment_size: usize,
 ) -> PoDR2CommitData {
