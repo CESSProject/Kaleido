@@ -35,7 +35,7 @@ pub fn podr2_proof_commit(
         info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
         let append_data =&mut vec![0u8; zero_pad_len as usize];
         info!("append data length {}",append_data.len());
-        data[data.len()-2..].to_vec().append(append_data);
+        &data[data.len()-2..].to_vec().append(append_data);
         info!("data length after append1:{}",data.len());
     }
     // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
