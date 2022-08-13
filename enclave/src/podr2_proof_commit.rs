@@ -27,7 +27,8 @@ pub fn podr2_proof_commit(
     let mut result = PoDR2CommitData::new();
 
     let mut t = FileTagT::new();
-    let mut matrix: Vec<Vec<u8>> = Vec::new();
+    // let mut matrix: Vec<Vec<u8>> = Vec::new();
+    //Add zeros after the excess file
     let mut zero_pad_len =data.len() as isize %block_size as isize;
     if data.len()>block_size{
         if zero_pad_len>0{
@@ -41,10 +42,10 @@ pub fn podr2_proof_commit(
         data.append(&mut vec![0u8; zero_pad_len as usize]);
         info!("data length after append2:{}",data.len());
     }
-    data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-        matrix.push(chunk.to_vec());
-    });
-    t.t0.n = matrix.len();
+    // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //     matrix.push(chunk.to_vec());
+    // });
+    t.t0.n = data.len()/block_size;
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
@@ -77,7 +78,7 @@ pub fn podr2_proof_commit(
             i,
             u_num,
             &mut t.t0,
-            &matrix[i],
+            &data[i*block_size..(i+1)*block_size].to_vec(),
             &skey,
             segment_size,
         ));
