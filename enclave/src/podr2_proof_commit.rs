@@ -27,23 +27,19 @@ pub fn podr2_proof_commit(
     let mut result = PoDR2CommitData::new();
 
     let mut t = FileTagT::new();
-    // let mut matrix: Vec<Vec<u8>> = Vec::new();
+    t.t0.n = data.len()/block_size;
     //Add zeros after the excess file
     //For memory reasons, please do not directly expand a large vec
     let extra_len =data.len() as isize %block_size as isize;
     let mut zero_pad_len =0;
     if extra_len>0{
         zero_pad_len=block_size as isize - extra_len;
-        // info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
-        // let append_data =&mut vec![0u8; zero_pad_len as usize];
-        // info!("append data length {}",append_data.len());
-        // data.append(append_data);
-        // info!("data length after append1:{}",data.len());
+        t.t0.n=t.t0.n+1
     }
+    // let mut matrix: Vec<Vec<u8>> = Vec::new();
     // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
     //     matrix.push(chunk.to_vec());
     // });
-    t.t0.n = data.len()/block_size;
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
