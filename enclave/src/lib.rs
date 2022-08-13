@@ -270,42 +270,42 @@ pub extern "C" fn process_data(
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    // thread::Builder::new()
-    //     .name("process_data".to_string())
-    //     .spawn(move || {
-    //         let call_back_url = callback_url_str.clone();
-    //         let podr2_data = podr2_proof_commit::podr2_proof_commit(
-    //             skey,
-    //             pkey,
-    //             d,
-    //             block_size,
-    //             segment_size,
-    //         );
-    //
-    //         // Print PoDR2CommitData
-    //         // for s in &podr2_data.sigmas {
-    //         //     println!("s: {}", u8v_to_hexstr(&s));
-    //         // }
-    //         // for u in &podr2_data.t.t0.u {
-    //         //     println!("u: {}", u8v_to_hexstr(&u));
-    //         // }
-    //         // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
-    //         // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
-    //         // println!("pkey:{:?}", pkey.to_str());
-    //
-    //         // Post PoDR2CommitData to callback url.
-    //         let _ = post_podr2_data(podr2_data, call_back_url, data_len);
-    //     })
-    //     .expect("Failed to launch process_data thread");
-    let call_back_url = callback_url_str.clone();
-    let podr2_data = podr2_proof_commit::podr2_proof_commit(
-        skey,
-        pkey,
-        &mut d,
-        block_size,
-        segment_size,
-    );
-    let _ = post_podr2_data(podr2_data, call_back_url, data_len);
+    thread::Builder::new()
+        .name("process_data".to_string())
+        .spawn(move || {
+            let call_back_url = callback_url_str.clone();
+            let podr2_data = podr2_proof_commit::podr2_proof_commit(
+                skey,
+                pkey,
+                &mut d,
+                block_size,
+                segment_size,
+            );
+
+            // Print PoDR2CommitData
+            // for s in &podr2_data.sigmas {
+            //     println!("s: {}", u8v_to_hexstr(&s));
+            // }
+            // for u in &podr2_data.t.t0.u {
+            //     println!("u: {}", u8v_to_hexstr(&u));
+            // }
+            // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
+            // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
+            // println!("pkey:{:?}", pkey.to_str());
+
+            // Post PoDR2CommitData to callback url.
+            let _ = post_podr2_data(podr2_data, call_back_url, data_len);
+        })
+        .expect("Failed to launch process_data thread");
+    // let call_back_url = callback_url_str.clone();
+    // let podr2_data = podr2_proof_commit::podr2_proof_commit(
+    //     skey,
+    //     pkey,
+    //     &mut d,
+    //     block_size,
+    //     segment_size,
+    // );
+    // let _ = post_podr2_data(podr2_data, call_back_url, data_len);
     sgx_status_t::SGX_SUCCESS
 }
 
