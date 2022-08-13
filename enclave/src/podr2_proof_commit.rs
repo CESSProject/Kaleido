@@ -25,11 +25,12 @@ pub fn podr2_proof_commit(
     segment_size: usize,
 ) -> PoDR2CommitData {
     let mut result = PoDR2CommitData::new();
-
+    info!("222222222222222222");
     let mut t = FileTagT::new();
     t.t0.n = data.len()/block_size;
     //Add zeros after the excess file
-    //For memory reasons, please do not directly expand a large vec
+    //For memory reasons, please do not directly expand a large data
+    info!("33333333333333333333333");
     let extra_len =data.len() as isize %block_size as isize;
     let mut zero_pad_len =0;
     if extra_len>0{
@@ -40,7 +41,7 @@ pub fn podr2_proof_commit(
     // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
     //     matrix.push(chunk.to_vec());
     // });
-
+    info!("4444444444444444444444");
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
     t.t0.name = zr.base_vector().to_vec();
@@ -53,6 +54,7 @@ pub fn podr2_proof_commit(
     if s % segment_size != 0 {
         u_num = u_num + 1
     }
+    info!("5555555555555555555555");
     let g1 = pbc::get_random_g1();
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
@@ -61,6 +63,7 @@ pub fn podr2_proof_commit(
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
+    info!("6666666666666666666666");
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
@@ -122,6 +125,7 @@ pub fn generate_authenticator(
     zero_pad_len:isize
 ) -> Vec<u8> {
     //H(name||i)
+    info!("7777777777777777777777777");
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
     let productory = G1::zero();
