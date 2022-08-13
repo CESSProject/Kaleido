@@ -256,7 +256,8 @@ pub extern "C" fn process_data(
 
     let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     // let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
-
+    info!("success get data,data length:{}",d.len());
+    info!("data_len:{}",data_len);
     //get random key pair
     let mut keypair=Keys::new();
     &keypair.gen_keys();
