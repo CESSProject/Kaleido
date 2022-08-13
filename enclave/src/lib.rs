@@ -301,7 +301,7 @@ pub extern "C" fn process_data(
     let podr2_data = podr2_proof_commit::podr2_proof_commit(
         skey,
         pkey,
-        &d,
+        &mut d,
         block_size,
         segment_size,
     );
