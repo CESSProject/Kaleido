@@ -153,7 +153,7 @@ pub extern "C" fn init() -> sgx_status_t {
     let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
     debug!("HEAP_MAX_SIZE: {} MB", heap_max_size / (1024 * 1024));
-    let max_file_size = (heap_max_size as f32 * 0.65) as usize;
+    let max_file_size = (heap_max_size as f32 * 0.31) as usize;
     ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
     sgx_status_t::SGX_SUCCESS
