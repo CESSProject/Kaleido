@@ -125,7 +125,7 @@ pub fn generate_authenticator(
     // }
 
     //0-pad for the last file block
-    if t0.n-1=i{
+    if t0.n-1==i && zero_pad_len!=0{
         let append_data =&mut vec![0u8; zero_pad_len as usize];
         info!("append data length {}",append_data.len());
         piece.append(append_data);
