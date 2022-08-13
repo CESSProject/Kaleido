@@ -29,18 +29,12 @@ pub fn podr2_proof_commit(
     let mut t = FileTagT::new();
     // let mut matrix: Vec<Vec<u8>> = Vec::new();
     //Add zeros after the excess file
-    let mut zero_pad_len =data.len() as isize %block_size as isize;
-    if data.len()>block_size{
-        if zero_pad_len>0{
-            info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
-            data.append(&mut vec![0u8; zero_pad_len as usize]);
-            info!("data length after append1:{}",data.len());
-        }
-    }else {
-        info!("data length less than block size,data length {}",data.len());
-        zero_pad_len=block_size as isize - data.len() as isize;
+    let mut extra_len =data.len() as isize %block_size as isize;
+    if extra_len>0{
+        info!("zero_pad_len:{},data length {}",zero_pad_len,data.len());
+        let zero_pad_len=block_size as isize - data.len() as isize;
         data.append(&mut vec![0u8; zero_pad_len as usize]);
-        info!("data length after append2:{}",data.len());
+        info!("data length after append1:{}",data.len());
     }
     // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
     //     matrix.push(chunk.to_vec());
