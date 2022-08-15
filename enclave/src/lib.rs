@@ -243,7 +243,7 @@ fn get_file_from_path(file_path:&str) -> (Vec<u8>,u64) {
     }
     // fetch_sub returns previous value. Therefore substract the data_len
     let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
-    info!("Enclave remaining memory {}", mem - file_len);
+    info!("Enclave remaining memory {}", mem - file_len as usize);
 
     let mut file_str ="";
     filedata.read_to_string(&mut file_str.to_string()).expect("cannot read the file");
