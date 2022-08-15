@@ -245,9 +245,10 @@ fn get_file_from_path(file_path: &String) -> (Vec<u8>, u64) {
     let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - file_len as usize);
 
-    let mut file_str ="";
-    filedata.read_to_string(&mut file_str.to_string()).expect("cannot read the file");
-    (file_str.as_bytes().to_vec(),file_len)
+    let mut file_string = String::new();
+    filedata.read_to_string(&mut file_string).expect("cannot read the file");
+    println!("this file string length {}",file_string.len())
+    (Vec::from(file_string), file_len)
 }
 
 /// Arguments:
