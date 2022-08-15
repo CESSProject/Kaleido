@@ -248,7 +248,6 @@ fn get_file_from_path(file_path: &String) -> (Vec<u8>, u64) {
     let mut file_vec:Vec<u8> = Vec::new();
 
     filedata.read_to_end(&mut file_vec).expect("cannot read the file");
-    info!("this file string length {:?}",&file_vec.len())
     (file_vec, file_len)
 }
 
