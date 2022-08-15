@@ -232,7 +232,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_file_from_path(file_path:&str) -> (Vec<u8>,u64) {
+fn get_file_from_path(file_path: &String) -> (Vec<u8>, u64) {
     let mut filedata = fs::File::open(file_path).expect("cannot find the file");
     let file_len=filedata.stream_len().unwrap();
     println!("the file:{} , length:{}",file_path,file_len);
@@ -267,8 +267,7 @@ pub extern "C" fn process_data(
 
     //get file from path
     let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
-    let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8")
-        .as_str();;
+    let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8");
     let mut d =get_file_from_path(&path);
     println!("d length is: {}",d.0.len());
     //get random key pair
