@@ -263,11 +263,10 @@ pub extern "C" fn process_data(
     // fetch_sub returns previous value. Therefore substract the data_len
     let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - data_len);
-
-    let mut d1 = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    println!("d1 length is: {}",d1.len());
+    let mut d = unsafe { slice::from_raw_parts(data, data_len+100).to_vec() };
+    // println!("d1 length is: {}",d1.len());
     //get file from
-    let mut d =get_1200mb_file_data();
+    // let mut d =get_1200mb_file_data();
     println!("d length is: {}",d.len());
     //get random key pair
     let mut keypair=Keys::new();
