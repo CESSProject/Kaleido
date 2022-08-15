@@ -12,6 +12,7 @@ use crate::models::podr2_commit_response::{
 
 use std::ffi::CString;
 use std::fmt::Debug;
+use std::fs;
 use std::time::Instant;
 use url::{ParseError, Url};
 
@@ -56,7 +57,7 @@ pub async fn r_process_data(
     debug!("Processing file data");
 
     // The sgx_status_t returned from ecall is reflected in `result` and not from the returned value here
-    unsafe {
+    let res = unsafe {
         enclave::ecalls::process_data(
             eid,
             &mut result,
@@ -68,22 +69,13 @@ pub async fn r_process_data(
         )
     };
 
-    debug!("Processing complete. Status: {}", result.as_str());
-    match result {
-        sgx_status_t::SGX_SUCCESS => {}
-        sgx_status_t::SGX_ERROR_BUSY => {
-            return Err(PoDR2CommitError {
-                message: Some("SGX is busy, please try again later.".to_string()),
-            });
-        }
-        _ => {
-            error!(
-                "[-] ECALL Enclave Failed for process_data {}!",
-                result.as_str()
-            );
-            HttpResponse::InternalServerError();
-        }
+    debug!("Processing complete. Status: {}", res.as_str());
+    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
+        return Err(PoDR2CommitError {
+                message: Some("SGX is busy, please try again later.".to_string())
+        })
     }
+
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
