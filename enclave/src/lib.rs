@@ -232,7 +232,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_file_from_path(file_path:&str) -> Vec<u8> {
+fn get_file_from_path(file_path:&str) -> (Vec<u8>,u64) {
     let mut filedata = fs::File::open(file_path).expect("cannot find the file");
     let file_len=filedata.stream_len().unwrap();
     println!("the file:{} , length:{}",file_path,file_len);
@@ -247,7 +247,7 @@ fn get_file_from_path(file_path:&str) -> Vec<u8> {
 
     let mut file_str ="";
     filedata.read_to_string(&mut file_str.to_string()).expect("cannot read the file");
-    file_str.as_bytes().to_vec()
+    (file_str.as_bytes().to_vec(),file_len)
 }
 
 /// Arguments:
@@ -270,7 +270,7 @@ pub extern "C" fn process_data(
     let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8")
         .as_str();;
     let mut d =get_file_from_path(path);
-    println!("d length is: {}",d.len());
+    println!("d length is: {}",d.0.len());
     //get random key pair
     let mut keypair=Keys::new();
     &keypair.gen_keys();
@@ -291,7 +291,7 @@ pub extern "C" fn process_data(
             let podr2_data = podr2_proof_commit::podr2_proof_commit(
                 skey,
                 pkey,
-                &mut d,
+                &mut d.0,
                 block_size,
                 segment_size,
             );
@@ -308,7 +308,7 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url, data_len);
+            let _ = post_podr2_data(podr2_data, call_back_url, d.1 as usize);
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
