@@ -32,8 +32,8 @@ enclave {
         public sgx_status_t init();
         public sgx_status_t gen_keys();
         public sgx_status_t process_data(
-            [in, size=data_len] uint8_t* data, 
-            size_t data_len, 
+            [in, size=path_len] uint8_t* file_path,
+            size_t path_len,
             size_t block_size, 
             size_t segment_size,
             [in, string] const char* callback_url

@@ -34,18 +34,18 @@ pub async fn r_process_data(
     let c_callback_url_str = CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap();
     debug!("Callback URL: {:?}", c_callback_url_str);
 
-    let data_base64: String = req.data.clone();
+    let file_path: String = req.file_path.clone();
     let block_size: usize = req.block_size;
     let segment_size: usize = req.segment_size;
-    let file_data = base64::decode(data_base64);
-    let file_data = match file_data {
-        Ok(data) => data,
-        Err(_) => {
-            return Err(PoDR2CommitError {
-                message: Some("Invalid base64 encoded data.".to_string()),
-            })
-        }
-    };
+    // let file_data = base64::decode(data_base64);
+    // let file_data = match file_data {
+    //     Ok(data) => data,
+    //     Err(_) => {
+    //         return Err(PoDR2CommitError {
+    //             message: Some("Invalid base64 encoded data.".to_string()),
+    //         })
+    //     }
+    // };
     debug!("File data decoded");
 
     let now = Instant::now();
@@ -59,8 +59,8 @@ pub async fn r_process_data(
         enclave::ecalls::process_data(
             eid,
             &mut result,
-            file_data.as_ptr() as *mut u8,
-            file_data.len(),
+            file_path.as_ptr() as *mut u8,
+            file_path.len(),
             block_size, // 1MB block size gives the best results interms of speed.
             segment_size,
             c_callback_url_str.as_ptr(),

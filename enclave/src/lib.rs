@@ -82,6 +82,7 @@ use http_req::{
 };
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
+use serde_json::Value::String;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
 
@@ -232,12 +233,17 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_1200mb_file_data() -> Vec<u8> {
-    let mut filedata = fs::File::open("/home/ubuntu/1.2G.txt").expect("cannot open ias key file");
-    println!("file data length:{}",filedata.stream_len().unwrap());
-    let mut data:Vec<u8> = Vec::new();
-    filedata.read_to_end(&mut data).expect("cannot read the 1.2G data");
-    data
+fn get_file_from_path(file_path:&str) -> Vec<u8> {
+    let mut filedata = fs::File::open(file_path).expect("cannot find the file");
+    let file_len=filedata.stream_len().unwrap();
+    println!("the file:{} , length:{}",file_path,file_len);
+    // fetch_sub returns previous value. Therefore substract the data_len
+    let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
+    info!("Enclave remaining memory {}", mem - file_len);
+
+    let mut file_str ="";
+    filedata.read_to_string(&mut file_str.to_string()).expect("cannot read the file");
+    file_str.as_bytes().to_vec()
 }
 
 /// Arguments:
@@ -248,8 +254,8 @@ fn get_1200mb_file_data() -> Vec<u8> {
 /// `callback_url` PoDR2 data will be posted back to this url 
 #[no_mangle]
 pub extern "C" fn process_data(
-    data: *mut u8,
-    data_len: usize,
+    file_path: *mut u8,
+    path_len: usize,
     block_size: usize,
     segment_size: usize,
     callback_url: *const c_char,
@@ -260,13 +266,11 @@ pub extern "C" fn process_data(
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
-    // fetch_sub returns previous value. Therefore substract the data_len
-    let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
-    info!("Enclave remaining memory {}", mem - data_len);
-    let mut d1 = unsafe { slice::from_raw_parts(data, data_len+3145628).to_vec() };
-    println!("d1 length is: {}",d1.len());
-    //get file from
-    let mut d =get_1200mb_file_data();
+    //get file from path
+    let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
+    let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8")
+        .as_str();;
+    let mut d =get_file_from_path(path);
     println!("d length is: {}",d.len());
     //get random key pair
     let mut keypair=Keys::new();
