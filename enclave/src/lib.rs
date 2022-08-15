@@ -269,7 +269,7 @@ pub extern "C" fn process_data(
     let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
     let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8")
         .as_str();;
-    let mut d =get_file_from_path(path);
+    let mut d =get_file_from_path(&path);
     println!("d length is: {}",d.0.len());
     //get random key pair
     let mut keypair=Keys::new();
