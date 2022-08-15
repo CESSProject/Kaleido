@@ -82,7 +82,6 @@ use http_req::{
 };
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
-use serde_json::Value::String;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
 
