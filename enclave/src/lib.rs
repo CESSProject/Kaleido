@@ -104,6 +104,7 @@ use std::{
     time::Duration,
     untrusted::fs
 };
+use std::io::Seek;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 
@@ -233,6 +234,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 
 fn get_1200mb_file_data() -> Vec<u8> {
     let mut filedata = fs::File::open("/home/ubuntu/1.2G.txt").expect("cannot open ias key file");
+    println!("file data length:{}",filedata.stream_len().unwrap());
     let mut data:Vec<u8> = Vec::new();
     filedata.read_to_end(&mut data).expect("cannot read the 1.2G data");
     data
