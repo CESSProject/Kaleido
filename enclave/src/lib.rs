@@ -261,7 +261,7 @@ pub extern "C" fn process_data(
     let mut keypair=Keys::new();
     &keypair.gen_keys();
     let (skey, pkey, _sig) = keypair.get_keys();
-    info!("skey is {}",skey.clone());
+    // info!("skey is {}",skey.clone());
     info!("pkey is {}",pkey.clone());
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
