@@ -231,11 +231,11 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_1200mb_file_data() -> &mut Vec<u8> {
+fn get_1200mb_file_data() -> Vec<u8> {
     let mut filedata = fs::File::open("/home/ubuntu/1.2G.txt").expect("cannot open ias key file");
     let mut data:Vec<u8> = Vec::new();
     filedata.read_to_end(&mut data).expect("cannot read the 1.2G data");
-    &mut data
+    data
 }
 
 /// Arguments:
