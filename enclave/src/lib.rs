@@ -236,6 +236,11 @@ fn get_file_from_path(file_path:&str) -> Vec<u8> {
     let mut filedata = fs::File::open(file_path).expect("cannot find the file");
     let file_len=filedata.stream_len().unwrap();
     println!("the file:{} , length:{}",file_path,file_len);
+
+    // Check for enough memory before proceeding
+    if !has_enough_mem(file_len as usize) {
+        warn!("Enclave Busy.");
+    }
     // fetch_sub returns previous value. Therefore substract the data_len
     let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - file_len);
@@ -259,11 +264,6 @@ pub extern "C" fn process_data(
     segment_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
-    // Check for enough memory before proceeding
-    if !has_enough_mem(data_len) {
-        warn!("Enclave Busy.");
-        return sgx_status_t::SGX_ERROR_BUSY;
-    }
 
     //get file from path
     let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
