@@ -247,7 +247,7 @@ fn get_file_from_path(file_path: &String) -> (Vec<u8>, u64) {
 
     let mut file_string = String::new();
     filedata.read_to_string(&mut file_string).expect("cannot read the file");
-    println!("this file string length {}",file_string.len())
+    info!("this file string length {}",file_string.len())
     (Vec::from(file_string), file_len)
 }
 
