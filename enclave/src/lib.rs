@@ -102,6 +102,7 @@ use std::{
     sync::SgxMutex,
     thread,
     time::Duration,
+    untrusted::fs
 };
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
@@ -230,6 +231,13 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+fn get_1200mb_file_data() -> &mut Vec<u8> {
+    let mut filedata = fs::File::open("/home/ubuntu/1.2G.txt").expect("cannot open ias key file");
+    let mut data:Vec<u8> = Vec::new();
+    filedata.read_to_end(&mut data).expect("cannot read the 1.2G data");
+    &mut data
+}
+
 /// Arguments:
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
 /// `data_len` argument is the number of **elements**, not the number of bytes.
@@ -254,14 +262,16 @@ pub extern "C" fn process_data(
     let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - data_len);
 
-    let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    // let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
-
+    let mut d1 = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
+    println!("d1 length is: {}",d1.len());
+    //get file from
+    let mut d =get_1200mb_file_data();
+    println!("d length is: {}",d.len());
     //get random key pair
     let mut keypair=Keys::new();
     &keypair.gen_keys();
     let (skey, pkey, _sig) = keypair.get_keys();
-    // info!("skey is {}",skey.clone());
+
     info!("pkey is {}",pkey.clone());
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
