@@ -237,9 +237,10 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
     let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
     info!("The file path is:{}",container_path);
 
-    let now = Instant::now();
+    let start = Instant::now();
     let mut filedata = fs::File::open(container_path);
-    info!("read file in {:.2?}!",now);
+    let end =Instant::now();
+    info!("read file in {:?}!",end.sub(start));
     let mut filedata =match filedata {
         Ok(filedata) =>filedata,
         Err(e) => {
