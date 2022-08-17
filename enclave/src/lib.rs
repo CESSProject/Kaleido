@@ -240,7 +240,7 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
     let start = Instant::now();
     let mut filedata = fs::File::open(container_path);
     let end =Instant::now();
-    info!("read file in {:?}!",end.sub(start));
+    info!("read file in {:?}!",end-start);
     let mut filedata =match filedata {
         Ok(filedata) =>filedata,
         Err(e) => {
