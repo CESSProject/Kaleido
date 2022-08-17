@@ -299,7 +299,8 @@ pub extern "C" fn process_data(
         Err(e)=>{
             status.status_msg=e.0;
             status.status_code=e.1 as usize;
-            let _ = post_podr2_data(podr2_data,status, callback_url_str.clone(), 0);
+            let call_back_url = callback_url_str.clone();
+            let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
             return e.2
         }
     };
