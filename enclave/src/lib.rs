@@ -299,7 +299,7 @@ pub extern "C" fn process_data(
         Ok(d) =>d,
         Err(e)=>{
             status.status_msg=e.0.clone();
-            status.status_code=e.1 as usize.clone();
+            status.status_code=e.1 as usize;
             let call_back_url = callback_url_str.clone();
             let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
 
