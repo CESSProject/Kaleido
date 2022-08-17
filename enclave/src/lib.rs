@@ -81,20 +81,19 @@ use http_req::{
     uri::Uri,
 };
 use log::{info, warn};
+use log::Level::Error;
 use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{
-    podr2_commit_data::PoDR2CommitData,
-    podr2_commit_response::PoDR2CommitResponse,
-};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse, podr2_status};
 use sgx_types::*;
+use sgx_types::sgx_status_t::{SGX_ERROR_INVALID_PARAMETER, SGX_ERROR_OUT_OF_MEMORY};
 use std::{
     env,
     ffi::CStr,
-    io::{Read, Write},
+    io::{Read, Write,Error},
     net::TcpStream,
     sgxfs::SgxFile,
     slice,
@@ -102,11 +101,13 @@ use std::{
     sync::SgxMutex,
     thread,
     time::Duration,
-    untrusted::fs
+    untrusted::fs,
+    time::Instant,
+    io::Seek
 };
-use std::io::Seek;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
+static CONTAINER_MAP_PATH:&str="/scheduler_data";
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -232,23 +233,33 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_file_from_path(file_path: &String) -> (Vec<u8>, u64) {
-    let mut filedata = fs::File::open(file_path).expect("cannot find the file");
+fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr2_status,sgx_status_t)> {
+    let now = Instant::now();
+    let mut filedata = fs::File::open(file_path);
+    log!("read file in {:.2?}!",now);
     let file_len=filedata.stream_len().unwrap();
-    println!("the file:{} , length:{}",file_path,file_len);
+    let mut filedata =match filedata {
+        Ok(filedata) =>filedata,
+        Err(e) => {
+            error!("get file error is :{:?}",e.to_string());
+            return Err(("get file error is :"+e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
+        }
+    };
+    let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
+    log!("the file:{} , length:{}",container_path,file_len);
 
     // Check for enough memory before proceeding
     if !has_enough_mem(file_len as usize) {
         warn!("Enclave Busy.");
+        return Err(("Enclave Busy".to_string(),podr2_status::PoDR2_ERROR_OUT_OF_MEMORY,SGX_ERROR_OUT_OF_MEMORY))
     }
     // fetch_sub returns previous value. Therefore substract the data_len
     let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - file_len as usize);
 
     let mut file_vec:Vec<u8> = Vec::new();
-
     filedata.read_to_end(&mut file_vec).expect("cannot read the file");
-    (file_vec, file_len)
+    OK((file_vec, file_len))
 }
 
 /// Arguments:
@@ -266,10 +277,19 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
 
+    let mut status=param::podr2_commit_response::StatusInfo::new();
     //get file from path
     let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
     let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8");
     let mut d =get_file_from_path(&path);
+    let mut d =match d {
+        Ok(d) =>d,
+        Err(e)=>{
+            status.status_msg=e.0;
+            status.status_code=e.1;
+            return e.2
+        }
+    };
     println!("d length is: {}",d.0.len());
     //get random key pair
     let mut keypair=Keys::new();
