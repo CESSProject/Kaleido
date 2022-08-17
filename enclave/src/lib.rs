@@ -234,19 +234,20 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 }
 
 fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr2_status,sgx_status_t)> {
+    let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
+    let file_len=filedata.stream_len().unwrap();
+    info!("the file:{} , length:{}",container_path,file_len);
+
     let now = Instant::now();
-    let mut filedata = fs::File::open(file_path);
+    let mut filedata = fs::File::open(container_path);
     info!("read file in {:.2?}!",now);
     let mut filedata =match filedata {
         Ok(filedata) =>filedata,
         Err(e) => {
-            error!("get file error is :{:?}",e.to_string());
-            return Err(("get file error is :".to_string()+&e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
+            error!("Get file error :{:?}",e.to_string());
+            return Err(("get file error :".to_string()+&e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
         }
     };
-    let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
-    let file_len=filedata.stream_len().unwrap();
-    info!("the file:{} , length:{}",container_path,file_len);
 
     // Check for enough memory before proceeding
     if !has_enough_mem(file_len as usize) {
