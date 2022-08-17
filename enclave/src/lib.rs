@@ -105,6 +105,7 @@ use std::{
     time::Instant,
     io::Seek
 };
+use param::podr2_commit_response::StatusInfo;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 static CONTAINER_MAP_PATH:&str="/scheduler_data";
@@ -280,6 +281,13 @@ pub extern "C" fn process_data(
 ) -> sgx_status_t {
 
     let mut status=param::podr2_commit_response::StatusInfo::new();
+    let mut podr2_data=PoDR2CommitData::new();
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
     //get file from path
     let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
     let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8");
@@ -289,6 +297,7 @@ pub extern "C" fn process_data(
         Err(e)=>{
             status.status_msg=e.0;
             status.status_code=e.1 as usize;
+            let _ = post_podr2_data(podr2_data,status, callback_url_str.clone(), d.1 as usize);
             return e.2
         }
     };
@@ -300,17 +309,11 @@ pub extern "C" fn process_data(
 
     info!("pkey is {}",pkey.clone());
 
-    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
-    let callback_url_str = match callback_url_str {
-        Ok(url) => url.to_string(),
-        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
-    };
-
     thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let podr2_data = podr2_proof_commit::podr2_proof_commit(
+            podr2_data = podr2_proof_commit::podr2_proof_commit(
                 skey,
                 pkey,
                 &mut d.0,
@@ -330,7 +333,7 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url, d.1 as usize);
+            let _ = post_podr2_data(podr2_data,status, call_back_url, d.1 as usize);
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
@@ -345,8 +348,8 @@ fn has_enough_mem(data_len: usize) -> bool {
     true
 }
 
-fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data);
+fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data,status_info);
 
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
@@ -434,7 +437,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     return sgx_status_t::SGX_SUCCESS;
 }
 
-fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
+fn get_podr2_resp(data: PoDR2CommitData,status_info: StatusInfo) -> PoDR2CommitResponse {
     let mut podr2_res = PoDR2CommitResponse::new();
     podr2_res.pkey = base64::encode(data.pkey);
 
@@ -453,6 +456,7 @@ fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
     podr2_res.t.t0.name = base64::encode(data.t.t0.name);
     podr2_res.t.t0.n = data.t.t0.n;
     podr2_res.t.t0.u = u_encoded;
+    podr2_res.status=status_info;
     podr2_res
 }
 
