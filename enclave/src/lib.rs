@@ -391,7 +391,7 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
     let json_bytes = json_data.as_bytes();
     let mut writer = Vec::new();
     let time_out = Some(Duration::from_millis(200));
-    for i in 3{
+    for i in 0..3{
         if addr.scheme() == "https" {
             //Open secure connection over TlsStream, because of `addr` (https)
             let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
