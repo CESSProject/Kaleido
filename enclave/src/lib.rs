@@ -298,24 +298,10 @@ pub extern "C" fn process_data(
     let mut d =match d {
         Ok(d) =>d,
         Err(e)=>{
-            status.status_msg=e.0.clone();
+            status.status_msg=e.0;
             status.status_code=e.1 as usize;
             let call_back_url = callback_url_str.clone();
             let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
-
-            ///////////////////////////////////////////////////////////////////////////
-            let mut podr2_data1=PoDR2CommitData::new();
-            let mut status1=param::podr2_commit_response::StatusInfo::new();
-            status1.status_msg=e.0.clone();
-            status1.status_code=10004;
-            let _ = post_podr2_data(podr2_data1,status1, callback_url_str.clone(), 0);
-            //////////////////////////////////////////////////////////////////////////
-            let mut podr2_data2=PoDR2CommitData::new();
-            let mut status2=param::podr2_commit_response::StatusInfo::new();
-            status2.status_msg=e.0.clone();
-            status2.status_code=10004;
-            let _ = post_podr2_data(podr2_data2,status2, callback_url_str.clone(), 0);
-            ///////////////////////////////////////////////////////////////////////////
             sleep(Duration::from_millis(100)*10);
             return e.2
         }
