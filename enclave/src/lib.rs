@@ -298,10 +298,24 @@ pub extern "C" fn process_data(
     let mut d =match d {
         Ok(d) =>d,
         Err(e)=>{
-            status.status_msg=e.0;
-            status.status_code=e.1 as usize;
+            status.status_msg=e.0.clone();
+            status.status_code=e.1 as usize.clone();
             let call_back_url = callback_url_str.clone();
             let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
+
+            ///////////////////////////////////////////////////////////////////////////
+            let mut podr2_data1=PoDR2CommitData::new();
+            let mut status1=param::podr2_commit_response::StatusInfo::new();
+            status1.status_msg=e.0.clone();
+            status1.status_code=10004;
+            let _ = post_podr2_data(podr2_data1,status1, callback_url_str.clone(), 0);
+            //////////////////////////////////////////////////////////////////////////
+            let mut podr2_data2=PoDR2CommitData::new();
+            let mut status2=param::podr2_commit_response::StatusInfo::new();
+            status2.status_msg=e.0.clone();
+            status2.status_code=10004;
+            let _ = post_podr2_data(podr2_data2,status2, callback_url_str.clone(), 0);
+            ///////////////////////////////////////////////////////////////////////////
             sleep(Duration::from_millis(100)*10);
             return e.2
         }
@@ -355,8 +369,6 @@ fn has_enough_mem(data_len: usize) -> bool {
 
 fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
     let mut podr2_res = get_podr2_resp(data,status_info);
-    info!("--------------------------status code:{}",podr2_res.status.status_code);
-    info!("--------------------------status msg:{:?}",podr2_res.status.status_msg);
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
         Ok(data) => data,
@@ -365,7 +377,6 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
-    info!("-----------------------json data:{:?}",json_data);
 
     let addr = callback_url.parse();
     let addr: Uri = match addr {
