@@ -237,15 +237,15 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
     let now = Instant::now();
     let mut filedata = fs::File::open(file_path);
     info!("read file in {:.2?}!",now);
-    let file_len=filedata.stream_len().unwrap();
     let mut filedata =match filedata {
         Ok(filedata) =>filedata,
         Err(e) => {
             error!("get file error is :{:?}",e.to_string());
-            return Err(("get file error is :"+e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
+            return Err(("get file error is :".to_string()+&e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
         }
     };
     let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
+    let file_len=filedata.stream_len().unwrap();
     info!("the file:{} , length:{}",container_path,file_len);
 
     // Check for enough memory before proceeding
@@ -286,7 +286,7 @@ pub extern "C" fn process_data(
         Ok(d) =>d,
         Err(e)=>{
             status.status_msg=e.0;
-            status.status_code=e.1;
+            status.status_code=e.1 as usize;
             return e.2
         }
     };

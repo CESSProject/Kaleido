@@ -40,14 +40,14 @@ impl FileTagT {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct StatusInfo{
-    pub status_code:podr2_status,
+    pub status_code:usize,
     pub status_msg:String
 }
 
 impl StatusInfo {
     pub fn new() ->StatusInfo{
         StatusInfo{
-            status_code:podr2_status::PoDR2_SUCCESS,
+            status_code:podr2_status::PoDR2_SUCCESS as usize,
             status_msg:String::new()
         }
     }
