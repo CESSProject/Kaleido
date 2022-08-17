@@ -105,6 +105,7 @@ use std::{
     time::Instant,
     io::Seek
 };
+use std::thread::sleep;
 use param::podr2_commit_response::StatusInfo;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
@@ -301,6 +302,7 @@ pub extern "C" fn process_data(
             status.status_code=e.1 as usize;
             let call_back_url = callback_url_str.clone();
             let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
+            sleep(Duration::from_millis(100)*10);
             return e.2
         }
     };
