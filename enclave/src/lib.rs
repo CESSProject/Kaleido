@@ -93,7 +93,7 @@ use sgx_types::sgx_status_t::{SGX_ERROR_INVALID_PARAMETER, SGX_ERROR_OUT_OF_MEMO
 use std::{
     env,
     ffi::CStr,
-    io::{Read, Write,Error},
+    io::{Read, Write},
     net::TcpStream,
     sgxfs::SgxFile,
     slice,
@@ -236,7 +236,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr2_status,sgx_status_t)> {
     let now = Instant::now();
     let mut filedata = fs::File::open(file_path);
-    log!("read file in {:.2?}!",now);
+    info!("read file in {:.2?}!",now);
     let file_len=filedata.stream_len().unwrap();
     let mut filedata =match filedata {
         Ok(filedata) =>filedata,
@@ -246,7 +246,7 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
         }
     };
     let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
-    log!("the file:{} , length:{}",container_path,file_len);
+    info!("the file:{} , length:{}",container_path,file_len);
 
     // Check for enough memory before proceeding
     if !has_enough_mem(file_len as usize) {
@@ -259,7 +259,7 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
 
     let mut file_vec:Vec<u8> = Vec::new();
     filedata.read_to_end(&mut file_vec).expect("cannot read the file");
-    OK((file_vec, file_len))
+    Ok((file_vec, file_len))
 }
 
 /// Arguments:
