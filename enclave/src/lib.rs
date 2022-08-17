@@ -391,52 +391,55 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
     let json_bytes = json_data.as_bytes();
     let mut writer = Vec::new();
     let time_out = Some(Duration::from_millis(200));
-    if addr.scheme() == "https" {
-        //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
+    for i in 3{
+        if addr.scheme() == "https" {
+            //Open secure connection over TlsStream, because of `addr` (https)
+            let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
 
-        let mut stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                println!("Failed to connect to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-            }
-        };
+            let mut stream = match stream {
+                Ok(s) => s,
+                Err(e) => {
+                    println!("Failed to connect to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+                }
+            };
 
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
+            let response = RequestBuilder::new(&addr)
+                .header("Connection", "Close")
+                .header("Content-Type", "Application/Json")
+                .header("Content-Length", &json_bytes.len())
+                .timeout(time_out)
+                .body(json_bytes)
+                .send(&mut stream, &mut writer);
+            let response = match response {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Failed to send request to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_UNEXPECTED;
+                }
+            };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
-    } else {
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
+            println!("Status: {} {}", response.status_code(), response.reason());
+        } else {
+            let response = RequestBuilder::new(&addr)
+                .header("Connection", "Close")
+                .header("Content-Type", "Application/Json")
+                .header("Content-Length", &json_bytes.len())
+                .timeout(time_out)
+                .body(json_bytes)
+                .send(&mut stream, &mut writer);
+            let response = match response {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Failed to send request to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_UNEXPECTED;
+                }
+            };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
+            println!("Status: {} {}", response.status_code(), response.reason());
+        }
     }
+
 
     // Update available memory.
     ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
