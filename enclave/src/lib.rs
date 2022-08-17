@@ -235,8 +235,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 
 fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr2_status,sgx_status_t)> {
     let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
-    let file_len=filedata.stream_len().unwrap();
-    info!("the file:{} , length:{}",container_path,file_len);
+    info!("The file path is:{}",container_path);
 
     let now = Instant::now();
     let mut filedata = fs::File::open(container_path);
@@ -248,7 +247,8 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
             return Err(("get file error :".to_string()+&e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
         }
     };
-
+    let file_len=filedata.stream_len().unwrap();
+    info!("File length :{}",file_len);
     // Check for enough memory before proceeding
     if !has_enough_mem(file_len as usize) {
         warn!("Enclave Busy.");
