@@ -352,7 +352,8 @@ fn has_enough_mem(data_len: usize) -> bool {
 
 fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
     let mut podr2_res = get_podr2_resp(data,status_info);
-
+    info!("--------------------------status code:{}",podr2_res.status.status_code);
+    info!("--------------------------status msg:{:?}",podr2_res.status.status_msg);
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
         Ok(data) => data,
@@ -361,6 +362,7 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
+    info!("-----------------------json data:{:?}",json_data);
 
     let addr = callback_url.parse();
     let addr: Uri = match addr {
