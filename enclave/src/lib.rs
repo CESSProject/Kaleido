@@ -255,8 +255,6 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
     // Check for enough memory before proceeding
     if !has_enough_mem(file_len as usize) {
         warn!("Enclave Busy.");
-        // Update available memory.
-        ENCLAVE_MEM_CAP.fetch_add(file_len as usize, Ordering::SeqCst);
         return Err(("Enclave Busy".to_string(),podr2_status::PoDR2_ERROR_OUT_OF_MEMORY,SGX_ERROR_OUT_OF_MEMORY))
     }
     // fetch_sub returns previous value. Therefore substract the data_len
