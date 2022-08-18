@@ -403,6 +403,7 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
                 .header("Connection", "Close")
                 .header("Content-Type", "Application/Json")
                 .header("Content-Length", &json_bytes.len())
+                .method(Method::POST)
                 .timeout(time_out)
                 .body(json_bytes)
                 .send(&mut stream, &mut writer);
