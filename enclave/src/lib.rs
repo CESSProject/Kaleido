@@ -76,7 +76,7 @@ use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
 use http_req::{
-    request:: RequestBuilder,
+    request:: {RequestBuilder,Method},
     tls,
     uri::Uri,
 };
@@ -420,6 +420,7 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
                 .header("Connection", "Close")
                 .header("Content-Type", "Application/Json")
                 .header("Content-Length", &json_bytes.len())
+                .method(Method::POST)
                 .timeout(time_out)
                 .body(json_bytes)
                 .send(&mut stream, &mut writer);
