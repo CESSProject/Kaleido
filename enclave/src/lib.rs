@@ -269,12 +269,16 @@ pub extern "C" fn process_data(
     // Check for enough memory before proceeding
     let mut status=param::podr2_commit_response::StatusInfo::new();
     let mut podr2_data=PoDR2CommitData::new();
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
     if !has_enough_mem(data_len) {
         warn!("Enclave Busy.");
         status.status_msg="Enclave Busy.".to_string();
         status.status_code=podr2_status::PoDR2_ERROR_OUT_OF_MEMORY as usize;
-        let call_back_url = callback_url_str.clone();
-        let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
+        let _ = post_podr2_data(podr2_data,status, callback_url_str.clone(), 0);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
@@ -285,11 +289,7 @@ pub extern "C" fn process_data(
     let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
-    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
-    let callback_url_str = match callback_url_str {
-        Ok(url) => url.to_string(),
-        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
-    };
+
 
     thread::Builder::new()
         .name("process_data".to_string())
