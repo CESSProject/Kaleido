@@ -20,18 +20,27 @@ use crate::param::podr2_commit_data::*;
 pub fn podr2_proof_commit(
     skey: cess_bncurve::SecretKey,
     pkey: cess_bncurve::PublicKey,
-    data: Vec<u8>,
+    data: &mut Vec<u8>,
     block_size: usize,
     segment_size: usize,
 ) -> PoDR2CommitData {
     let mut result = PoDR2CommitData::new();
 
     let mut t = FileTagT::new();
-    let mut matrix: Vec<Vec<u8>> = Vec::new();
-    data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
-        matrix.push(chunk.to_vec());
-    });
-    t.t0.n = matrix.len();
+    t.t0.n = data.len()/block_size;
+    //Add zeros after the excess file
+    //For memory reasons, please do not directly expand a large data
+
+    let extra_len =data.len() as isize %block_size as isize;
+    let mut zero_pad_len =0;
+    if extra_len>0{
+        zero_pad_len=block_size as isize - extra_len;
+        t.t0.n=t.t0.n+1
+    }
+    // let mut matrix: Vec<Vec<u8>> = Vec::new();
+    // data.chunks(block_size).enumerate().for_each(|(i, chunk)| {
+    //     matrix.push(chunk.to_vec());
+    // });
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
     let zr = cess_bncurve::Zr::random();
@@ -45,6 +54,7 @@ pub fn podr2_proof_commit(
     if s % segment_size != 0 {
         u_num = u_num + 1
     }
+
     let g1 = pbc::get_random_g1();
     //'Choose s random elements u1,...,us<——R——G'
     for i in 0..u_num as i64 {
@@ -53,6 +63,7 @@ pub fn podr2_proof_commit(
         let g1byte = g1.base_vector().to_vec();
         t.t0.u.push(g1byte);
     }
+
     //the file tag t is t0 together with a signature
     let t_serialized = serde_json::to_string(&t.t0).unwrap();
     let t_serialized_bytes = t_serialized.clone().into_bytes();
@@ -60,15 +71,27 @@ pub fn podr2_proof_commit(
     // Stores MHT leaves.
     // let mut leaves_hashes = vec![vec![0u8; 32]; t.t0.n];
     for i in 0..t.t0.n {
-        result.sigmas.push(generate_authenticator(
-            i,
-            s,
-            &mut t.t0,
-            &matrix[i],
-            &skey,
-            segment_size,
-        ));
-
+        if i==t.t0.n-1{
+            result.sigmas.push(generate_authenticator(
+                i,
+                u_num,
+                &mut t.t0,
+                &mut data[i*block_size..].to_vec(),
+                &skey,
+                segment_size,
+                zero_pad_len,
+            ));
+        }else {
+            result.sigmas.push(generate_authenticator(
+                i,
+                u_num,
+                &mut t.t0,
+                &mut data[i*block_size..(i+1)*block_size].to_vec(),
+                &skey,
+                segment_size,
+                zero_pad_len,
+            ));
+        }
         // leaves_hashes.push(rsgx_sha256_slice(&matrix[i]).unwrap().to_vec());
     }
 
@@ -94,21 +117,32 @@ pub fn podr2_proof_commit(
 
 pub fn generate_authenticator(
     i: usize,
-    s: usize,
+    u_num: usize,
     t0: &mut T0,
-    piece: &Vec<u8>,
+    piece: &mut Vec<u8>,
     alpha: &cess_bncurve::SecretKey,
     segment_size: usize,
+    zero_pad_len:isize
 ) -> Vec<u8> {
     //H(name||i)
+
     let mut name = t0.clone().name;
     let hash_name_i = hash_name_i(&mut name, i + 1);
     let productory = G1::zero();
-    let mut u_num: usize = 0;
-    u_num = s / segment_size;
-    if s % segment_size != 0 {
-        u_num = u_num + 1
+    // let mut u_num: usize = 0;
+    // u_num = s / segment_size;
+    // if s % segment_size != 0 {
+    //     u_num = u_num + 1
+    // }
+
+    //0-pad for the last file block
+    if t0.n-1==i && zero_pad_len!=0{
+        let append_data =&mut vec![0u8; zero_pad_len as usize];
+        info!("this is last block ,so need append data length is {}",append_data.len());
+        piece.append(append_data);
+        info!("block length after append:{}",piece.len());
     }
+
     for j in 0..u_num {
         if j == u_num - 1 {
             //mij

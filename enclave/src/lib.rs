@@ -76,21 +76,20 @@ use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
 use http_req::{
-    request:: RequestBuilder,
+    request:: {RequestBuilder,Method},
     tls,
     uri::Uri,
 };
 use log::{info, warn};
+use log::Level::Error;
 use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{
-    podr2_commit_data::PoDR2CommitData,
-    podr2_commit_response::PoDR2CommitResponse,
-};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse, podr2_status};
 use sgx_types::*;
+use sgx_types::sgx_status_t::{SGX_ERROR_INVALID_PARAMETER, SGX_ERROR_OUT_OF_MEMORY};
 use std::{
     env,
     ffi::CStr,
@@ -102,9 +101,15 @@ use std::{
     sync::SgxMutex,
     thread,
     time::Duration,
+    untrusted::fs,
+    time::Instant,
+    io::Seek
 };
+use std::thread::sleep;
+use param::podr2_commit_response::StatusInfo;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
+static CONTAINER_MAP_PATH:&str="/scheduler_data";
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -230,6 +235,37 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr2_status,sgx_status_t)> {
+    let container_path=CONTAINER_MAP_PATH.to_string()+file_path;
+    info!("The file path is:{}",container_path);
+
+    let start = Instant::now();
+    let mut filedata = fs::File::open(container_path);
+    let end =Instant::now();
+    info!("read file in {:?}!",end-start);
+    let mut filedata =match filedata {
+        Ok(filedata) =>filedata,
+        Err(e) => {
+            error!("Get file error :{:?}",e.to_string());
+            return Err(("get file error :".to_string()+&e.to_string(),podr2_status::PoDR2_ERROR_NOTEXIST_FILE,SGX_ERROR_INVALID_PARAMETER))
+        }
+    };
+    let file_len=filedata.stream_len().unwrap();
+    info!("File length :{}",file_len);
+    // Check for enough memory before proceeding
+    if !has_enough_mem(file_len as usize) {
+        warn!("Enclave Busy.");
+        return Err(("Enclave Busy".to_string(),podr2_status::PoDR2_ERROR_OUT_OF_MEMORY,SGX_ERROR_OUT_OF_MEMORY))
+    }
+    // fetch_sub returns previous value. Therefore substract the data_len
+    let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
+    info!("Enclave remaining memory {} (b)", mem - file_len as usize);
+
+    let mut file_vec:Vec<u8> = Vec::new();
+    filedata.read_to_end(&mut file_vec).expect("cannot read the file");
+    Ok((file_vec, file_len))
+}
+
 /// Arguments:
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
 /// `data_len` argument is the number of **elements**, not the number of bytes.
@@ -238,39 +274,51 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 /// `callback_url` PoDR2 data will be posted back to this url 
 #[no_mangle]
 pub extern "C" fn process_data(
-    data: *mut u8,
-    data_len: usize,
+    file_path: *mut u8,
+    path_len: usize,
     block_size: usize,
     segment_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
-    // Check for enough memory before proceeding
-    if !has_enough_mem(data_len) {
-        warn!("Enclave Busy.");
-        return sgx_status_t::SGX_ERROR_BUSY;
-    }
 
-    // fetch_sub returns previous value. Therefore substract the data_len
-    let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
-    info!("Enclave remaining memory {}", mem - data_len);
-
-    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
-
+    let mut status=param::podr2_commit_response::StatusInfo::new();
+    let mut podr2_data=PoDR2CommitData::new();
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
+    //get file from path
+    let path_arr = unsafe { slice::from_raw_parts(file_path, path_len) };
+    let path=String::from_utf8(path_arr.to_vec()).expect("Invalid UTF-8");
+    let mut d =get_file_from_path(&path);
+    let mut d =match d {
+        Ok(d) =>d,
+        Err(e)=>{
+            status.status_msg=e.0;
+            status.status_code=e.1 as usize;
+            let call_back_url = callback_url_str.clone();
+            let _ = post_podr2_data(podr2_data,status, call_back_url, 0);
+            return e.2
+        }
+    };
+    println!("d length is: {}",d.0.len());
+    //get random key pair
+    let mut keypair=Keys::new();
+    &keypair.gen_keys();
+    let (skey, pkey, _sig) = keypair.get_keys();
+
+    info!("pkey is {}",pkey.clone());
+
     thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let podr2_data = podr2_proof_commit::podr2_proof_commit(
-                skey.clone(),
-                pkey.clone(),
-                d.clone(),
+            podr2_data = podr2_proof_commit::podr2_proof_commit(
+                skey,
+                pkey,
+                &mut d.0,
                 block_size,
                 segment_size,
             );
@@ -287,7 +335,7 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url, data_len);
+            let _ = post_podr2_data(podr2_data,status, call_back_url, d.1 as usize);
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
@@ -302,9 +350,8 @@ fn has_enough_mem(data_len: usize) -> bool {
     true
 }
 
-fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data);
-
+fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data,status_info);
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
         Ok(data) => data,
@@ -338,60 +385,64 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     let json_bytes = json_data.as_bytes();
     let mut writer = Vec::new();
     let time_out = Some(Duration::from_millis(200));
-    if addr.scheme() == "https" {
-        //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
+        if addr.scheme() == "https" {
+            //Open secure connection over TlsStream, because of `addr` (https)
+            let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
 
-        let mut stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                println!("Failed to connect to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-            }
-        };
+            let mut stream = match stream {
+                Ok(s) => s,
+                Err(e) => {
+                    println!("Failed to connect to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+                }
+            };
 
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
+            let response = RequestBuilder::new(&addr)
+                .header("Connection", "Close")
+                .header("Content-Type", "Application/Json")
+                .header("Content-Length", &json_bytes.len())
+                .method(Method::POST)
+                .timeout(time_out)
+                .body(json_bytes)
+                .send(&mut stream, &mut writer);
+            let response = match response {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Failed to send request to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_UNEXPECTED;
+                }
+            };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
-    } else {
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
+            println!("Status: {} {}", response.status_code(), response.reason());
+        } else {
+            let response = RequestBuilder::new(&addr)
+                .header("Connection", "Close")
+                .header("Content-Type", "Application/Json")
+                .header("Content-Length", &json_bytes.len())
+                .method(Method::POST)
+                .timeout(time_out)
+                .body(json_bytes)
+                .send(&mut stream, &mut writer);
+            let response = match response {
+                Ok(res) => res,
+                Err(e) => {
+                    println!("Failed to send request to {}, {}", addr, e);
+                    return sgx_status_t::SGX_ERROR_UNEXPECTED;
+                }
+            };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
-    }
+            println!("Status: {} {}", response.status_code(), response.reason());
+        }
+
 
     // Update available memory.
-    ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    let mem =ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    info!("The enclave space is released to :{} (b)",mem+data_len);
 
     return sgx_status_t::SGX_SUCCESS;
 }
 
-fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
+fn get_podr2_resp(data: PoDR2CommitData,status_info: StatusInfo) -> PoDR2CommitResponse {
     let mut podr2_res = PoDR2CommitResponse::new();
     podr2_res.pkey = base64::encode(data.pkey);
 
@@ -410,6 +461,7 @@ fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
     podr2_res.t.t0.name = base64::encode(data.t.t0.name);
     podr2_res.t.t0.n = data.t.t0.n;
     podr2_res.t.t0.u = u_encoded;
+    podr2_res.status=status_info;
     podr2_res
 }
 
