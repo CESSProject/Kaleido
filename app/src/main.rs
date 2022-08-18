@@ -30,7 +30,6 @@ use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
 use log::{error, info};
 use sgx_types::*;
-use sgx_types::metadata::HEAP_SIZE_MAX;
 use sgx_urts::SgxEnclave;
 use std::borrow::{Borrow, BorrowMut};
 use std::fs;
