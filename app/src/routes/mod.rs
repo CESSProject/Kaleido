@@ -12,7 +12,6 @@ use crate::models::podr2_commit_response::{
 
 use std::ffi::CString;
 use std::fmt::Debug;
-use std::fs;
 use std::time::Instant;
 use url::{ParseError, Url};
 

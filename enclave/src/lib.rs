@@ -79,7 +79,7 @@ use cess_bncurve::*;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
-use http_req::{request::RequestBuilder, tls, uri::Uri};
+use http_req::{request::{RequestBuilder,Method}, tls, uri::Uri};
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
 use serde::{Deserialize, Serialize};
@@ -88,7 +88,7 @@ use std::io::ErrorKind;
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse};
+use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::{PoDR2CommitResponse,StatusInfo}, podr2_status};
 use sgx_types::*;
 use std::{
     env,
@@ -101,6 +101,9 @@ use std::{
     sync::SgxMutex,
     thread,
     time::Duration,
+    untrusted::fs,
+    time::Instant,
+    io::Seek
 };
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
@@ -264,8 +267,18 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
+    let mut status=param::podr2_commit_response::StatusInfo::new();
+    let mut podr2_data=PoDR2CommitData::new();
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
     if !has_enough_mem(data_len) {
         warn!("Enclave Busy.");
+        status.status_msg="Enclave Busy.".to_string();
+        status.status_code=podr2_status::PoDR2_ERROR_OUT_OF_MEMORY as usize;
+        let _ = post_podr2_data(podr2_data,status, callback_url_str.clone(), 0);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
@@ -273,23 +286,19 @@ pub extern "C" fn process_data(
     let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - data_len);
 
-    let d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
+    let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
-    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
-    let callback_url_str = match callback_url_str {
-        Ok(url) => url.to_string(),
-        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
-    };
+
 
     thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let podr2_data = podr2_proof_commit::podr2_proof_commit(
+            podr2_data = podr2_proof_commit::podr2_proof_commit(
                 skey,
                 pkey,
-                d,
+                &mut d,
                 block_size,
                 segment_size,
             );
@@ -306,7 +315,7 @@ pub extern "C" fn process_data(
             // println!("pkey:{:?}", pkey.to_str());
 
             // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data, call_back_url, data_len);
+            let _ = post_podr2_data(podr2_data,status, call_back_url, data_len);
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
@@ -321,8 +330,8 @@ fn has_enough_mem(data_len: usize) -> bool {
     true
 }
 
-fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data);
+fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data,status_info);
 
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
@@ -373,6 +382,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             .header("Connection", "Close")
             .header("Content-Type", "Application/Json")
             .header("Content-Length", &json_bytes.len())
+            .method(Method::POST)
             .timeout(time_out)
             .body(json_bytes)
             .send(&mut stream, &mut writer);
@@ -390,6 +400,7 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
             .header("Connection", "Close")
             .header("Content-Type", "Application/Json")
             .header("Content-Length", &json_bytes.len())
+            .method(Method::POST)
             .timeout(time_out)
             .body(json_bytes)
             .send(&mut stream, &mut writer);
@@ -405,12 +416,13 @@ fn post_podr2_data(data: PoDR2CommitData, callback_url: String, data_len: usize)
     }
 
     // Update available memory.
-    ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    let mem =ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    info!("The enclave space is released to :{} (b)",mem+data_len);
 
     return sgx_status_t::SGX_SUCCESS;
 }
 
-fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
+fn get_podr2_resp(data: PoDR2CommitData,status_info: StatusInfo) -> PoDR2CommitResponse {
     let mut podr2_res = PoDR2CommitResponse::new();
     podr2_res.pkey = base64::encode(data.pkey);
 
@@ -429,6 +441,7 @@ fn get_podr2_resp(data: PoDR2CommitData) -> PoDR2CommitResponse {
     podr2_res.t.t0.name = base64::encode(data.t.t0.name);
     podr2_res.t.t0.n = data.t.t0.n;
     podr2_res.t.t0.u = u_encoded;
+    podr2_res.status=status_info;
     podr2_res
 }
 
