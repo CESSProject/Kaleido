@@ -39,6 +39,7 @@ impl FileTagT {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
+#[repr(C)]
 pub struct StatusInfo{
     pub status_code:usize,
     pub status_msg:String
