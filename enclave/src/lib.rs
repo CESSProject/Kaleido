@@ -259,7 +259,7 @@ fn get_file_from_path(file_path: &String) -> Result<(Vec<u8>, u64), (String,podr
     }
     // fetch_sub returns previous value. Therefore substract the data_len
     let mem = ENCLAVE_MEM_CAP.fetch_sub(file_len as usize, Ordering::SeqCst);
-    info!("Enclave remaining memory {}", mem - file_len as usize);
+    info!("Enclave remaining memory {}b", mem - file_len as usize);
 
     let mut file_vec:Vec<u8> = Vec::new();
     filedata.read_to_end(&mut file_vec).expect("cannot read the file");
@@ -436,7 +436,8 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
 
 
     // Update available memory.
-    ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    let mem =ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    info!("The enclave space is released to :{}b",mem+data_len);
 
     return sgx_status_t::SGX_SUCCESS;
 }
