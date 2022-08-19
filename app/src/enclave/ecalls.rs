@@ -14,6 +14,4 @@ extern "C" {
     ) -> sgx_status_t;
     pub fn run_server(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
                   socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
-    pub fn run_client(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
-                  socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
 }
