@@ -9,7 +9,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            ra_servers: vec!["139.180.145.138:8088".to_owned()],
+            ra_servers: vec!["149.28.134.191:8088".to_owned()],
         }
     }
 }

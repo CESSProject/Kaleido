@@ -189,8 +189,12 @@ async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
     info!("Connecting to remote attestation server");
     debug!("Remote Attestation Address: {:?}", ra_servers_addr);
 
-    // Attempt to get an IP address and print it.
-    let my_ip = public_ip::addr().await;
+    let my_ip = reqwest::blocking::get("https://ifconfig.me/ip")
+        .unwrap()
+        .text()
+        .unwrap();
+
+    debug!("My Public IP: {:?}", my_ip);
 
     let mut addrs = Vec::new();
     for addr in ra_servers_addr {
@@ -198,20 +202,15 @@ async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
             .to_socket_addrs()
             .expect("Unable to resolve domain")
             .collect();
+
         debug!("Peer: {:?}", servers);
 
         for server in servers {
-            if let Some(my_ip) = my_ip {
-                debug!(
-                    "My Server Public IP: {}, Remote Attestation Server IP: {}",
-                    my_ip.to_string(),
-                    server.ip().to_string()
-                );
-                if server.ip().to_string().eq(&my_ip.to_string()) {
-                    debug!("Remote Attestation is on the same server.");
-                    return gen_keys(eid);
-                }
+            if server.ip().to_string().eq(&my_ip) {
+                debug!("Remote Attestation is on the same server.");
+                return gen_keys(eid);
             }
+
             addrs.push(server);
         }
     }
