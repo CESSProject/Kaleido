@@ -74,9 +74,6 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or("8080".to_string())
         .parse()
         .unwrap();
-
-    env::var("IAS_SPID").expect("env 'IAS_SPID' is not set");
-    env::var("IAS_API_KEY").expect("env 'IAS_API_KEY' is not set");
     
     let cfg = fs::read_to_string("./config.toml");
     let cfg: Config = match cfg {
