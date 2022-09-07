@@ -28,10 +28,13 @@ docker pull cesslab/sgx-rust
 
 ## Running with Intel SGX Driver
 
+By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
+To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. Similiary, for remote attestation and keys sharing Kaleido requires another port to be exposed. By default in docker container this port is set to `8088`. To map this port we can add `-p 8088:8088`.
+
 ### To run the container with OOT SGX driver, run
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/isgx -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device /dev/isgx -ti cesslab/sgx-rust
 ```
 
 ### To run the container with DCAP SGX driver
@@ -41,17 +44,14 @@ or
 `/dev/sgx/enclave` and `/dev/sgx/provision`
 and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
 
-By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
-To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
-
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
 ```
 
 for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
 ```
 
 ### To run the container in simulation mode
@@ -59,7 +59,7 @@ docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/
 For testing and development purpose
 
 ```bash
-docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
+docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 -ti cesslab/sgx-rust
 ```
 
 ## Build the Source Code
