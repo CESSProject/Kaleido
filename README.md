@@ -74,36 +74,34 @@ Follow the instructions at [SGX-enabled PBC library](https://github.com/tehsunnl
 
 ### Build Kaleido
 
+Apply for Intel Remote Attestation API keys at [Intel IAS (EPID Attestation) Service](https://api.portal.trustedservices.intel.com/EPID-attestation). Make sure SPID is **linkable**
+
+Set SPID and API key received from Intel
+
+```bash
+export IAS_SPID=<YOUR_SPID>
+export IAS_API_KEY=<YOUR_PRIMARY_KEY_OR_SECONDARY_KEY>
+```
+
 First `cd` back to Kaleido root directory
 
 ```bash
 cd ../..
 ```
 
-then run the following command to build Kaleido
+then run the following command to build Kaleido. By default `make` builds in Hardware Mode `SGX_MODE=HW` to build in Software Mode uncomment `SGX_MODE=SW`.
 
 ```bash
-make
+make #SGX_MODE=SW
 ```
 
 ### Run Kaleido
-
-> *NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
-
-```bash
-export ENCLAVE_KEY_SEED="TEST_SEED"
-```
 
 Optionally, you can also set logging and debugging envrionment variable. To do so set the follwing
 
 ```bash
 export RUST_LOG="debug"
 export RUST_BACKTRACE=1
-```
-
-To run Kaleido in enclave simulation mode set 
-```bash
-export SGX_MODE=SW      # SGX_MODE=HW for Hardware Mode
 ```
 
 If you are running Kaleido in SGX(Hardware) mode you will have to start `AESM`, execute those commands in your terminal.
