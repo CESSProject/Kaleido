@@ -61,6 +61,7 @@ extern crate sgx_tse;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
+// extern crate itertools;
 
 mod merkletree_generator;
 mod ocall_def;
@@ -85,7 +86,7 @@ use log::Level::Error;
 use merkletree::merkle::MerkleTree;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::sync::atomic::Ordering;
-
+use sgx_tcrypto::*;
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::PoDR2CommitResponse, podr2_status};
 use sgx_types::*;
@@ -147,8 +148,36 @@ impl Keys {
     }
 }
 
+struct EccKeys {
+    skey:sgx_ec256_private_t,
+    pkey:sgx_ec256_public_t,
+}
+
+impl EccKeys {
+    pub fn new() -> EccKeys{
+        EccKeys{
+            skey:sgx_ec256_private_t::default(),
+            pkey:sgx_ec256_public_t::default(),
+        }
+    }
+
+    pub fn gen_ecc_keys(self: &mut Self) {
+        let ecc_handle = SgxEccHandle::new();
+        let _result = ecc_handle.open();
+        let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
+        self.skey=prv_k;
+        self.pkey=pub_k;
+        let _result = ecc_handle.close();
+    }
+
+    pub fn get_ecc_keys(self: &Self) -> &EccKeys {
+        self
+    }
+}
+
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
+    static ref ECCKEYS:SgxMutex<EccKeys> = SgxMutex::new(EccKeys::new());
 );
 
 #[no_mangle]
@@ -161,6 +190,9 @@ pub extern "C" fn init() -> sgx_status_t {
     let max_file_size = (heap_max_size as f32 * 0.65) as usize;
     ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
+
+    let mut ecckeys=ECCKEYS.lock().unwrap();
+    ecckeys.gen_ecc_keys();
     sgx_status_t::SGX_SUCCESS
 }
 

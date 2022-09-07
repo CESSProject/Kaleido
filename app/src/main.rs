@@ -104,11 +104,11 @@ async fn main() -> std::io::Result<()> {
                 })
                 .expect("Failed to launch ra_server thread");
 
-            // Get attested from peers to receive Signing Keys.
-            if !get_attested_keys(eid, cfg.ra_peers.clone()).await {
-                enclave.destroy();
-                panic!("Failed to get/generate key pair");
-            }
+            // // Get attested from peers to receive Signing Keys.
+            // if !get_attested_keys(eid, cfg.ra_peers.clone()).await {
+            //     enclave.destroy();
+            //     panic!("Failed to get/generate key pair");
+            // }
 
             let res = HttpServer::new(move || {
                 let logger = Logger::default();
@@ -144,7 +144,7 @@ enum Mode {
 }
 
 fn start_ra_server(eid: u64) {
-    let port = u16 = env::var("REMOTE_ATTESTATION_PORT")
+    let port : u16 = env::var("REMOTE_ATTESTATION_PORT")
         .unwrap_or("8088".to_string())
         .parse()
         .unwrap();
@@ -180,67 +180,6 @@ fn start_ra_server(eid: u64) {
             Err(e) => error!("Failed to get client: {:?}", e),
         }
     }
-}
-
-/// Get attested from the peer Kaleido server and retrieves the signing keys.
-/// If no peers are available this will generate a new key pair as an independent node.
-/// Returns true when a key pair is received or generated else false.
-async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
-    info!("Connecting to remote attestation server");
-    debug!("Remote Attestation Address: {:?}", ra_servers_addr);
-
-    // Attempt to get an IP address and print it.
-    let my_ip = public_ip::addr().await;
-
-    let mut addrs = Vec::new();
-    for addr in ra_servers_addr {
-        let socket_addr = SocketAddr::from_str(&addr)
-            .expect(format!("Invalid ra_peer address {}", addr).as_str());
-
-        // Check if the address belongs to this system, if it does then generate key and return.
-        if let Some(my_ip) = my_ip {
-            debug!(
-                "My Server Public IP: {}, Remote Attestation Server IP: {}",
-                my_ip.to_string(),
-                socket_addr.ip().to_string()
-            );
-            if socket_addr.ip().to_string().eq(&my_ip.to_string()) {
-                debug!("Remote Attestation is on the same server.");
-                return gen_keys(eid);
-            }
-        }
-
-        addrs.push(socket_addr);
-    }
-
-    info!("Connecting to Remote Attestation server");
-    let socket = TcpStream::connect(addrs.as_slice());
-    let socket = match socket {
-        Ok(s) => s,
-        Err(_) => {
-            warn!("Failed to connect to Remote Attestation server, starting independent Kaleido node.");
-            return gen_keys(eid);
-        }
-    };
-    let mut retval = sgx_status_t::SGX_SUCCESS;
-    let result = unsafe {
-        enclave::ecalls::run_client(
-            eid,
-            &mut retval,
-            socket.as_raw_fd(),
-            sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
-        )
-    };
-    match result {
-        sgx_status_t::SGX_SUCCESS => {
-            info!("Client attested successfully!");
-        }
-        _ => {
-            error!("Client Attestation failed {}!", result.as_str());
-            return false;
-        }
-    }
-    true
 }
 
 fn gen_keys(eid: u64) -> bool {
