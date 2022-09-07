@@ -149,3 +149,36 @@ curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -
   "pkey": "1IMbGs/VlFJ+x55igbsrPfWpONBAk+Dx4BqVnMMFL11WY2ROoraEESY2y9fHTrggvpHukH+wbSaTfbY+MinhRQA="
 }
 ```
+## Code Walk Through
+
+### Enclave initialization
+
+When the node starts, it needs to instantiate an enclave and obtain its id as the business enclave, [code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L49).
+
+### Enclave environment initialization
+
+PBC key initialization:
+
+* The initialization of the PBC key occurs when the kaleido node starts. When kaleido starts, it first calls the [init_pairings function](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/pbc.rs#L6) under the pbc file in the enclave.
+* Secondly, the init_pairings function will use rust-ffi to call the C++ function [init_pairing method](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_pbc/src/pbc/pbc_intf.cpp#L92) which is located in the cess_pbc package. The PBC key pair is initialized.
+* The selected security parameters and initial generators are located under the cess_bncurve file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_bncurve/src/config.rs#L8).
+
+Enclave memory initialization:
+
+* Convert the enclave memory max to decimal,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L206)
+* Add the maximum memory value to the memory global variable field in an atomic operation,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L209)
+
+### Keep the key consistent
+
+* Start the mutual attestation server port and wait for other nodes to obtain their PBC keys,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L149).
+* The server port passes the socket handle to the enclave for processing, and the enclave obtains the remote attestation report,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/secret_exchange/mod.rs#L567).
+* The server port adds the remote authentication report certificate to the TLS,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/secret_exchange/mod.rs#L652).
+* The node needs to judge whether it is the first node to start. Currently, it is judged whether it is the first node by reading the configuration file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L191).
+* If it is not the first node, start the client port to request the PBC key from the configuration file address,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L232).
+
+### File proof computing function
+
+* The initialization file proof the computation interface,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L126).
+* The entry of the file proof calculation method needs to pass in the block size and segment size of the PBC key pair,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L298).
+* The entry of the calculation method for the file signature when the file proof is calculated,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/podr2_proof_commit.rs#L118).
+* After the file proof the calculated result, send the file proof result to the callback address method entry,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L333).
