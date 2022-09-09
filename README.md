@@ -16,7 +16,19 @@
 
 NOTE: Please install sgx-gmp uder default directory i.e. `/usr/local/`
 
-## Pulling a Pre-Built Docker Container
+## Source Code Download
+
+First, please download the source code content and initialize the submodule
+
+```shell
+git clone https://github.com/CESSProject/Kaleido.git
+cd Kaleido
+git submodule update --init --recursive
+```
+
+## Running Pre-Built Docker Container With Intel SGX Driver
+
+### Pulling a Pre-Built Docker Container
 
 We assume that you have [correctly installed docker](https://docs.docker.com/get-docker/):
 
@@ -26,15 +38,15 @@ First, pull the docker container, the below command will download the `latest`:
 docker pull cesslab/sgx-rust
 ```
 
-## Running with Intel SGX Driver
+### Select the driver to run the container
 
-### To run the container with OOT SGX driver, run
+#### To run the container with OOT SGX driver, run
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido --device /dev/isgx -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -v /:/scheduler_data --device /dev/isgx --net host --name kaleido -ti cesslab/sgx-rust
 ```
 
-### To run the container with DCAP SGX driver
+#### To run the container with DCAP SGX driver
 
 Check your `/dev/` directory for `/dev/sgx_enclave` and `/dev/sgx_provision`
 or
@@ -45,21 +57,75 @@ By default Kaleido runs on port 8080, you can set the port to whatever you want 
 To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -v /:/scheduler_data --net host --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> --name kaleido -ti cesslab/sgx-rust
 ```
 
 for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -v /:/scheduler_data --net host --device /dev/sgx_enclave --device /dev/sgx_provision --name kaleido -ti cesslab/sgx-rust
 ```
 
-### To run the container in simulation mode
+#### To run the container in simulation mode
 
 For testing and development purpose
 
 ```bash
 docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
+```
+
+### Running kaleido code inside the docker container
+
+After selecting the driver to run the docker container, enter the specified directory of the docker container
+
+```bash
+docker exec -it kaleido /bin/bash
+cd Kaleido
+```
+
+Please do the following to obtain the self-signed CA certificate required for kaleido to compile and run
+
+```bash
+cd bin
+
+##Generate CA private key for kaleido
+1.openssl ecparam -genkey -name prime256v1 -out ca.key
+
+##Generate CA cert for kaleido
+2.openssl req -x509 -new -SHA256 -nodes -key ca.key -days 3650 -out ca.crt
+
+##Perform the following steps to issue a kaleido certificate to the caller
+##Generate Client private key for caller
+3.openssl ecparam -genkey -name prime256v1 -out client.key
+
+##Export the keys to pkcs8 unencrypted format for caller
+4.openssl pkcs8 -topk8 -nocrypt -in client.key -out client.pkcs8
+
+##Generate CSR for caller
+5.openssl req -new -SHA256 -key client.key -nodes -out client.csr
+
+##Generate Cert for caller
+6.openssl x509 -req -extfile <(printf "subjectAltName=DNS:localhost,DNS:www.example.com") -days 3650 -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out client.crt
+```
+
+compile kaleido
+
+```
+cd /root/kaleido
+
+make
+```
+
+Execute app after adding environment variables
+
+```bash
+cd /root/kaleido/bin
+
+export RUST_LOG="debug" export RUST_BACKTRACE=1
+LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
+/opt/intel/sgx-aesm-service/aesm/aesm_service
+
+./app
 ```
 
 ## Build the Source Code
@@ -87,12 +153,6 @@ make
 ```
 
 ### Run Kaleido
-
-> *NOTE:* To generate PoDR2 signing Key Pairs you can also set `ENCLAVE_KEY_SEED` by default its set to `TEST_SEED`. This will however, be removed in the future update, since keys will be dynamically generated within the enclave so that nobody can have access to it.
-
-```bash
-export ENCLAVE_KEY_SEED="TEST_SEED"
-```
 
 Optionally, you can also set logging and debugging envrionment variable. To do so set the follwing
 
