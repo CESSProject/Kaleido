@@ -174,12 +174,10 @@ impl Keys {
         let mut file = SgxFile::open(Keys::FILE_NAME)?;
 
         // While encoding 4 bits are added by the encoder
-        let mut data =
-            [0_u8; config::ZR_SIZE_FR256 + config::G2_SIZE_FR256 + config::HASH_SIZE + 4];
+        let mut data = Vec::new();
+        file.read_to_end(&mut data);
 
-        file.read(&mut data)?;
-
-        let helper = DeSerializeHelper::<Keys>::new(data.to_vec());
+        let helper = DeSerializeHelper::<Keys>::new(data);
 
         match helper.decode() {
             Some(d) => Ok(d),
