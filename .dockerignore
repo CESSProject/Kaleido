@@ -9,5 +9,5 @@ pbc-sgx
 app/target
 enclave/target
 cess_pbc/target
-cess_bncurve/target
+cess_curve/target
 README.md

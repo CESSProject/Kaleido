@@ -1,11 +1,11 @@
 [package]
-name = "cess_bncurve"
+name = "cess_curve"
 version = "0.1.0"
 edition = "2021"
 authors = ["CESS Labs"]
 
 [lib]
-name = "cess_bncurve"
+name = "cess_curve"
 crate-type = ["rlib"]
 
 [dependencies]

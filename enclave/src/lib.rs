@@ -21,7 +21,7 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![feature(core_intrinsics)]
 
-extern crate cess_bncurve;
+extern crate cess_curve;
 extern crate http_req;
 extern crate libc;
 extern crate merkletree;
@@ -75,7 +75,7 @@ mod secret_exchange;
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use cess_bncurve::*;
+use cess_curve::*;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
@@ -172,8 +172,7 @@ impl Keys {
 
     pub fn load() -> Result<Keys, std::io::Error> {
         let mut file = SgxFile::open(Keys::FILE_NAME)?;
-
-        // While encoding 4 bits are added by the encoder
+        
         let mut data = Vec::new();
         file.read_to_end(&mut data);
 

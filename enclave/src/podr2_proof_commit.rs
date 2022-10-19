@@ -3,7 +3,7 @@ use crate::pbc;
 
 
 use alloc::vec::Vec;
-use cess_bncurve::*;
+use cess_curve::*;
 use core::convert::TryInto;
 use crypto::digest::Digest;
 use merkletree::merkle::MerkleTree;
@@ -18,8 +18,8 @@ use crate::merkletree_generator::Sha256Algorithm;
 use crate::param::podr2_commit_data::*;
 
 pub fn podr2_proof_commit(
-    skey: cess_bncurve::SecretKey,
-    pkey: cess_bncurve::PublicKey,
+    skey: cess_curve::SecretKey,
+    pkey: cess_curve::PublicKey,
     data: &mut Vec<u8>,
     block_size: usize,
     segment_size: usize,
@@ -43,7 +43,7 @@ pub fn podr2_proof_commit(
     // });
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    let zr = cess_bncurve::Zr::random();
+    let zr = cess_curve::Zr::random();
     t.t0.name = zr.base_vector().to_vec();
     let mut s: usize = block_size;
     if block_size > data.len() {
@@ -100,16 +100,16 @@ pub fn podr2_proof_commit(
     //     leaves_hashes,
     // );
     // let root_hash = Hash::new(&tree.root());
-    // let mth_root_sig = cess_bncurve::sign_hash(&root_hash, &skey);
+    // let mth_root_sig = cess_curve::sign_hash(&root_hash, &skey);
 
     // println!("MHT Root: {:?}", tree.root());
     // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
 
     let t_signature = hash(&t_serialized_bytes);
-    let sig_g1 = cess_bncurve::sign_hash(&t_signature, &skey);
+    let sig_g1 = cess_curve::sign_hash(&t_signature, &skey);
     t.signature = sig_g1.clone().base_vector().to_vec();
 
-    let verify = cess_bncurve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
+    let verify = cess_curve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
     result.t = t;
     result.pkey = pkey.base_vector().to_vec();
     result
@@ -120,7 +120,7 @@ pub fn generate_authenticator(
     u_num: usize,
     t0: &mut T0,
     piece: &mut Vec<u8>,
-    alpha: &cess_bncurve::SecretKey,
+    alpha: &cess_curve::SecretKey,
     segment_size: usize,
     zero_pad_len:isize
 ) -> Vec<u8> {
