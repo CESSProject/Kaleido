@@ -1,5 +1,9 @@
+use core::fmt;
+use std::string::ToString;
+
 use alloc::string::String;
 use alloc::vec::Vec;
+use cess_curve::G1;
 use serde::{Deserialize, Serialize};
 
 //filetag struct
@@ -47,6 +51,44 @@ impl PoDR2CommitData {
             sigmas: Vec::new(),
             pkey: Vec::new(),
             callback_url: String::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PoDR2Error {
+    pub message: Option<String>,
+}
+
+impl PoDR2Error {
+    fn message(&self) -> String {
+        match &*self {
+            PoDR2Error {
+                message: Some(message),
+            } => message.clone(),
+            PoDR2Error { message: None } => "An unexpected error has occurred".to_string(),
+        }
+    }
+}
+
+impl fmt::Display for PoDR2Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2Data {
+    pub(crate) phi: Vec<Vec<u8>>,
+    pub mht_root_sig: Vec<u8>,
+}
+
+impl PoDR2Data {
+    pub fn new() -> PoDR2Data {
+        PoDR2Data {
+            phi: Vec::new(),
+            mht_root_sig: Vec::new(),
         }
     }
 }

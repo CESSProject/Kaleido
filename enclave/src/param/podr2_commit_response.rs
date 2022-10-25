@@ -84,3 +84,23 @@ pub struct PoDR2CommitRequest {
     pub segment_size: usize,
     pub callback_url: String,
 }
+
+//PoDR2Response structure
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+#[repr(C)]
+pub struct PoDR2Response {
+    pub phi: Vec<String>,
+    pub mht_root_sig: String,
+    pub status:StatusInfo
+}
+
+impl PoDR2Response {
+    pub fn new() -> PoDR2Response {
+        PoDR2Response {
+            phi: Vec::new(),
+            mht_root_sig: String::new(),
+            status:StatusInfo::new(),
+        }
+    }
+}

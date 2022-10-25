@@ -36,8 +36,7 @@ pub async fn r_process_data(
     debug!("Callback URL: {:?}", c_callback_url_str);
 
     let data_base64: String = req.data.clone();
-    let block_size: usize = req.block_size;
-    let segment_size: usize = req.segment_size;
+    let n_blocks: usize = req.n_blocks;
     let file_data = base64::decode(data_base64);
     let file_data = match file_data {
         Ok(data) => data,
@@ -62,13 +61,13 @@ pub async fn r_process_data(
             &mut result,
             file_data.as_ptr() as *mut u8,
             file_data.len(),
-            block_size, // 1MB block size gives the best results interms of speed.
-            segment_size,
+            n_blocks,
             c_callback_url_str.as_ptr(),
         )
     };
 
     debug!("Processing complete. Status: {}", res.as_str());
+    // TODO: Make error handling more sophisticated
     if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
         return Err(PoDR2CommitError {
                 message: Some("SGX is busy, please try again later.".to_string())

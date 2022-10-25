@@ -57,6 +57,7 @@ extern crate base64;
 extern crate bit_vec;
 extern crate chrono;
 extern crate httparse;
+extern crate num;
 extern crate num_bigint;
 extern crate rustls;
 extern crate sgx_trts;
@@ -69,6 +70,7 @@ mod merkletree_generator;
 mod ocall_def;
 mod param;
 mod pbc;
+mod podr2;
 mod podr2_proof_commit;
 mod secret_exchange;
 
@@ -79,20 +81,31 @@ use cess_curve::*;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use http_req::response;
-use http_req::{request::{RequestBuilder,Method}, tls, uri::Uri};
+use http_req::{
+    request::{Method, RequestBuilder},
+    tls,
+    uri::Uri,
+};
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
+use param::podr2_commit_data::PoDR2Data;
+use param::podr2_commit_response::PoDR2Response;
 use serde::{Deserialize, Serialize};
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::io::ErrorKind;
 use std::sync::atomic::Ordering;
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::{podr2_commit_data::PoDR2CommitData, podr2_commit_response::{PoDR2CommitResponse,StatusInfo}, podr2_status};
+use param::{
+    podr2_commit_data::PoDR2CommitData,
+    podr2_commit_response::{PoDR2CommitResponse, StatusInfo},
+    podr2_status,
+};
 use sgx_types::*;
 use std::{
     env,
     ffi::CStr,
+    io::Seek,
     io::{Error, Read, Write},
     net::TcpStream,
     sgxfs::SgxFile,
@@ -101,9 +114,8 @@ use std::{
     sync::SgxMutex,
     thread,
     time::Duration,
-    untrusted::fs,
     time::Instant,
-    io::Seek
+    untrusted::fs,
 };
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
@@ -172,7 +184,7 @@ impl Keys {
 
     pub fn load() -> Result<Keys, std::io::Error> {
         let mut file = SgxFile::open(Keys::FILE_NAME)?;
-        
+
         let mut data = Vec::new();
         file.read_to_end(&mut data);
 
@@ -259,13 +271,12 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
 pub extern "C" fn process_data(
     data: *mut u8,
     data_len: usize,
-    block_size: usize,
-    segment_size: usize,
+    n_blocks: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
-    let mut status=param::podr2_commit_response::StatusInfo::new();
-    let mut podr2_data=PoDR2CommitData::new();
+    let mut status = param::podr2_commit_response::StatusInfo::new();
+    let mut podr2_data = PoDR2Data::new();
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
         Ok(url) => url.to_string(),
@@ -273,9 +284,9 @@ pub extern "C" fn process_data(
     };
     if !has_enough_mem(data_len) {
         warn!("Enclave Busy.");
-        status.status_msg="Enclave Busy.".to_string();
-        status.status_code=podr2_status::PoDR2_ERROR_OUT_OF_MEMORY as usize;
-        let _ = post_podr2_data(podr2_data,status, callback_url_str.clone(), 0);
+        status.status_msg = "Enclave Busy.".to_string();
+        status.status_code = podr2_status::PoDR2_ERROR_OUT_OF_MEMORY as usize;
+        let _ = post_podr2_data(podr2_data, status, callback_url_str.clone(), 0);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
@@ -286,33 +297,31 @@ pub extern "C" fn process_data(
     let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
     let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
 
-
+    if d.len() < n_blocks {
+        // TODO: Return Error for Invalid n_blocks (No. of Blocks can not be greater than data length.)
+        warn!(
+            "Invalid n_blocks {:?} - No. of blocks can not be greater than data length {:?}",
+            n_blocks,
+            d.len()
+        );
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
 
     thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            podr2_data = podr2_proof_commit::podr2_proof_commit(
-                skey,
-                pkey,
-                &mut d,
-                block_size,
-                segment_size,
-            );
+            let podr2_data = podr2::sig_gen(skey, pkey, &mut d, n_blocks);
+            let podr2_data = match podr2_data {
+                Ok(d) => d,
+                Err(e) => {
+                    println!("PoDR2 Error: {}", e.to_string());
+                    return;
+                }
+            };
 
-            // Print PoDR2CommitData
-            // for s in &podr2_data.sigmas {
-            //     println!("s: {}", u8v_to_hexstr(&s));
-            // }
-            // for u in &podr2_data.t.t0.u {
-            //     println!("u: {}", u8v_to_hexstr(&u));
-            // }
-            // println!("name: {}", u8v_to_hexstr(&podr2_data.t.t0.name));
-            // println!("t.signature:{:?}", u8v_to_hexstr(&podr2_data.t.signature));
-            // println!("pkey:{:?}", pkey.to_str());
-
-            // Post PoDR2CommitData to callback url.
-            let _ = post_podr2_data(podr2_data,status, call_back_url, data_len);
+            // Post PoDR2Data to callback url.
+            let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
@@ -327,8 +336,13 @@ fn has_enough_mem(data_len: usize) -> bool {
     true
 }
 
-fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: String, data_len: usize) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data,status_info);
+fn post_podr2_data(
+    data: PoDR2Data,
+    status_info: StatusInfo,
+    callback_url: String,
+    data_len: usize,
+) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data, status_info);
 
     let json_data = serde_json::to_string(&podr2_res);
     let json_data = match json_data {
@@ -413,32 +427,23 @@ fn post_podr2_data(data: PoDR2CommitData,status_info: StatusInfo, callback_url: 
     }
 
     // Update available memory.
-    let mem =ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
-    info!("The enclave space is released to :{} (b)",mem+data_len);
+    let mem = ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+    info!("The enclave space is released to :{} (b)", mem + data_len);
 
     return sgx_status_t::SGX_SUCCESS;
 }
 
-fn get_podr2_resp(data: PoDR2CommitData,status_info: StatusInfo) -> PoDR2CommitResponse {
-    let mut podr2_res = PoDR2CommitResponse::new();
-    podr2_res.pkey = base64::encode(data.pkey);
+fn get_podr2_resp(data: PoDR2Data, status_info: StatusInfo) -> PoDR2Response {
+    let mut podr2_res = PoDR2Response::new();
 
-    let mut sigmas_encoded: Vec<String> = Vec::new();
-    for sigma in data.sigmas {
-        sigmas_encoded.push(base64::encode(sigma))
+    let mut phi_encoded: Vec<String> = Vec::new();
+    for sig in data.phi {
+        phi_encoded.push(base64::encode(sig))
     }
 
-    let mut u_encoded: Vec<String> = Vec::new();
-    for u in data.t.t0.u {
-        u_encoded.push(base64::encode(u))
-    }
-
-    podr2_res.sigmas = sigmas_encoded;
-    podr2_res.t.signature = base64::encode(data.t.signature);
-    podr2_res.t.t0.name = base64::encode(data.t.t0.name);
-    podr2_res.t.t0.n = data.t.t0.n;
-    podr2_res.t.t0.u = u_encoded;
-    podr2_res.status=status_info;
+    podr2_res.mht_root_sig = base64::encode(data.mht_root_sig);
+    podr2_res.phi = phi_encoded;
+    podr2_res.status = status_info;
     podr2_res
 }
 

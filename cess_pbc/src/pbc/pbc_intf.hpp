@@ -38,7 +38,7 @@ THE SOFTWARE.
 extern "C"
 {
   uint64_t echo(uint64_t nel, char *msg_in, char *msg_out);
-
+  bool is_pairing_symmetric(uint64_t ctxt);
   int64_t init_pairing(uint64_t ctxt, char *param_str, uint64_t nel, uint64_t *psize);
 
   int64_t set_g2(uint64_t ctxt, uint8_t *pbuf);
@@ -83,8 +83,10 @@ extern "C"
   void add_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void sub_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void mul_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
+  void mul_G1_mpz(uint64_t ctxt, uint8_t *x, uint8_t *g1, const uint8_t *n);
   void div_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void exp_G1z(uint64_t ctxt, uint8_t *g1, uint8_t *zr);
+  void exp_G1_mpz(uint64_t ctxt, uint8_t *x, uint8_t *g1, const uint8_t *n);
   void neg_G1_pt(uint64_t ctxt, uint8_t *pt);
   void inv_G1_pt(uint64_t ctxt, uint8_t *pt);
 

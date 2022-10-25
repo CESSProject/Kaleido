@@ -34,8 +34,7 @@ enclave {
         public sgx_status_t process_data(
             [in, size=data_len] uint8_t* data, 
             size_t data_len, 
-            size_t block_size, 
-            size_t segment_size,
+            size_t n_blocks,
             [in, string] const char* callback_url
         );
 

@@ -89,6 +89,10 @@ static inline pairing_t &zr_Pairing(uint64_t ctxt)
 
 // -------------------------------------------------
 
+extern "C" bool is_pairing_symmetric(uint64_t ctxt) {
+  return pairing_is_symmetric(Pairing(ctxt));
+}
+
 extern "C" int64_t init_pairing(uint64_t ctxt, char *param_str, uint64_t nel, uint64_t *psize)
 {
   int64_t ans = -1;
@@ -893,6 +897,69 @@ extern "C" void exp_G1z(uint64_t ctxt,
     element_clear(z);
   }
   element_clear(g);
+}
+
+
+/*
+  Sets x = g1^n, thit is g1 times g1 times ... times g1 where there are n g1's.
+  n should be a valid decimal string.
+*/
+extern "C" void exp_G1_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *g1, const uint8_t *n)
+{
+  mpz_t pow;
+  mpz_init(pow);
+  mpz_set_str(pow, (char *) n, 10);
+
+  element_t g, ans;
+  
+  element_init_G1(g, Pairing(ctxt));
+  element_init_G1(ans, Pairing(ctxt));
+  
+  int nelg = element_length_in_bytes_compressed(g);
+  if (tst_nonzero(g1, nelg)) {
+    element_from_bytes_compressed(g, g1);
+    element_pow_mpz(ans, g, pow);
+    if (element_is0(ans))
+      memset(x, 0, nelg);
+    else
+      element_to_bytes_compressed(x, ans);
+  }
+
+  mpz_clear(pow);
+  element_clear(g);
+  element_clear(ans);
+}
+
+/*
+  Sets x = a * b.
+  b should be a valid decimal string.
+*/
+extern "C" void mul_G1_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *g1, const uint8_t *b)
+{
+  mpz_t n;
+  mpz_init(n);
+  mpz_set_str(n, (char *) b, 10);
+
+  element_t g, ans;
+  
+  element_init_G1(g, Pairing(ctxt));
+  element_init_G1(ans, Pairing(ctxt));
+  
+  int nelg = element_length_in_bytes_compressed(g);
+  if (tst_nonzero(g1, nelg)) {
+    element_from_bytes_compressed(g, g1);
+    element_mul_mpz(ans, g, n);
+    if (element_is0(ans))
+      memset(x, 0, nelg);
+    else
+      element_to_bytes_compressed(x, ans);
+  }
+
+  mpz_clear(n);
+  element_clear(g);
+  element_clear(ans);
 }
 
 // ----------------------------------------------
