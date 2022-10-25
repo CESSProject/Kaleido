@@ -6,7 +6,6 @@ use alloc::vec::Vec;
 use cess_curve::{hash, sign_hash, Hash, G1};
 use merkletree::merkle::MerkleTree;
 use num::traits::Pow;
-// use num::pow::Pow;
 use num_bigint::{BigInt, BigUint};
 use sgx_tcrypto::rsgx_sha256_slice;
 use sgx_trts::c_str::CString;
@@ -27,15 +26,15 @@ pub fn sig_gen(
     n_blocks: usize,
 ) -> Result<PoDR2Data, PoDR2Error> {
     let mut podr2_data = PoDR2Data::new();
+    
     podr2_data.phi = gen_phi(skey, data, n_blocks)?;
+    podr2_data.mht_root_sig = get_mht_root_sig(skey, data, n_blocks)?;
+    
     println!("-------------------PoDR2 Data-------------------");
     for i in 0..podr2_data.phi.len() {
         println!("Sig {}, {:?}", i, base64::encode(&podr2_data.phi[i]));
     }
-    
-    let mht_root_sig: Vec<u8> = get_mht_root_sig(skey, data, n_blocks)?;
-    println!("MHT Root Sig: {:?}", base64::encode(&mht_root_sig));
-    podr2_data.mht_root_sig = mht_root_sig;
+    println!("MHT Root Sig: {:?}", base64::encode(&podr2_data.mht_root_sig));
     println!("-------------------PoDR2 Data-------------------");
 
     Ok(podr2_data)

@@ -99,7 +99,7 @@ use std::sync::atomic::Ordering;
 use param::{
     podr2_commit_data::PoDR2CommitData,
     podr2_commit_response::{PoDR2CommitResponse, StatusInfo},
-    podr2_status,
+    Podr2Status,
 };
 use sgx_types::*;
 use std::{
@@ -285,7 +285,7 @@ pub extern "C" fn process_data(
     if !has_enough_mem(data_len) {
         warn!("Enclave Busy.");
         status.status_msg = "Enclave Busy.".to_string();
-        status.status_code = podr2_status::PoDR2_ERROR_OUT_OF_MEMORY as usize;
+        status.status_code = Podr2Status::PoDr2ErrorOutOfMemory as usize;
         let _ = post_podr2_data(podr2_data, status, callback_url_str.clone(), 0);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
@@ -313,13 +313,18 @@ pub extern "C" fn process_data(
             let call_back_url = callback_url_str.clone();
             let podr2_data = podr2::sig_gen(skey, pkey, &mut d, n_blocks);
             let podr2_data = match podr2_data {
-                Ok(d) => d,
+                Ok(d) => {
+                    status.status_msg = "ok".to_string();
+                    d
+                },
                 Err(e) => {
+                    status.status_msg = e.to_string();
+                    status.status_code = Podr2Status::PoDr2Unexpected as usize;
                     println!("PoDR2 Error: {}", e.to_string());
-                    return;
+                    PoDR2Data::new()
                 }
             };
-
+           
             // Post PoDR2Data to callback url.
             let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);
         })
