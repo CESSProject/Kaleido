@@ -79,6 +79,24 @@ pub fn get_g1() -> G1 {
     g1
 }
 
+// Set x = a * b.
+#[allow(unused)]
+pub fn zr_mul_mpz(a: &Zr, b: String) -> Zr {
+    let context = CURVE_INFO.context as u64;
+    let x = Zr::zero(); // element_t type
+
+    let c_str = CString::new(b).expect("CString::new Failed");
+    unsafe {
+        cess_pbc::mul_Zr_mpz(
+            context,
+            x.base_vector().as_ptr() as *mut _,
+            a.base_vector().as_ptr() as *mut _,
+            c_str.as_ptr() as *mut _,
+        );
+    }
+    x
+}
+
 #[allow(unused)]
 pub fn get_g2() -> G2 {
     let context = CURVE_INFO.context as u64;

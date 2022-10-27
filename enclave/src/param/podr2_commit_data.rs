@@ -92,3 +92,20 @@ impl PoDR2Data {
         }
     }
 }
+
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2Chal {
+    pub i: Vec<usize>,
+    pub vi: Vec<Vec<u8>>,
+}
+
+impl PoDR2Chal {
+    pub fn new() -> PoDR2Chal {
+        PoDR2Chal {
+            i: Vec::new(),
+            vi: Vec::new(),
+        }
+    }
+}

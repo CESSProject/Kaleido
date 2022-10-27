@@ -779,6 +779,37 @@ extern "C" void mul_Zr_vals(uint64_t ctxt,
   element_clear(z2);
 }
 
+/*
+  Sets x = a * b.
+  b should be a valid decimal string.
+*/
+extern "C" void mul_Zr_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *z, const uint8_t *b)
+{
+  mpz_t n;
+  mpz_init(n);
+  mpz_set_str(n, (char *) b, 10);
+
+  element_t zr, ans;
+  
+  element_init_Zr(zr, Pairing(ctxt));
+  element_init_Zr(ans, Pairing(ctxt));
+  
+  int nelg = element_length_in_bytes_compressed(zr);
+  if (tst_nonzero(z, nelg)) {
+    element_from_bytes_compressed(zr, z);
+    element_mul_mpz(ans, zr, n);
+    if (element_is0(ans))
+      memset(x, 0, nelg);
+    else
+      element_to_bytes_compressed(x, ans);
+  }
+
+  mpz_clear(n);
+  element_clear(zr);
+  element_clear(ans);
+}
+
 extern "C" void div_Zr_vals(uint64_t ctxt,
                             uint8_t *zr1, uint8_t *zr2)
 {

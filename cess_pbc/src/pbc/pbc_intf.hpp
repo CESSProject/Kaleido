@@ -101,6 +101,7 @@ extern "C"
   void add_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void sub_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void mul_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
+  void mul_Zr_mpz(uint64_t ctxt, uint8_t *x, uint8_t *z, const uint8_t *b);
   void div_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void exp_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void neg_Zr_val(uint64_t ctxt, uint8_t *zr);
