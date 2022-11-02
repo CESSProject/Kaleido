@@ -171,6 +171,19 @@ pub fn get_zr_from_byte(byte: &Vec<u8>) -> Zr {
     zr
 }
 
+// Set a = a + b.
+#[allow(unused)]
+pub fn add_zr(a: &Zr, b: &Zr) {
+    let context = CURVE_INFO.context as u64;
+    unsafe {
+        cess_pbc::add_Zr_vals(
+            context,
+            a.base_vector().as_ptr() as *mut _,
+            b.base_vector().as_ptr() as *mut _,
+        );
+    };
+}
+
 #[allow(unused)]
 pub fn g1_pow_zn(g1: &G1, zr: &Zr) {
     let context = CURVE_INFO.context as u64;
@@ -262,6 +275,33 @@ pub fn get_random_g1() -> G1 {
     g1
 }
 
+#[allow(unused)]
+pub fn get_G2_from_bytes(byte: &Vec<u8>) -> G2 {
+    let context = CURVE_INFO.context as u64;
+    let g2 = G2::zero();
+    unsafe {
+        cess_pbc::get_G2_from_byte(
+            context,
+            g2.base_vector().as_ptr() as *mut _,
+            byte.as_ptr() as *mut _,
+        );
+    }
+    g2
+}
+
+/// e(a, b) ?= e(x, y)
+#[allow(unused)]
+pub fn validate_bilinearity(a: G1, b: G1, x: G1, y: G2) -> bool {
+    unsafe {
+        0 == cess_pbc::validate_bilinearity(
+            CURVE_INFO.context as u64,
+            a.base_vector().as_ptr() as *mut _,
+            b.base_vector().as_ptr() as *mut _,
+            x.base_vector().as_ptr() as *mut _,
+            y.base_vector().as_ptr() as *mut _,
+        )
+    }
+}
 // pub fn get_byte_from_element(el_pt:&[u8],pbyte:&Vec<u8>){
 //     unsafe {
 //         cess_pbc::get_byte_from_element(

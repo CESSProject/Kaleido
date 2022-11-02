@@ -255,3 +255,6 @@ fn gen_keys(eid: u64) -> bool {
     }
     retval == sgx_status_t::SGX_SUCCESS
 }
+
+#[cfg(test)] 
+mod test_podr2;

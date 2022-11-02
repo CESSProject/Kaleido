@@ -116,10 +116,13 @@ extern "C"
   void get_G1_from_byte(uint64_t ctxt,uint8_t *g1_pt, uint8_t *pbyte);
 //  void get_byte_from_element(uint8_t *el_pt, char *pbyte);
   void get_G2_from_hash(uint64_t ctxt, uint8_t *g2_pt, uint8_t *phash, uint64_t nhash);
+  void get_G2_from_byte(uint64_t ctxt, uint8_t *g2_pt, uint8_t *pbyte);
   void get_Zr_from_hash(uint64_t ctxt, uint8_t *zr_val, uint8_t *phash, uint64_t nhash);
   void get_Zr_from_byte(uint64_t ctxt,uint8_t *zr_pt, uint8_t *pbyte);
   void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel);
   uint64_t get_Zr(uint64_t ctxt,uint8_t *pbuf, uint64_t buflen);
+
+  int64_t validate_bilinearity(uint64_t ctxt, uint8_t *g1_a, uint8_t *g1_b, uint8_t *g1_x, uint8_t *g2_y);
 }
 
 #endif // __pbc_intf_h__

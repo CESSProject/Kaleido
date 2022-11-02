@@ -316,7 +316,7 @@ pub extern "C" fn process_data(
                 Ok(d) => {
                     status.status_msg = "ok".to_string();
                     d
-                },
+                }
                 Err(e) => {
                     status.status_msg = e.to_string();
                     status.status_code = Podr2Status::PoDr2Unexpected as usize;
@@ -324,9 +324,24 @@ pub extern "C" fn process_data(
                     PoDR2Data::new()
                 }
             };
-           
+
             // Post PoDR2Data to callback url.
-            let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);
+            if !call_back_url.is_empty() {
+                let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);
+            } else {
+                let mut podr2_res = get_podr2_resp(podr2_data, status);
+                let json_data = serde_json::to_string(&podr2_res);
+                let json_data = match json_data {
+                    Ok(data) => data,
+                    Err(_) => {
+                        warn!("Failed to seralize PoDR2Response");
+                        "".to_string()
+                    }
+                };
+                debug!("PoDR2 Data: {}", json_data);
+
+                warn!("Callback URL not provided.");
+            }
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
@@ -353,7 +368,7 @@ fn post_podr2_data(
     let json_data = match json_data {
         Ok(data) => data,
         Err(_) => {
-            println!("Failed to seralize PoDR2CommitResponse");
+            warn!("Failed to seralize PoDR2CommitResponse");
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
@@ -362,7 +377,7 @@ fn post_podr2_data(
     let addr: Uri = match addr {
         Ok(add) => add,
         Err(_) => {
-            println!("Failed to Parse Url");
+            warn!("Failed to Parse Url");
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
@@ -374,7 +389,7 @@ fn post_podr2_data(
     let mut stream = match stream {
         Ok(s) => s,
         Err(e) => {
-            println!("Failed to connect to {}, {}", addr, e);
+            warn!("Failed to connect to {}, {}", addr, e);
             return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
         }
     };
@@ -389,7 +404,7 @@ fn post_podr2_data(
         let mut stream = match stream {
             Ok(s) => s,
             Err(e) => {
-                println!("Failed to connect to {}, {}", addr, e);
+                warn!("Failed to connect to {}, {}", addr, e);
                 return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
             }
         };
@@ -405,12 +420,16 @@ fn post_podr2_data(
         let response = match response {
             Ok(res) => res,
             Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
+                warn!("Failed to send https request to {}, {}", addr, e);
                 return sgx_status_t::SGX_ERROR_UNEXPECTED;
             }
         };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
+        info!(
+            "PoDR2 Post Data Status: {} {}",
+            response.status_code(),
+            response.reason()
+        );
     } else {
         let response = RequestBuilder::new(&addr)
             .header("Connection", "Close")
@@ -423,12 +442,16 @@ fn post_podr2_data(
         let response = match response {
             Ok(res) => res,
             Err(e) => {
-                println!("Failed to send request to {}, {}", addr, e);
+                warn!("Failed to send http request to {}, {}", addr, e);
                 return sgx_status_t::SGX_ERROR_UNEXPECTED;
             }
         };
 
-        println!("Status: {} {}", response.status_code(), response.reason());
+        info!(
+            "PoDR2 Post Data Status: {} {}",
+            response.status_code(),
+            response.reason()
+        );
     }
 
     // Update available memory.

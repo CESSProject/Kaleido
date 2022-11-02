@@ -29,51 +29,61 @@ pub fn sig_gen(
 ) -> Result<PoDR2Data, PoDR2Error> {
     let mut podr2_data = PoDR2Data::new();
 
-    podr2_data.phi = gen_phi(skey, pkey, data, n_blocks)?;
-    podr2_data.mht_root_sig = get_mht_root_sig(skey, data, n_blocks)?;
+    let (phi, u) = gen_phi(skey, pkey, data, n_blocks)?;
+    podr2_data.phi = phi;
+    podr2_data.u = u;
+    podr2_data.pkey = pkey.base_vector().to_vec();
+    podr2_data.mht_root_sig = get_mht_root_sig(skey, pkey, data, n_blocks)?;
 
     println!("-------------------PoDR2 Data-------------------");
-    for i in 0..podr2_data.phi.len() {
-        println!("Sig {}, {:?}", i, base64::encode(&podr2_data.phi[i]));
-    }
-    println!(
-        "MHT Root Sig: {:?}",
-        base64::encode(&podr2_data.mht_root_sig)
-    );
+    podr2_data.print();
     println!("-------------------PoDR2 Data-------------------");
 
-    // println!("-------------------PoDR2 Challenge-------------------");
-    // let chal = proof::gen_chal(podr2_data.phi.len());
-    // println!("Chal i: {:?}", chal.i);
-    // println!("Chal V - {}", chal.vi.len());
-    // for i in 0..chal.vi.len() {
-    //     println!("{}: {:?}", i, base64::encode(&chal.vi[i]));
-    // }
-    // println!("-------------------PoDR2 Challenge-------------------");
+    println!("-------------------PoDR2 Challenge-------------------");
+    let chal = proof::gen_chal(podr2_data.phi.len());
+    chal.print();
+    println!("-------------------PoDR2 Challenge-------------------");
 
-    // println!("-------------------PoDR2 Gen Proof-------------------");
-    // // proof::gen_proof(chal, data, podr2_data.phi.len());
-    // println!("-------------------PoDR2 Gen Proof-------------------");
+    println!("-------------------PoDR2 Gen Proof-------------------");
+    let proof = proof::gen_proof(&chal, &podr2_data, data)?;
+    proof.print();
+    println!("-------------------PoDR2 Gen Proof-------------------");
+
+    println!("-------------------PoDR2 Validate Proof-------------------");
+    println!("Valid Proof: {}", proof::verify(&proof, &podr2_data, &chal));
+    println!("-------------------PoDR2 Validate Proof-------------------");
 
     Ok(podr2_data)
 }
 
 fn get_mht_root_sig(
     skey: cess_curve::SecretKey,
+    pkey: cess_curve::PublicKey,
     data: &mut Vec<u8>,
     n_blocks: usize,
 ) -> Result<Vec<u8>, PoDR2Error> {
-    // Stores MHT leaves.
-    let leaves_hashes = get_mht_leaves_hashes(data, n_blocks)?;
-
     // Generate MHT
-    let tree: MerkleTree<[u8; 32], Sha256Algorithm> = MerkleTree::from_data(leaves_hashes);
-    let root_hash = Hash::new(&tree.root());
+    let tree: MerkleTree<[u8; 32], Sha256Algorithm> = get_mht(data, n_blocks)?;
+    
+    // hash the root hash again before signing otherwise cess_curve::check_message returns false
+    let root_hash = hash(&tree.root().as_slice());
 
     // (H(R))^sk
-    Ok(cess_curve::sign_hash(&root_hash, &skey)
-        .base_vector()
-        .to_vec())
+    let sig = cess_curve::sign_hash(&root_hash, &skey);
+
+    // let verify = cess_curve::check_message(&tree.root().as_slice(), &pkey, &sig);
+    // println!("ROOT SIG VALID: {}", verify);
+
+    Ok(sig.base_vector().to_vec())
+}
+
+// Generate MHT
+pub fn get_mht(
+    data: &mut Vec<u8>,
+    n_blocks: usize,
+) -> Result<MerkleTree<[u8; 32], Sha256Algorithm>, PoDR2Error> {
+    let leaves_hashes = get_mht_leaves_hashes(data, n_blocks)?;
+    Ok(MerkleTree::from_data(leaves_hashes))
 }
 
 fn get_mht_leaves_hashes(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<u8>>, PoDR2Error> {
@@ -101,13 +111,13 @@ fn get_mht_leaves_hashes(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<
     Ok(leaves_hashes)
 }
 
-// Generates phi Φ = {σi}, 1 < i < n.
+// Generates phi Φ = {σi}, 1 < i < n and u <-- G
 fn gen_phi(
     skey: cess_curve::SecretKey,
     pkey: cess_curve::PublicKey,
     data: &mut Vec<u8>,
     n_blocks: usize,
-) -> Result<Vec<Vec<u8>>, PoDR2Error> {
+) -> Result<(Vec<Vec<u8>>, Vec<u8>), PoDR2Error> {
     let block_size = (data.len() as f32 / n_blocks as f32) as usize;
 
     debug!("Data: {:?}", data);
@@ -119,7 +129,7 @@ fn gen_phi(
     );
 
     // Choose a random element u <- G
-    let g1: cess_curve::G1 = pbc::get_random_g1();
+    let u: cess_curve::G1 = pbc::get_random_g1();
 
     let mut sigmas = Vec::new();
 
@@ -144,7 +154,7 @@ fn gen_phi(
         // debug!("Block(mi)-{:?}: {}", i, bmi.to_string());
 
         // u^mi
-        let u_pow_mi = pbc::g1_pow_mpz(&g1, bmi.to_string());
+        let u_pow_mi = pbc::g1_pow_mpz(&u, bmi.to_string());
         // debug!("u_pow_mi: {}", u_pow_mi);
 
         // H(mi)
@@ -161,7 +171,7 @@ fn gen_phi(
         // debug!("hash: {}", bhash);
 
         // H(mi).u^mi
-        let h_u_pow_mi = pbc::g1_mul_mpz(&g1, bhash.to_string());
+        let h_u_pow_mi = pbc::g1_mul_mpz(&u, bhash.to_string());
         // debug!("h_u_pow_mi: {}", h_u_pow_mi);
 
         // secret key
@@ -180,9 +190,9 @@ fn gen_phi(
 
         let h = hash(&h_u_pow_mi.base_vector());
         let sig_i = cess_curve::sign_hash(&h, &skey);
-
+  
         // debug!("sig: {}", sig_i);
         sigmas.push(sig_i.base_vector().to_vec());
     }
-    Ok(sigmas)
+    Ok((sigmas, u.base_vector().to_vec()))
 }
