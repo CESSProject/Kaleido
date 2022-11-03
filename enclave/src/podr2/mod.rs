@@ -106,8 +106,9 @@ fn get_mht_leaves_hashes(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<
                 })
             }
         };
-        leaves_hashes.push(hash.to_vec());
+        leaves_hashes[i] = hash.to_vec();
     }
+
     Ok(leaves_hashes)
 }
 
