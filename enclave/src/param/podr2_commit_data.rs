@@ -82,10 +82,18 @@ impl fmt::Display for PoDR2Error {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2Data {
-    pub(crate) phi: Vec<Vec<u8>>, // phi Φ = {σi}, 1 < i < n
-    pub mht_root_sig: Vec<u8>,    // Merkle tree root signature
-    pub u: Vec<u8>,               // Random eleent u <-- G
-    pub pkey: Vec<u8>,            // Public Key
+    /// phi Φ = {σi}, 1 < i < n
+    /// Where σi <- (H(mi).u^mi)^sk
+    pub(crate) phi: Vec<Vec<u8>>, 
+
+    /// Merkle tree root signature
+    pub mht_root_sig: Vec<u8>,  
+    
+    /// Random eleent u <-- G
+    pub u: Vec<u8>,     
+
+    // Public Key G2
+    pub pkey: Vec<u8>,            
 }
 
 impl PoDR2Data {
@@ -113,7 +121,11 @@ impl PoDR2Data {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2Chal {
+    /// Rnadom c-elements subset I = {s1, ...., sc} of set [1, n]
+    /// Where s1 <= ... <= sc.
     pub i: Vec<usize>,
+
+    /// For each i belongs to I choose a Random Element vi <- Zp
     pub vi: Vec<Vec<u8>>,
 }
 
@@ -136,11 +148,23 @@ impl PoDR2Chal {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2Proof {
-    pub mu: Vec<u8>,    // μ = ν0.m0 + ν1.m1 ... νi.mi, where s1 <= i <= sc, belongs to Zp
-    pub sigma: Vec<u8>, // σ = σ0^ν0 . σ1^ν1 ... σi^νi where s1 <= i <= sc, belongs to G
-    pub mi_hashs: Vec<Vec<u8>>, // H(mi) for each given challenged blocks
-    pub pmt: Vec<Vec<u8>>, // Partial Merkle Tree for each hash in mi_hashes
-    pub mht_root_sig: Vec<u8>, // Signed Merkle tree root
+
+    /// μ = ν0.m0 + ν1.m1 ... νi.mi, where s1 <= i <= sc, belongs to Zp
+    pub mu: Vec<u8>, 
+
+    /// σ = σ0^ν0 . σ1^ν1 ... σi^νi where s1 <= i <= sc, belongs to G
+    pub sigma: Vec<u8>,
+
+    /// H(mi) for each given challenged blocks
+    pub mi_hashs: Vec<Vec<u8>>, 
+
+    /// Partial Merkle Tree {Ωi}s1<=i<=sc,
+    /// Which are the node siblings on the path from the leaves {h(H(mi))}s1<=i<=sc
+    /// to the root R of the MHT.
+    pub omega: Vec<Vec<u8>>, 
+
+    // Signed Merkle tree root G1
+    pub mht_root_sig: Vec<u8>, 
 }
 
 impl PoDR2Proof {
@@ -149,7 +173,7 @@ impl PoDR2Proof {
             mu: Vec::new(),
             sigma: Vec::new(),
             mi_hashs: Vec::new(),
-            pmt: Vec::new(),
+            omega: Vec::new(),
             mht_root_sig: Vec::new(),
         }
     }
@@ -163,7 +187,7 @@ impl PoDR2Proof {
         }
 
         println!("MHT Root Signature: {}", base64::encode(&self.mht_root_sig));
-        for node in &self.pmt {
+        for node in &self.omega {
             println!("node: {}", base64::encode(&node));
         }
     }

@@ -14,7 +14,7 @@ use sgx_trts::c_str::CString;
 
 use crate::merkletree_generator::Sha256Algorithm;
 use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2Data};
-use crate::secret_exchange::hex::hex_to_bigint;
+use crate::secret_exchange::hex::bytes_to_bigint;
 use crate::{
     param::podr2_commit_data::{PoDR2CommitData, PoDR2Error},
     pbc,
@@ -64,7 +64,7 @@ fn get_mht_root_sig(
 ) -> Result<Vec<u8>, PoDR2Error> {
     // Generate MHT
     let tree: MerkleTree<[u8; 32], Sha256Algorithm> = get_mht(data, n_blocks)?;
-    
+
     // hash the root hash again before signing otherwise cess_curve::check_message returns false
     let root_hash = hash(&tree.root().as_slice());
 
@@ -142,7 +142,7 @@ fn gen_phi(
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
 
-        let bmi = hex_to_bigint(&mi);
+        let bmi = bytes_to_bigint(&mi);
         let bmi = match bmi {
             Some(d) => d,
             None => {
@@ -159,7 +159,7 @@ fn gen_phi(
 
         // H(mi)
         let mi_hash = hash(mi.as_slice());
-        let bhash = hex_to_bigint(mi_hash.base_vector());
+        let bhash = bytes_to_bigint(mi_hash.base_vector());
         let bhash = match bhash {
             Some(d) => d,
             None => {
@@ -171,26 +171,26 @@ fn gen_phi(
         // debug!("hash: {}", bhash);
 
         // H(mi).u^mi
-        let h_u_pow_mi = pbc::g1_mul_mpz(&u, bhash.to_string());
+        let h_u_pow_mi = pbc::g1_mul_mpz(&u_pow_mi, bhash.to_string());
         // debug!("h_u_pow_mi: {}", h_u_pow_mi);
 
         // secret key
-        let bskey = hex_to_bigint(skey.base_vector());
-        let bskey = match bskey {
-            Some(d) => d,
-            None => {
-                return Err(PoDR2Error {
-                    message: Some("Converting skey to BigInteger Failed".to_string()),
-                })
-            }
-        };
+        // let bskey = bytes_to_bigint(skey.base_vector());
+        // let bskey = match bskey {
+        //     Some(d) => d,
+        //     None => {
+        //         return Err(PoDR2Error {
+        //             message: Some("Converting skey to BigInteger Failed".to_string()),
+        //         })
+        //     }
+        // };
 
         // (H(mi).u^mi)^sk
         // let sig_i = pbc::g1_pow_mpz(&h_u_pow_mi, bskey.to_string());
 
         let h = hash(&h_u_pow_mi.base_vector());
         let sig_i = cess_curve::sign_hash(&h, &skey);
-  
+
         // debug!("sig: {}", sig_i);
         sigmas.push(sig_i.base_vector().to_vec());
     }

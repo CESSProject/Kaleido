@@ -73,7 +73,7 @@ pub fn encode_hex(bytes: &[u8]) -> String {
 }
 
 #[allow(unused)]
-pub fn hex_to_bigint(bytes: &[u8]) -> Option<BigInt> {
+pub fn bytes_to_bigint(bytes: &[u8]) -> Option<BigInt> {
     let mut hex_str = encode_hex(bytes); // Adds spaces between hexadecimal values.
     hex_str.retain(|c| !c.is_whitespace()); // Remove spaces
     BigInt::parse_bytes(hex_str.as_bytes(), 16)
