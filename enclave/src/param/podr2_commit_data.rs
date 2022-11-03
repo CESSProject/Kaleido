@@ -4,9 +4,10 @@ use std::string::ToString;
 use alloc::string::String;
 use alloc::vec::Vec;
 use cess_curve::G1;
+use merkletree::proof::Proof;
 use serde::{Deserialize, Serialize};
 
-use crate::pbc;
+use crate::{merkletree_generator::Sha256Algorithm, pbc};
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]
@@ -84,16 +85,16 @@ impl fmt::Display for PoDR2Error {
 pub struct PoDR2Data {
     /// phi Φ = {σi}, 1 < i < n
     /// Where σi <- (H(mi).u^mi)^sk
-    pub(crate) phi: Vec<Vec<u8>>, 
+    pub(crate) phi: Vec<Vec<u8>>,
 
     /// Merkle tree root signature
-    pub mht_root_sig: Vec<u8>,  
-    
+    pub mht_root_sig: Vec<u8>,
+
     /// Random eleent u <-- G
-    pub u: Vec<u8>,     
+    pub u: Vec<u8>,
 
     // Public Key G2
-    pub pkey: Vec<u8>,            
+    pub pkey: Vec<u8>,
 }
 
 impl PoDR2Data {
@@ -113,9 +114,7 @@ impl PoDR2Data {
         println!("MHT Root Sig: {:?}", base64::encode(&self.mht_root_sig));
         println!("u: {:?}", base64::encode(&self.u));
         println!("pkey: {:?}", base64::encode(&self.pkey));
-
     }
-    
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -148,23 +147,22 @@ impl PoDR2Chal {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2Proof {
-
     /// μ = ν0.m0 + ν1.m1 ... νi.mi, where s1 <= i <= sc, belongs to Zp
-    pub mu: Vec<u8>, 
+    pub mu: Vec<u8>,
 
     /// σ = σ0^ν0 . σ1^ν1 ... σi^νi where s1 <= i <= sc, belongs to G
     pub sigma: Vec<u8>,
 
     /// H(mi) for each given challenged blocks
-    pub mi_hashs: Vec<Vec<u8>>, 
+    pub mi_hashs: Vec<Vec<u8>>,
 
     /// Partial Merkle Tree {Ωi}s1<=i<=sc,
     /// Which are the node siblings on the path from the leaves {h(H(mi))}s1<=i<=sc
     /// to the root R of the MHT.
-    pub omega: Vec<Vec<u8>>, 
+    pub omega: Vec<MHTProof>,
 
     // Signed Merkle tree root G1
-    pub mht_root_sig: Vec<u8>, 
+    pub mht_root_sig: Vec<u8>,
 }
 
 impl PoDR2Proof {
@@ -187,8 +185,12 @@ impl PoDR2Proof {
         }
 
         println!("MHT Root Signature: {}", base64::encode(&self.mht_root_sig));
-        for node in &self.omega {
-            println!("node: {}", base64::encode(&node));
+        for mht_proof in &self.omega {
+            println!("Lemma:");
+            for node in &mht_proof.lemma {
+                println!("{}", base64::encode(&node));
+            }
+            println!("Path: {:?}", mht_proof.path);
         }
     }
 
@@ -221,12 +223,28 @@ impl PoDR2Proof {
         //  (H(m0)^v0 * H(m1)^v1 ... H(mi)^vi) * u^mu
         let product = hmi_pow_vi_prod.clone();
         pbc::g1_mul_g1(&product, &u_pow_mu);
-        
+
         pbc::validate_bilinearity(
             pbc::get_g1_from_byte(&self.sigma),
             pbc::get_g1(),
             product,
             pbc::get_G2_from_bytes(pkey),
         )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct MHTProof {
+    pub lemma: Vec<Vec<u8>>,
+    pub path: Vec<bool>,
+}
+
+impl MHTProof {
+    pub fn new() -> MHTProof {
+        MHTProof {
+            lemma: Vec::new(),
+            path: Vec::new(),
+        }
     }
 }

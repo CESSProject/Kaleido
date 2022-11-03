@@ -4,13 +4,15 @@ use core::ops::Add;
 
 use alloc::{string::ToString, vec::Vec};
 use cess_curve::{hash, Zr, G1};
+use merkletree::merkle::MerkleTree;
 use sgx_rand::{
     distributions::{IndependentSample, Range},
     thread_rng, Rng,
 };
 
 use crate::{
-    param::podr2_commit_data::{PoDR2Chal, PoDR2Data, PoDR2Error, PoDR2Proof},
+    merkletree_generator::Sha256Algorithm,
+    param::podr2_commit_data::{MHTProof, PoDR2Chal, PoDR2Data, PoDR2Error, PoDR2Proof},
     pbc,
     podr2::get_mht,
     secret_exchange::hex::bytes_to_bigint,
@@ -65,7 +67,7 @@ pub fn gen_proof(
     let mut podr2_proof = PoDR2Proof::new();
 
     // TODO: Add Partial Merkle Tree
-    // let mht = get_mht(data, podr2.phi.len())?;
+    let mht = get_mht(data, podr2.phi.len())?;
 
     // Compute μ and σ
     for n in 0..chal.i.len() {
@@ -100,7 +102,7 @@ pub fn gen_proof(
 
         // σi^νi
         pbc::g1_pow_zn(&sig_i, &vi);
-        
+
         // σ = σ0^ν0 . σ1^ν1 ... σi^νi
         if n == 0 {
             sigma = sig_i;
@@ -113,13 +115,16 @@ pub fn gen_proof(
             .mi_hashs
             .push(hash(mi.as_slice()).base_vector().to_vec());
 
-        // TODO: Generate Multi-Node Partial Merkle Tree {Ωi}s1 <= i <= sc
-        // let mht_proof = mht.gen_proof(i);
+        // Generate Partial Merkle Tree {Ωi}s1 <= i <= sc
+        let mht_proof = mht.gen_proof(i);
+        let mut proof = MHTProof::new();
 
-        // println!("*****PMT-{}*****", i);
-        // for l in mht_proof.lemma() {
-        //     println!("{:?}", base64::encode(l));
-        // }
+        for l in mht_proof.lemma() {
+            proof.lemma.push(l.to_vec());
+        }
+        proof.path = mht_proof.path().to_vec();
+
+        podr2_proof.omega.push(proof);
     }
 
     podr2_proof.mu = mu.base_vector().to_vec();
