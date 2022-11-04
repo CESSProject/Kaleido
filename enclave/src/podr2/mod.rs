@@ -160,19 +160,22 @@ fn gen_phi(
 
         // H(mi)
         let mi_hash = hash(mi.as_slice());
-        let bhash = bytes_to_bigint(mi_hash.base_vector());
-        let bhash = match bhash {
-            Some(d) => d,
-            None => {
-                return Err(PoDR2Error {
-                    message: Some("Converting hash to BigInteger Failed".to_string()),
-                })
-            }
-        };
+        // let bhash = bytes_to_bigint(mi_hash.base_vector());
+        // let bhash = match bhash {
+        //     Some(d) => d,
+        //     None => {
+        //         return Err(PoDR2Error {
+        //             message: Some("Converting hash to BigInteger Failed".to_string()),
+        //         })
+        //     }
+        // };
         // debug!("hash: {}", bhash);
 
+        let hmi = pbc::get_g1_from_hash(&mi_hash);
+
         // H(mi).u^mi
-        let h_u_pow_mi = pbc::g1_mul_mpz(&u_pow_mi, bhash.to_string());
+        let h_u_pow_mi = u_pow_mi;
+        pbc::g1_mul_g1(&h_u_pow_mi, &hmi);
         // debug!("h_u_pow_mi: {}", h_u_pow_mi);
 
         // secret key

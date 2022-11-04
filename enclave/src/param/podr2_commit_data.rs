@@ -1,9 +1,13 @@
-use core::fmt;
+use core::{
+    array::TryFromSliceError,
+    convert::TryInto,
+    fmt::{self, Error},
+};
 use std::string::ToString;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use cess_curve::G1;
+use cess_curve::{Hash, G1};
 use merkletree::proof::Proof;
 use serde::{Deserialize, Serialize};
 
@@ -202,9 +206,16 @@ impl PoDR2Proof {
         for n in 0..chal.i.len() {
             let i = chal.i[n];
 
-            let mi_hash = self.mi_hashs[n].clone();
+            // Convert Vec<u8> to [u8; 32]
+            let mi_hash: Result<[u8; 32], TryFromSliceError> =
+                self.mi_hashs[n].as_slice().try_into();
+            let mi_hash = match mi_hash {
+                Ok(hash) => hash,
+                Err(err) => return false,
+            };
+
             // H(mi)
-            let hmi = pbc::get_g1_from_byte(&mi_hash);
+            let hmi = pbc::get_g1_from_hash(&Hash::new(&mi_hash));
 
             // H(mi)^vi
             pbc::g1_pow_zn(&hmi, &pbc::get_zr_from_byte(&chal.vi[n]));
