@@ -91,7 +91,7 @@ pub struct PoDR2Data {
     /// Where σi <- (H(mi).u^mi)^sk
     pub(crate) phi: Vec<Vec<u8>>,
 
-    /// Merkle tree root signature
+    /// Merkle tree root signature G1
     pub mht_root_sig: Vec<u8>,
 
     /// Random eleent u <-- G
@@ -195,6 +195,14 @@ impl PoDR2Proof {
                 println!("{}", base64::encode(&node));
             }
             println!("Path: {:?}", mht_proof.path);
+        }
+    }
+
+    pub fn get_root(&self) -> Option<&Vec<u8>> {
+        let proof = self.omega.first();
+        match proof {
+            None => return None,
+            Some(p) => return p.lemma.last(),
         }
     }
 

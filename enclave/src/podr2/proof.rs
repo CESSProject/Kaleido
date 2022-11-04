@@ -1,10 +1,10 @@
 // This is for testing purpose. The main implementation will be on storage miner side.
 
-use core::ops::Add;
+use core::{array::TryFromSliceError, convert::TryInto, fmt::Error, ops::Add};
 
 use alloc::{string::ToString, vec::Vec};
-use cess_curve::{hash, Zr, G1};
-use merkletree::merkle::MerkleTree;
+use cess_curve::{hash, PublicKey, Zr, G1};
+use merkletree::{hash::Algorithm, merkle::MerkleTree, proof::Proof};
 use sgx_rand::{
     distributions::{IndependentSample, Range},
     thread_rng, Rng,
@@ -144,7 +144,53 @@ pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2Data, chal: &PoDR2Chal) -> b
     // μ & σ from PoDR2Proof.
 
     // TODO: 1st Verify MHT root R e(sig_sk(H(R)),g) ?= e (H(R), g^sk)
+    for proof in &proof.omega {
+        if !is_valid_pmt(proof) {
+            warn!("Invalid PMT");
+            return false;
+        }
+    }
+    println!("PMT Verified Successfully");
+
+    let root = proof.get_root();
+    let root = match root {
+        None => return false,
+        Some(r) => r,
+    };
+
+    if !is_valid_mht_root(root.to_vec(), &proof.mht_root_sig, &podr2_data.pkey) {
+        warn!("Invalid MHT Root");
+        return false;
+    }
+    println!("MHT Root Verified Successfully");
 
     // Verify e(σ, g) ?= e(H(m0)^v0.u^μ + H(m1)^v1.u^μ + ... + H(mi)^vi.u^μ, v)
     proof.validate(chal, &podr2_data.u, &podr2_data.pkey)
+}
+
+pub fn is_valid_mht_root(root_hash: Vec<u8>, sig: &Vec<u8>, pkey: &Vec<u8>) -> bool {
+    let sig = pbc::get_g1_from_byte(sig);
+    let pub_key = pbc::get_G2_from_bytes(pkey);
+    cess_curve::check_message(root_hash.as_slice(), &PublicKey::new(pub_key), &sig)
+}
+
+pub fn is_valid_pmt(proof: &MHTProof) -> bool {
+    // Convert Vec<u8> to [u8; 32]
+    let mut lemmas: Vec<[u8; 32]> = Vec::new();
+
+    for l in &proof.lemma {
+        let lemma: Result<[u8; 32], TryFromSliceError> = l.as_slice().try_into();
+        let lemma = match lemma {
+            Ok(v) => v,
+            Err(err) => return false,
+        };
+        lemmas.push(lemma);
+    }
+
+    if lemmas.len() < 2 {
+        return false;
+    }
+
+    let p: Proof<[u8; 32]> = Proof::new(lemmas, proof.path.clone());
+    p.validate::<Sha256Algorithm>()
 }
