@@ -66,7 +66,6 @@ pub fn gen_proof(
     let mut sigma: G1 = G1::zero();
     let mut podr2_proof = PoDR2Proof::new();
 
-    // TODO: Add Partial Merkle Tree
     let mht = get_mht(data, podr2.phi.len())?;
 
     // Compute μ and σ
@@ -79,21 +78,11 @@ pub fn gen_proof(
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
 
-        let bmi = bytes_to_bigint(&mi);
-        let bmi = match bmi {
-            Some(d) => d,
-            None => {
-                warn!("Converting mi to BigInteger Failed");
-                return Err(PoDR2Error {
-                    message: Some("Converting mi to BigInteger Failed".to_string()),
-                });
-            }
-        };
-
         let vi = pbc::get_zr_from_byte(&chal.vi[n]);
 
         // vi.mi
-        let vi_mi = pbc::zr_mul_mpz(&vi, bmi.to_string());
+        let vi_mi = vi;
+        pbc::zr_mul_zr(&vi_mi, &pbc::get_zr_from_hash(&mi));
 
         // μ = ν0.m0 + ν1.m1 ... νi.mi
         pbc::add_zr(&mu, &vi_mi);
@@ -143,7 +132,7 @@ pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2Data, chal: &PoDR2Chal) -> b
     // u can be obtained from sig_gen
     // μ & σ from PoDR2Proof.
 
-    // TODO: 1st Verify MHT root R e(sig_sk(H(R)),g) ?= e (H(R), g^sk)
+    // Verify MHT root R e(sig_sk(H(R)),g) ?= e (H(R), g^sk)
     for proof in &proof.omega {
         if !is_valid_pmt(proof) {
             warn!("Invalid PMT");

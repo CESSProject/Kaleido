@@ -143,57 +143,29 @@ fn gen_phi(
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
 
-        let bmi = bytes_to_bigint(&mi);
-        let bmi = match bmi {
-            Some(d) => d,
-            None => {
-                return Err(PoDR2Error {
-                    message: Some("Converting mi to BigInteger Failed".to_string()),
-                })
-            }
-        };
-        // debug!("Block(mi)-{:?}: {}", i, bmi.to_string());
-
         // u^mi
-        let u_pow_mi = pbc::g1_pow_mpz(&u, bmi.to_string());
+        let u_pow_mi = u.clone();
+        pbc::g1_pow_zn(&u, &pbc::get_zr_from_hash(&mi));
         // debug!("u_pow_mi: {}", u_pow_mi);
 
         // H(mi)
         let mi_hash = hash(mi.as_slice());
-        // let bhash = bytes_to_bigint(mi_hash.base_vector());
-        // let bhash = match bhash {
-        //     Some(d) => d,
-        //     None => {
-        //         return Err(PoDR2Error {
-        //             message: Some("Converting hash to BigInteger Failed".to_string()),
-        //         })
-        //     }
-        // };
-        // debug!("hash: {}", bhash);
-
         let hmi = pbc::get_g1_from_hash(&mi_hash);
 
         // H(mi).u^mi
-        let h_u_pow_mi = u_pow_mi;
-        pbc::g1_mul_g1(&h_u_pow_mi, &hmi);
+        let hmi_mul_u_pow_mi = hmi;
+        pbc::g1_mul_g1(&hmi_mul_u_pow_mi, &u_pow_mi);
         // debug!("h_u_pow_mi: {}", h_u_pow_mi);
 
-        // secret key
-        // let bskey = bytes_to_bigint(skey.base_vector());
-        // let bskey = match bskey {
-        //     Some(d) => d,
-        //     None => {
-        //         return Err(PoDR2Error {
-        //             message: Some("Converting skey to BigInteger Failed".to_string()),
-        //         })
-        //     }
-        // };
-
         // (H(mi).u^mi)^sk
-        // let sig_i = pbc::g1_pow_mpz(&h_u_pow_mi, bskey.to_string());
+        // Below two lines are equivalent to cess_curve::sign_hash(...)
+        // let sig_i = pbc::get_g1_from_hash(&hash(hmi_mul_u_pow_mi.base_vector()));
+        // pbc::g1_pow_zn(&sig_i, &pbc::get_zr_from_byte(&skey.base_vector().to_vec()));
+        
+        let sig_i = cess_curve::sign_hash(&hash(hmi_mul_u_pow_mi.base_vector()), &skey);
 
-        let h = hash(&h_u_pow_mi.base_vector());
-        let sig_i = cess_curve::sign_hash(&h, &skey);
+        let verify = cess_curve::check_message(&hmi_mul_u_pow_mi.base_vector(), &pkey, &sig_i);
+        println!("SIG_{} VALID: {}", i, verify);
 
         // debug!("sig: {}", sig_i);
         sigmas.push(sig_i.base_vector().to_vec());

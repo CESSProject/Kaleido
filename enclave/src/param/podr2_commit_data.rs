@@ -7,7 +7,7 @@ use std::string::ToString;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use cess_curve::{Hash, G1};
+use cess_curve::{hash, Hash, PublicKey, G1};
 use merkletree::proof::Proof;
 use serde::{Deserialize, Serialize};
 
@@ -219,19 +219,23 @@ impl PoDR2Proof {
                 self.mi_hashs[n].as_slice().try_into();
             let mi_hash = match mi_hash {
                 Ok(hash) => hash,
-                Err(err) => return false,
+                Err(err) => {
+                    warn!("Failed to convert mi_hash Vec<u8> to [u8; 32]");
+                    return false;
+                }
             };
 
             // H(mi)
             let hmi = pbc::get_g1_from_hash(&Hash::new(&mi_hash));
 
             // H(mi)^vi
-            pbc::g1_pow_zn(&hmi, &pbc::get_zr_from_byte(&chal.vi[n]));
+            let hmi_pow_vi = hmi;
+            pbc::g1_pow_zn(&hmi_pow_vi, &pbc::get_zr_from_byte(&chal.vi[n]));
 
             if n == 0 {
-                hmi_pow_vi_prod = hmi;
+                hmi_pow_vi_prod = hmi_pow_vi;
             } else {
-                pbc::g1_mul_g1(&hmi_pow_vi_prod, &hmi);
+                pbc::g1_mul_g1(&hmi_pow_vi_prod, &hmi_pow_vi);
             }
         }
 
@@ -243,12 +247,17 @@ impl PoDR2Proof {
         let product = hmi_pow_vi_prod.clone();
         pbc::g1_mul_g1(&product, &u_pow_mu);
 
-        pbc::validate_bilinearity(
-            pbc::get_g1_from_byte(&self.sigma),
-            pbc::get_g1(),
-            product,
-            pbc::get_G2_from_bytes(pkey),
+        cess_curve::check_message(
+            &product.base_vector(),
+            &PublicKey::new(pbc::get_G2_from_bytes(pkey)),
+            &pbc::get_g1_from_byte(&self.sigma),
         )
+        // pbc::validate_bilinearity(
+        //     pbc::get_g1_from_byte(&self.sigma),
+        //     pbc::get_g1(),
+        //     product,
+        //     pbc::get_G2_from_bytes(pkey),
+        // )
     }
 }
 

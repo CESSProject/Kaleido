@@ -97,6 +97,18 @@ pub fn zr_mul_mpz(a: &Zr, b: String) -> Zr {
     x
 }
 
+// Set x = a * b.
+#[allow(unused)]
+pub fn zr_mul_zr(a: &Zr, b: &Zr) {
+    unsafe {
+        cess_pbc::mul_Zr_vals(
+            CURVE_INFO.context as u64,
+            a.base_vector().as_ptr() as *mut _,
+            b.base_vector().as_ptr() as *mut _,
+        );
+    }
+}
+
 #[allow(unused)]
 pub fn get_g2() -> G2 {
     let context = CURVE_INFO.context as u64;
