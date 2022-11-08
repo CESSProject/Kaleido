@@ -11,7 +11,7 @@ use cess_curve::{hash, Hash, PublicKey, G1};
 use merkletree::proof::Proof;
 use serde::{Deserialize, Serialize};
 
-use crate::{merkletree_generator::Sha256Algorithm, pbc};
+use crate::{merkletree_generator::Sha256Algorithm, pbc, secret_exchange::hex};
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]
@@ -243,13 +243,6 @@ impl PoDR2Proof {
         //  (H(m0)^v0 * H(m1)^v1 ... H(mi)^vi) * u^mu
         let product = hmi_pow_vi_prod;
         pbc::g1_mul_g1(&product, &u_pow_mu);
-
-        let res = cess_curve::check_message(
-            &product.base_vector(),
-            &PublicKey::new(pbc::get_G2_from_bytes(pkey)),
-            &pbc::get_g1_from_bytes(&self.sigma),
-        );
-        println!("check_message {}", res);
 
         pbc::validate_bilinearity(
             pbc::get_g1_from_bytes(&self.sigma),

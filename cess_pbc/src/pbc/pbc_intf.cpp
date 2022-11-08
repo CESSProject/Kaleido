@@ -1261,10 +1261,10 @@ extern "C" int64_t validate_bilinearity(uint64_t ctxt, uint8_t *g1_a,
   element_init_GT(pair1, Pairing(ctxt));
   element_init_GT(pair2, Pairing(ctxt));
 
-  element_from_bytes_compressed(ptG1A, g1_a);
-  element_from_bytes_compressed(ptG1B, g1_b);
-  element_from_bytes_compressed(ptG1X, g1_x);
-  element_from_bytes_compressed(ptG2Y, g2_y);
+  element_from_bytes(ptG1A, g1_a);
+  element_from_bytes(ptG1B, g1_b);
+  element_from_bytes(ptG1X, g1_x);
+  element_from_bytes(ptG2Y, g2_y);
 
   pairing_apply(pair1, ptG1A, ptG1B, Pairing(ctxt));
   pairing_apply(pair2, ptG1X, ptG2Y, Pairing(ctxt));
