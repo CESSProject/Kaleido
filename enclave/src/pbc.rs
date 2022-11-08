@@ -141,7 +141,7 @@ pub fn get_g1_from_hash(h: &Hash) -> G1 {
 }
 
 #[allow(unused)]
-pub fn get_g1_from_byte(byte: &Vec<u8>) -> G1 {
+pub fn get_g1_from_bytes(byte: &Vec<u8>) -> G1 {
     let context = CURVE_INFO.context as u64;
     let g1 = G1::zero();
     unsafe {
@@ -170,7 +170,7 @@ pub fn get_zr_from_hash(h: &Vec<u8>) -> Zr {
 }
 
 #[allow(unused)]
-pub fn get_zr_from_byte(byte: &Vec<u8>) -> Zr {
+pub fn get_zr_from_bytes(byte: &Vec<u8>) -> Zr {
     let context = CURVE_INFO.context as u64;
     let zr = Zr::zero();
     unsafe {
@@ -198,11 +198,9 @@ pub fn add_zr(a: &Zr, b: &Zr) {
 
 #[allow(unused)]
 pub fn g1_pow_zn(g1: &G1, zr: &Zr) {
-    let context = CURVE_INFO.context as u64;
-    //let g11 = G1::zero();
     unsafe {
         cess_pbc::exp_G1z(
-            context,
+            CURVE_INFO.context as u64,
             g1.base_vector().as_ptr() as *mut _,
             zr.base_vector().as_ptr() as *mut _,
         );
@@ -261,10 +259,9 @@ pub fn g1_mul_mpz(a: &G1, b: String) -> G1 {
 
 #[allow(unused)]
 pub fn g1_mul_g1(g1_f: &G1, g1_s: &G1) {
-    let context = CURVE_INFO.context as u64;
     unsafe {
         cess_pbc::mul_G1_pts(
-            context,
+            CURVE_INFO.context as u64,
             g1_f.base_vector().as_ptr() as *mut _,
             g1_s.base_vector().as_ptr() as *mut _,
         );

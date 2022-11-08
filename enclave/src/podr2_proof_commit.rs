@@ -147,7 +147,7 @@ pub fn generate_authenticator(
         if j == u_num - 1 {
             //mij
             let piece_sigle = pbc::get_zr_from_hash(&piece[j * segment_size..piece.len()].to_vec());
-            let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+            let g1 = pbc::get_g1_from_bytes(&t0.u[j]);
             //uj^mij
             pbc::g1_pow_zn(&g1, &piece_sigle);
             pbc::g1_mul_g1(&productory, &g1);
@@ -157,7 +157,7 @@ pub fn generate_authenticator(
         let piece_sigle =
             pbc::get_zr_from_hash(&piece[j * segment_size..(j + 1) * segment_size].to_vec());
         // println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
-        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+        let g1 = pbc::get_g1_from_bytes(&t0.u[j]);
         // println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
@@ -171,7 +171,7 @@ pub fn generate_authenticator(
     // println!("productory value2:{:?}",productory.base_vector().to_vec());
     pbc::g1_pow_zn(
         &productory,
-        &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
+        &pbc::get_zr_from_bytes(&alpha.base_vector().to_vec()),
     );
     let res = productory.base_vector().to_vec();
     res

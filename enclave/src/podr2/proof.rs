@@ -36,7 +36,7 @@ pub fn gen_chal(phi_len: usize) -> PoDR2Chal {
     // vi For each i belongs to I
     for i in 0..n {
         let zr = Zr::random();
-        let zr = pbc::get_zr_from_hash(&zr.base_vector().to_vec());
+        let zr = pbc::get_zr_from_bytes(&zr.base_vector().to_vec());
         chal.vi.push(zr.base_vector().to_vec());
     }
     chal
@@ -78,26 +78,23 @@ pub fn gen_proof(
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
 
-        let vi = pbc::get_zr_from_byte(&chal.vi[n]);
+        let vi = pbc::get_zr_from_bytes(&chal.vi[n]);
 
         // vi.mi
         let vi_mi = vi;
-        pbc::zr_mul_zr(&vi_mi, &pbc::get_zr_from_hash(&mi));
+        pbc::zr_mul_zr(&vi_mi, &pbc::get_zr_from_bytes(&mi));
 
         // μ = ν0.m0 + ν1.m1 ... νi.mi
         pbc::add_zr(&mu, &vi_mi);
 
-        let sig_i = pbc::get_g1_from_byte(&podr2.phi[i]);
+        let sig_i = pbc::get_g1_from_bytes(&podr2.phi[i]);
 
         // σi^νi
-        pbc::g1_pow_zn(&sig_i, &vi);
+        let sig_i_pow_vi = sig_i;
+        pbc::g1_pow_zn(&sig_i_pow_vi, &vi);
 
         // σ = σ0^ν0 . σ1^ν1 ... σi^νi
-        if n == 0 {
-            sigma = sig_i;
-        } else {
-            pbc::g1_mul_g1(&sigma, &sig_i);
-        }
+        pbc::g1_mul_g1(&sigma, &sig_i_pow_vi);
 
         // H(mi)
         podr2_proof
@@ -143,7 +140,10 @@ pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2Data, chal: &PoDR2Chal) -> b
 
     let root = proof.get_root();
     let root = match root {
-        None => return false,
+        None => {
+            warn!("Not MHT root found!");
+            return false;
+        },
         Some(r) => r,
     };
 
@@ -158,7 +158,7 @@ pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2Data, chal: &PoDR2Chal) -> b
 }
 
 pub fn is_valid_mht_root(root_hash: Vec<u8>, sig: &Vec<u8>, pkey: &Vec<u8>) -> bool {
-    let sig = pbc::get_g1_from_byte(sig);
+    let sig = pbc::get_g1_from_bytes(sig);
     let pub_key = pbc::get_G2_from_bytes(pkey);
     cess_curve::check_message(root_hash.as_slice(), &PublicKey::new(pub_key), &sig)
 }

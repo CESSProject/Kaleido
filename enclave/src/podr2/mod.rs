@@ -96,7 +96,7 @@ fn get_mht_leaves_hashes(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<
         } else {
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
-
+        
         let hash = rsgx_sha256_slice(&mi);
         let hash = match hash {
             Ok(h) => h,
@@ -143,31 +143,27 @@ fn gen_phi(
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
 
-        // u^mi
-        let u_pow_mi = u.clone();
-        pbc::g1_pow_zn(&u, &pbc::get_zr_from_hash(&mi));
-        // debug!("u_pow_mi: {}", u_pow_mi);
-
         // H(mi)
-        let mi_hash = hash(mi.as_slice());
-        let hmi = pbc::get_g1_from_hash(&mi_hash);
+        let hmi = pbc::get_g1_from_hash(&hash(mi.as_slice()));
+
+        // u^mi
+        let u_pow_mi = u;
+        pbc::g1_pow_zn(&u_pow_mi, &pbc::get_zr_from_bytes(&mi));
 
         // H(mi).u^mi
         let hmi_mul_u_pow_mi = hmi;
         pbc::g1_mul_g1(&hmi_mul_u_pow_mi, &u_pow_mi);
-        // debug!("h_u_pow_mi: {}", h_u_pow_mi);
 
         // (H(mi).u^mi)^sk
         // Below two lines are equivalent to cess_curve::sign_hash(...)
         // let sig_i = pbc::get_g1_from_hash(&hash(hmi_mul_u_pow_mi.base_vector()));
         // pbc::g1_pow_zn(&sig_i, &pbc::get_zr_from_byte(&skey.base_vector().to_vec()));
-        
+
         let sig_i = cess_curve::sign_hash(&hash(hmi_mul_u_pow_mi.base_vector()), &skey);
 
-        let verify = cess_curve::check_message(&hmi_mul_u_pow_mi.base_vector(), &pkey, &sig_i);
-        println!("SIG_{} VALID: {}", i, verify);
+        // let verify = cess_curve::check_message(&hmi_mul_u_pow_mi.base_vector(), &pkey, &sig_i);
+        // println!("SIG_{} VALID: {}", i, verify);
 
-        // debug!("sig: {}", sig_i);
         sigmas.push(sig_i.base_vector().to_vec());
     }
     Ok((sigmas, u.base_vector().to_vec()))

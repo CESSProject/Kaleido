@@ -230,34 +230,33 @@ impl PoDR2Proof {
 
             // H(mi)^vi
             let hmi_pow_vi = hmi;
-            pbc::g1_pow_zn(&hmi_pow_vi, &pbc::get_zr_from_byte(&chal.vi[n]));
+            pbc::g1_pow_zn(&hmi_pow_vi, &pbc::get_zr_from_bytes(&chal.vi[n]));
 
-            if n == 0 {
-                hmi_pow_vi_prod = hmi_pow_vi;
-            } else {
-                pbc::g1_mul_g1(&hmi_pow_vi_prod, &hmi_pow_vi);
-            }
+            // H(m0)^v0 * H(m1)^v1 ... H(mi)^vi
+            pbc::g1_mul_g1(&hmi_pow_vi_prod, &hmi_pow_vi);
         }
-
-        // u^mu
-        let u_pow_mu = pbc::get_g1_from_byte(u);
-        pbc::g1_pow_zn(&u_pow_mu, &pbc::get_zr_from_byte(&self.mu));
+        
+        // u^μ
+        let u_pow_mu = pbc::get_g1_from_bytes(u);
+        pbc::g1_pow_zn(&u_pow_mu, &pbc::get_zr_from_bytes(&self.mu));
 
         //  (H(m0)^v0 * H(m1)^v1 ... H(mi)^vi) * u^mu
-        let product = hmi_pow_vi_prod.clone();
+        let product = hmi_pow_vi_prod;
         pbc::g1_mul_g1(&product, &u_pow_mu);
 
-        cess_curve::check_message(
+        let res = cess_curve::check_message(
             &product.base_vector(),
             &PublicKey::new(pbc::get_G2_from_bytes(pkey)),
-            &pbc::get_g1_from_byte(&self.sigma),
+            &pbc::get_g1_from_bytes(&self.sigma),
+        );
+        println!("check_message {}", res);
+
+        pbc::validate_bilinearity(
+            pbc::get_g1_from_bytes(&self.sigma),
+            pbc::get_g1(),
+            product,
+            pbc::get_G2_from_bytes(pkey),
         )
-        // pbc::validate_bilinearity(
-        //     pbc::get_g1_from_byte(&self.sigma),
-        //     pbc::get_g1(),
-        //     product,
-        //     pbc::get_G2_from_bytes(pkey),
-        // )
     }
 }
 
