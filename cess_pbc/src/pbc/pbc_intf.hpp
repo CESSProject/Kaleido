@@ -38,7 +38,7 @@ THE SOFTWARE.
 extern "C"
 {
   uint64_t echo(uint64_t nel, char *msg_in, char *msg_out);
-
+  bool is_pairing_symmetric(uint64_t ctxt);
   int64_t init_pairing(uint64_t ctxt, char *param_str, uint64_t nel, uint64_t *psize);
 
   int64_t set_g2(uint64_t ctxt, uint8_t *pbuf);
@@ -83,8 +83,10 @@ extern "C"
   void add_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void sub_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void mul_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
+  void mul_G1_mpz(uint64_t ctxt, uint8_t *x, uint8_t *g1, const uint8_t *n);
   void div_G1_pts(uint64_t ctxt, uint8_t *pt1, uint8_t *pt2);
   void exp_G1z(uint64_t ctxt, uint8_t *g1, uint8_t *zr);
+  void exp_G1_mpz(uint64_t ctxt, uint8_t *x, uint8_t *g1, const uint8_t *n);
   void neg_G1_pt(uint64_t ctxt, uint8_t *pt);
   void inv_G1_pt(uint64_t ctxt, uint8_t *pt);
 
@@ -99,6 +101,7 @@ extern "C"
   void add_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void sub_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void mul_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
+  void mul_Zr_mpz(uint64_t ctxt, uint8_t *x, uint8_t *z, const uint8_t *b);
   void div_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void exp_Zr_vals(uint64_t ctxt, uint8_t *zr1, uint8_t *zr2);
   void neg_Zr_val(uint64_t ctxt, uint8_t *zr);
@@ -113,10 +116,13 @@ extern "C"
   void get_G1_from_byte(uint64_t ctxt,uint8_t *g1_pt, uint8_t *pbyte);
 //  void get_byte_from_element(uint8_t *el_pt, char *pbyte);
   void get_G2_from_hash(uint64_t ctxt, uint8_t *g2_pt, uint8_t *phash, uint64_t nhash);
+  void get_G2_from_byte(uint64_t ctxt, uint8_t *g2_pt, uint8_t *pbyte);
   void get_Zr_from_hash(uint64_t ctxt, uint8_t *zr_val, uint8_t *phash, uint64_t nhash);
   void get_Zr_from_byte(uint64_t ctxt,uint8_t *zr_pt, uint8_t *pbyte);
   void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel);
   uint64_t get_Zr(uint64_t ctxt,uint8_t *pbuf, uint64_t buflen);
+
+  int64_t validate_bilinearity(uint64_t ctxt, uint8_t *g1_a, uint8_t *g1_b, uint8_t *g1_x, uint8_t *g2_y);
 }
 
 #endif // __pbc_intf_h__

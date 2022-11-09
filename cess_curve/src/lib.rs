@@ -18,32 +18,28 @@ use std::vec::Vec;
 
 pub struct PBCInfo {
     pub context: u8, // which slot in the gluelib context table
-    pub name: *const str,
     pub text: *const str,
     pub g1_size: usize,
     pub g2_size: usize,
     pub pairing_size: usize,
     pub field_size: usize,
-    pub order: *const str,
     pub g1: *const str,
     pub g2: *const str,
 }
 
-pub const BN_CURVE_INFO: PBCInfo = PBCInfo {
-    context: config::PBC_CONTEXT_FR256,
-    name: config::NAME_FR256,
-    text: config::INIT_TEXT_FR256,
-    g1_size: config::G1_SIZE_FR256,
-    g2_size: config::G2_SIZE_FR256,
-    pairing_size: config::GT_SIZE_FR256,
-    field_size: config::ZR_SIZE_FR256,
-    order: config::ORDER_FR256,
-    g1: config::G1_FR256,
-    g2: config::G2_FR256,
+pub const CURVE_INFO: PBCInfo = PBCInfo {
+    context: config::PBC_CONTEXT,
+    text: config::INIT_TEXT,
+    g1_size: config::G1_SIZE,
+    g2_size: config::G2_SIZE,
+    pairing_size: config::GT_SIZE,
+    field_size: config::ZR_SIZE,
+    g1: config::G1,
+    g2: config::G2,
 };
 
 #[derive(Copy, Clone)]
-pub struct Zr([u8; config::ZR_SIZE_FR256]);
+pub struct Zr([u8; config::ZR_SIZE]);
 
 impl Serializable for Zr {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
@@ -64,13 +60,13 @@ impl DeSerializable for Zr {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
             let result = v.try_into();
-            let arr: [u8; config::ZR_SIZE_FR256] = match result {
+            let arr: [u8; config::ZR_SIZE] = match result {
                 Ok(arr) => arr,
                 Err(v) => {
                     return Err(d.error(
                         format!(
                             "Expected a Vec of length {} but it was {}",
-                            config::ZR_SIZE_FR256,
+                            config::ZR_SIZE,
                             v.len()
                         )
                         .as_str(),
@@ -85,11 +81,11 @@ impl DeSerializable for Zr {
 
 impl Zr {
     pub const fn zero() -> Zr {
-        Zr([0u8; config::ZR_SIZE_FR256])
+        Zr([0u8; config::ZR_SIZE])
     }
 
     pub fn random() -> Zr {
-        Zr(sgx_rand::random::<[u8; config::ZR_SIZE_FR256]>())
+        Zr(sgx_rand::random::<[u8; config::ZR_SIZE]>())
     }
 
     pub fn base_vector(&self) -> &[u8] {
@@ -99,7 +95,7 @@ impl Zr {
     pub fn from_str(s: &str) -> Zr {
         // result might be larger than prime order, r,
         // but will be interpreted by PBC lib as (Zr mod r).
-        let mut v = [0u8; config::ZR_SIZE_FR256];
+        let mut v = [0u8; config::ZR_SIZE];
         hexstr_to_u8v(&s, &mut v);
         Zr(v)
     }
@@ -176,7 +172,7 @@ impl Hash {
 
 // -----------------------------------------
 #[derive(Copy, Clone)]
-pub struct G1([u8; config::G1_SIZE_FR256]);
+pub struct G1([u8; config::G1_SIZE]);
 
 impl Serializable for G1 {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
@@ -197,13 +193,13 @@ impl DeSerializable for G1 {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
             let result = v.try_into();
-            let arr: [u8; config::G1_SIZE_FR256] = match result {
+            let arr: [u8; config::G1_SIZE] = match result {
                 Ok(arr) => arr,
                 Err(v) => {
                     return Err(d.error(
                         format!(
                             "Expected a Vec of length {} but it was {}",
-                            config::G1_SIZE_FR256,
+                            config::G1_SIZE,
                             v.len()
                         )
                         .as_str(),
@@ -218,7 +214,7 @@ impl DeSerializable for G1 {
 
 impl G1 {
     pub const fn zero() -> G1 {
-        G1([0u8; config::G1_SIZE_FR256])
+        G1([0u8; config::G1_SIZE])
     }
 
     pub fn base_vector(&self) -> &[u8] {
@@ -239,7 +235,7 @@ impl fmt::Display for G1 {
 
 // -----------------------------------------
 #[derive(Copy, Clone)]
-pub struct G2([u8; config::G2_SIZE_FR256]);
+pub struct G2([u8; config::G2_SIZE]);
 
 impl Serializable for G2 {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
@@ -260,13 +256,13 @@ impl DeSerializable for G2 {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
             let result = v.try_into();
-            let arr: [u8; config::G2_SIZE_FR256] = match result {
+            let arr: [u8; config::G2_SIZE] = match result {
                 Ok(arr) => arr,
                 Err(v) => {
                     return Err(d.error(
                         format!(
                             "Expected a Vec of length {} but it was {}",
-                            config::G2_SIZE_FR256,
+                            config::G2_SIZE,
                             v.len()
                         )
                         .as_str(),
@@ -281,7 +277,7 @@ impl DeSerializable for G2 {
 
 impl G2 {
     pub const fn zero() -> G2 {
-        G2([0u8; config::G2_SIZE_FR256])
+        G2([0u8; config::G2_SIZE])
     }
 
     pub fn base_vector(&self) -> &[u8] {
@@ -301,7 +297,7 @@ impl fmt::Display for G2 {
 
 // -----------------------------------------
 #[derive(Copy, Clone)]
-pub struct GT([u8; config::GT_SIZE_FR256]);
+pub struct GT([u8; config::GT_SIZE]);
 
 impl Serializable for GT {
     fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
@@ -322,13 +318,13 @@ impl DeSerializable for GT {
                 v.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
             }
             let result = v.try_into();
-            let arr: [u8; config::GT_SIZE_FR256] = match result {
+            let arr: [u8; config::GT_SIZE] = match result {
                 Ok(arr) => arr,
                 Err(v) => {
                     return Err(d.error(
                         format!(
                             "Expected a Vec of length {} but it was {}",
-                            config::GT_SIZE_FR256,
+                            config::GT_SIZE,
                             v.len()
                         )
                         .as_str(),
@@ -343,7 +339,7 @@ impl DeSerializable for GT {
 
 impl GT {
     pub fn zero() -> GT {
-        GT([0u8; config::GT_SIZE_FR256])
+        GT([0u8; config::GT_SIZE])
     }
 
     pub fn base_vector(&self) -> &[u8] {
@@ -461,7 +457,7 @@ pub fn sign_hash(h: &Hash, skey: &SecretKey) -> G1 {
     let v = G1::zero();
     unsafe {
         cess_pbc::sign_hash(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             v.base_vector().as_ptr() as *mut _,
             skey.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
@@ -475,7 +471,7 @@ pub fn check_hash(h: &Hash, sig: &G1, pkey: &PublicKey) -> bool {
     // check a hash with a raw signature, return t/f
     unsafe {
         0 == cess_pbc::check_signature(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             sig.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
             config::HASH_SIZE as u64,
@@ -503,11 +499,11 @@ pub fn check_message(msg: &[u8], pkey: &PublicKey, sig: &G1) -> bool {
 
 pub fn make_deterministic_keys(seed: &[u8]) -> (SecretKey, PublicKey, G1) {
     let h = hash(&seed);
-    let sk = [0u8; config::ZR_SIZE_FR256]; // secret keys in Zr
-    let pk = [0u8; config::G2_SIZE_FR256]; // public keys in G2
+    let sk = [0u8; config::ZR_SIZE]; // secret keys in Zr
+    let pk = [0u8; config::G2_SIZE]; // public keys in G2
     unsafe {
         cess_pbc::make_key_pair(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             sk.as_ptr() as *mut _,
             pk.as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
@@ -534,10 +530,10 @@ pub fn make_random_keys() -> (SecretKey, PublicKey, G1) {
 
 pub fn make_secret_subkey(skey: &SecretKey, seed: &[u8]) -> SecretSubKey {
     let h = Hash::from_vector(&seed);
-    let sk = [0u8; config::G1_SIZE_FR256];
+    let sk = [0u8; config::G1_SIZE];
     unsafe {
         cess_pbc::make_secret_subkey(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             sk.as_ptr() as *mut _,
             skey.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
@@ -549,10 +545,10 @@ pub fn make_secret_subkey(skey: &SecretKey, seed: &[u8]) -> SecretSubKey {
 
 pub fn make_public_subkey(pkey: &PublicKey, seed: &[u8]) -> PublicSubKey {
     let h = Hash::from_vector(&seed);
-    let pk = [0u8; config::G2_SIZE_FR256];
+    let pk = [0u8; config::G2_SIZE];
     unsafe {
         cess_pbc::make_public_subkey(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             pk.as_ptr() as *mut _,
             pkey.base_vector().as_ptr() as *mut _,
             h.base_vector().as_ptr() as *mut _,
@@ -593,7 +589,7 @@ pub fn ibe_encrypt(msg: &[u8], pkey: &PublicKey, id: &[u8]) -> EncryptedPacket {
     let pval = GT::zero();
     unsafe {
         cess_pbc::sakai_kasahara_encrypt(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             rval.base_vector().as_ptr() as *mut _,
             pval.base_vector().as_ptr() as *mut _,
             pkid.base_vector().as_ptr() as *mut _,
@@ -621,7 +617,7 @@ pub fn ibe_decrypt(pack: &EncryptedPacket, skey: &SecretKey) -> Option<Vec<u8>> 
     let pval = GT::zero();
     unsafe {
         cess_pbc::sakai_kasahara_decrypt(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             pval.base_vector().as_ptr() as *mut _,
             pack.rval.base_vector().as_ptr() as *mut _,
             skid.base_vector().as_ptr() as *mut _,
@@ -641,7 +637,7 @@ pub fn ibe_decrypt(pack: &EncryptedPacket, skey: &SecretKey) -> Option<Vec<u8>> 
     let rhash = hash(&concv);
     unsafe {
         let ans = cess_pbc::sakai_kasahara_check(
-            config::PBC_CONTEXT_FR256 as u64,
+            config::PBC_CONTEXT as u64,
             pack.rval.base_vector().as_ptr() as *mut _,
             pkid.base_vector().as_ptr() as *mut _,
             rhash.base_vector().as_ptr() as *mut _,

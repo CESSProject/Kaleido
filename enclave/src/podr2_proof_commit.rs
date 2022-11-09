@@ -3,7 +3,7 @@ use crate::pbc;
 
 
 use alloc::vec::Vec;
-use cess_bncurve::*;
+use cess_curve::*;
 use core::convert::TryInto;
 use crypto::digest::Digest;
 use merkletree::merkle::MerkleTree;
@@ -18,8 +18,8 @@ use crate::merkletree_generator::Sha256Algorithm;
 use crate::param::podr2_commit_data::*;
 
 pub fn podr2_proof_commit(
-    skey: cess_bncurve::SecretKey,
-    pkey: cess_bncurve::PublicKey,
+    skey: cess_curve::SecretKey,
+    pkey: cess_curve::PublicKey,
     data: &mut Vec<u8>,
     block_size: usize,
     segment_size: usize,
@@ -43,7 +43,7 @@ pub fn podr2_proof_commit(
     // });
 
     //'Choose a random file name name from some sufficiently large domain (e.g., Zp).'
-    let zr = cess_bncurve::Zr::random();
+    let zr = cess_curve::Zr::random();
     t.t0.name = zr.base_vector().to_vec();
     let mut s: usize = block_size;
     if block_size > data.len() {
@@ -100,16 +100,16 @@ pub fn podr2_proof_commit(
     //     leaves_hashes,
     // );
     // let root_hash = Hash::new(&tree.root());
-    // let mth_root_sig = cess_bncurve::sign_hash(&root_hash, &skey);
+    // let mth_root_sig = cess_curve::sign_hash(&root_hash, &skey);
 
     // println!("MHT Root: {:?}", tree.root());
     // println!("MHT Root Sig: {:?}", mth_root_sig.to_str());
 
     let t_signature = hash(&t_serialized_bytes);
-    let sig_g1 = cess_bncurve::sign_hash(&t_signature, &skey);
+    let sig_g1 = cess_curve::sign_hash(&t_signature, &skey);
     t.signature = sig_g1.clone().base_vector().to_vec();
 
-    let verify = cess_bncurve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
+    let verify = cess_curve::check_message(&t_serialized_bytes, &pkey, &sig_g1);
     result.t = t;
     result.pkey = pkey.base_vector().to_vec();
     result
@@ -120,7 +120,7 @@ pub fn generate_authenticator(
     u_num: usize,
     t0: &mut T0,
     piece: &mut Vec<u8>,
-    alpha: &cess_bncurve::SecretKey,
+    alpha: &cess_curve::SecretKey,
     segment_size: usize,
     zero_pad_len:isize
 ) -> Vec<u8> {
@@ -147,7 +147,7 @@ pub fn generate_authenticator(
         if j == u_num - 1 {
             //mij
             let piece_sigle = pbc::get_zr_from_hash(&piece[j * segment_size..piece.len()].to_vec());
-            let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+            let g1 = pbc::get_g1_from_bytes(&t0.u[j]);
             //uj^mij
             pbc::g1_pow_zn(&g1, &piece_sigle);
             pbc::g1_mul_g1(&productory, &g1);
@@ -157,7 +157,7 @@ pub fn generate_authenticator(
         let piece_sigle =
             pbc::get_zr_from_hash(&piece[j * segment_size..(j + 1) * segment_size].to_vec());
         // println!("index:{},piece_sigle:{:?},piece:{:?}",j,piece_sigle.base_vector().to_vec(),vec![piece[j]]);
-        let g1 = pbc::get_g1_from_byte(&t0.u[j]);
+        let g1 = pbc::get_g1_from_bytes(&t0.u[j]);
         // println!("index:{},get_g1_from_byte:{:?}",j,g1.clone().base_vector().to_vec());
         //uj^mij
         pbc::g1_pow_zn(&g1, &piece_sigle);
@@ -171,7 +171,7 @@ pub fn generate_authenticator(
     // println!("productory value2:{:?}",productory.base_vector().to_vec());
     pbc::g1_pow_zn(
         &productory,
-        &pbc::get_zr_from_byte(&alpha.base_vector().to_vec()),
+        &pbc::get_zr_from_bytes(&alpha.base_vector().to_vec()),
     );
     let res = productory.base_vector().to_vec();
     res

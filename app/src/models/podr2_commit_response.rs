@@ -62,8 +62,7 @@ impl PoDR2CommitResponse {
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2CommitRequest {
     pub data: String,
-    pub block_size: usize,
-    pub segment_size: usize,
+    pub n_blocks: usize,
     pub callback_url: String,
 }
 

@@ -89,6 +89,10 @@ static inline pairing_t &zr_Pairing(uint64_t ctxt)
 
 // -------------------------------------------------
 
+extern "C" bool is_pairing_symmetric(uint64_t ctxt) {
+  return pairing_is_symmetric(Pairing(ctxt));
+}
+
 extern "C" int64_t init_pairing(uint64_t ctxt, char *param_str, uint64_t nel, uint64_t *psize)
 {
   int64_t ans = -1;
@@ -775,6 +779,30 @@ extern "C" void mul_Zr_vals(uint64_t ctxt,
   element_clear(z2);
 }
 
+/*
+  Sets x = a * b.
+  b should be a valid decimal string.
+*/
+extern "C" void mul_Zr_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *z, const uint8_t *b)
+{
+  mpz_t n;
+  mpz_init(n);
+  mpz_set_str(n, (char *) b, 10);
+
+  element_t zr, ans;
+  
+  element_init_Zr(zr, Pairing(ctxt));
+  element_init_Zr(ans, Pairing(ctxt));
+  element_from_bytes(zr, z);
+  element_mul_mpz(ans, zr, n);
+  element_to_bytes(x, ans);
+
+  mpz_clear(n);
+  element_clear(zr);
+  element_clear(ans);
+}
+
 extern "C" void div_Zr_vals(uint64_t ctxt,
                             uint8_t *zr1, uint8_t *zr2)
 {
@@ -893,6 +921,69 @@ extern "C" void exp_G1z(uint64_t ctxt,
     element_clear(z);
   }
   element_clear(g);
+}
+
+
+/*
+  Sets x = g1^n, thit is g1 times g1 times ... times g1 where there are n g1's.
+  n should be a valid decimal string.
+*/
+extern "C" void exp_G1_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *g1, const uint8_t *n)
+{
+  mpz_t pow;
+  mpz_init(pow);
+  mpz_set_str(pow, (char *) n, 10);
+
+  element_t g, ans;
+  
+  element_init_G1(g, Pairing(ctxt));
+  element_init_G1(ans, Pairing(ctxt));
+  
+  int nelg = element_length_in_bytes_compressed(g);
+  if (tst_nonzero(g1, nelg)) {
+    element_from_bytes_compressed(g, g1);
+    element_pow_mpz(ans, g, pow);
+    if (element_is0(ans))
+      memset(x, 0, nelg);
+    else
+      element_to_bytes_compressed(x, ans);
+  }
+
+  mpz_clear(pow);
+  element_clear(g);
+  element_clear(ans);
+}
+
+/*
+  Sets x = a * b.
+  b should be a valid decimal string.
+*/
+extern "C" void mul_G1_mpz(uint64_t ctxt, uint8_t *x, 
+                          uint8_t *g1, const uint8_t *b)
+{
+  mpz_t n;
+  mpz_init(n);
+  mpz_set_str(n, (char *) b, 10);
+
+  element_t g, ans;
+  
+  element_init_G1(g, Pairing(ctxt));
+  element_init_G1(ans, Pairing(ctxt));
+  
+  int nelg = element_length_in_bytes_compressed(g);
+  if (tst_nonzero(g1, nelg)) {
+    element_from_bytes_compressed(g, g1);
+    element_mul_mpz(ans, g, n);
+    if (element_is0(ans))
+      memset(x, 0, nelg);
+    else
+      element_to_bytes_compressed(x, ans);
+  }
+
+  mpz_clear(n);
+  element_clear(g);
+  element_clear(ans);
 }
 
 // ----------------------------------------------
@@ -1098,6 +1189,17 @@ extern "C" void get_G2_from_hash(uint64_t ctxt,
   element_clear(g);
 }
 
+extern "C" void get_G2_from_byte(uint64_t ctxt,
+                                 uint8_t *g2_pt, uint8_t *pbyte)
+{
+  element_t g2;
+
+  element_init_G2(g2, Pairing(ctxt));
+  element_from_bytes_compressed(g2, pbyte);
+  element_to_bytes_compressed(g2_pt, g2);
+  element_clear(g2);
+}
+
 extern "C" void get_Zr_from_hash(uint64_t ctxt,
                                  uint8_t *zr_val, uint8_t *phash, uint64_t nhash)
 {
@@ -1144,6 +1246,38 @@ extern "C" void init_Zr(uint64_t ctxt, char *param_str, uint64_t nel)
 extern "C" uint64_t get_Zr(uint64_t ctxt,uint8_t *pbuf, uint64_t buflen)
 {
   return get_datum(zr_gen(ctxt), pbuf, buflen);
+}
+
+//
+extern "C" int64_t validate_bilinearity(uint64_t ctxt, uint8_t *g1_a, 
+                          uint8_t *g1_b, uint8_t *g1_x, uint8_t *g2_y) {
+  
+  element_t ptG1A, ptG1B, ptG1X, ptG2Y, pair1, pair2;
+  
+  element_init_G1(ptG1A, Pairing(ctxt));
+  element_init_G1(ptG1B, Pairing(ctxt));
+  element_init_G1(ptG1X, Pairing(ctxt));
+  element_init_G2(ptG2Y, Pairing(ctxt));
+  element_init_GT(pair1, Pairing(ctxt));
+  element_init_GT(pair2, Pairing(ctxt));
+
+  element_from_bytes(ptG1A, g1_a);
+  element_from_bytes(ptG1B, g1_b);
+  element_from_bytes(ptG1X, g1_x);
+  element_from_bytes(ptG2Y, g2_y);
+
+  pairing_apply(pair1, ptG1A, ptG1B, Pairing(ctxt));
+  pairing_apply(pair2, ptG1X, ptG2Y, Pairing(ctxt));
+  int result = element_cmp(pair1, pair2);
+
+  element_clear(ptG1A);
+  element_clear(ptG1B);
+  element_clear(ptG1X);
+  element_clear(ptG2Y);
+  element_clear(pair1);
+  element_clear(pair2);
+
+  return result;
 }
 
 // -- end of pbc_intf.cpp -- //

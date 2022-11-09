@@ -8,8 +8,7 @@ extern "C" {
         retval: *mut sgx_status_t,
         data: *mut u8,
         data_len: usize,
-        block_size: usize,
-        segment_size: usize,
+        n_blocks: usize,
         callback_url: *const c_char,
     ) -> sgx_status_t;
     pub fn run_server(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,

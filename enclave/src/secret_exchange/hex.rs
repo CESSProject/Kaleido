@@ -1,3 +1,5 @@
+use num::{BigInt, BigUint};
+
 // hex encoder and decoder used by rust-protobuf unittests
 use crate::sgx_types::*;
 use crate::std::char;
@@ -68,6 +70,20 @@ pub fn encode_hex(bytes: &[u8]) -> String {
         .map(|byte| encode_hex_byte(*byte).iter().map(|c| *c).collect())
         .collect();
     strs.join(" ")
+}
+
+#[allow(unused)]
+pub fn bytes_to_bigint(bytes: &[u8]) -> Option<BigInt> {
+    let mut hex_str = encode_hex(bytes); // Adds spaces between hexadecimal values.
+    hex_str.retain(|c| !c.is_whitespace()); // Remove spaces
+    BigInt::parse_bytes(hex_str.as_bytes(), 16)
+}
+
+#[allow(unused)]
+pub fn hex_to_biguint(bytes: &[u8]) -> Option<BigUint> {
+    let mut hex_str = encode_hex(bytes); // Adds spaces between hexadecimal values.
+    hex_str.retain(|c| !c.is_whitespace()); // Remove spaces
+    BigUint::parse_bytes(hex_str.as_bytes(), 16)
 }
 
 #[cfg(test)]

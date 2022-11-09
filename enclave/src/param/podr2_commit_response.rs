@@ -4,7 +4,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
-use param::podr2_status;
+
+use super::Podr2Status;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -40,16 +41,16 @@ impl FileTagT {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 #[repr(C)]
-pub struct StatusInfo{
-    pub status_code:usize,
-    pub status_msg:String
+pub struct StatusInfo {
+    pub status_code: usize,
+    pub status_msg: String,
 }
 
 impl StatusInfo {
-    pub fn new() ->StatusInfo{
-        StatusInfo{
-            status_code:podr2_status::PoDR2_SUCCESS as usize,
-            status_msg:String::new()
+    pub fn new() -> StatusInfo {
+        StatusInfo {
+            status_code: Podr2Status::PoDr2Success as usize,
+            status_msg: String::new(),
         }
     }
 }
@@ -62,7 +63,7 @@ pub struct PoDR2CommitResponse {
     pub t: FileTagT,
     pub sigmas: Vec<String>,
     pub pkey: String,
-    pub status:StatusInfo
+    pub status: StatusInfo,
 }
 
 impl PoDR2CommitResponse {
@@ -71,7 +72,7 @@ impl PoDR2CommitResponse {
             t: FileTagT::new(),
             sigmas: Vec::new(),
             pkey: String::new(),
-            status:StatusInfo::new(),
+            status: StatusInfo::new(),
         }
     }
 }
@@ -83,4 +84,24 @@ pub struct PoDR2CommitRequest {
     pub block_size: usize,
     pub segment_size: usize,
     pub callback_url: String,
+}
+
+//PoDR2Response structure
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+#[repr(C)]
+pub struct PoDR2Response {
+    pub phi: Vec<String>,
+    pub mht_root_sig: String,
+    pub status: StatusInfo,
+}
+
+impl PoDR2Response {
+    pub fn new() -> PoDR2Response {
+        PoDR2Response {
+            phi: Vec::new(),
+            mht_root_sig: String::new(),
+            status: StatusInfo::new(),
+        }
+    }
 }

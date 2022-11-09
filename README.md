@@ -161,7 +161,7 @@ PBC key initialization:
 
 * The initialization of the PBC key occurs when the kaleido node starts. When kaleido starts, it first calls the [init_pairings function](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/pbc.rs#L6) under the pbc file in the enclave.
 * Secondly, the init_pairings function will use rust-ffi to call the C++ function [init_pairing method](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_pbc/src/pbc/pbc_intf.cpp#L92) which is located in the cess_pbc package. The PBC key pair is initialized.
-* The selected security parameters and initial generators are located under the cess_bncurve file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_bncurve/src/config.rs#L8).
+* The selected security parameters and initial generators are located under the cess_curve file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_curve/src/config.rs#L8).
 
 Enclave memory initialization:
 
