@@ -72,7 +72,7 @@ mod param;
 mod pbc;
 mod podr2;
 mod podr2_proof_commit;
-mod secret_exchange;
+mod attestation;
 
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
