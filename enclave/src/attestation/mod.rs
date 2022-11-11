@@ -582,7 +582,7 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     };
     let _result = ecc_handle.close();
 
-    let root_ca_bin = include_bytes!("../../../cert/ca.crt");
+    let root_ca_bin = include_bytes!("../../../bin/ca.crt");
     let mut ca_reader = BufReader::new(&root_ca_bin[..]);
     let mut rc_store = rustls::RootCertStore::empty();
     // Build a root ca storage
