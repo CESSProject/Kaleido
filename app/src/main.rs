@@ -42,7 +42,6 @@ use std::{
     str::FromStr,
 };
 
-use crate::models::config::Config;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
 
@@ -75,11 +74,11 @@ async fn main() -> std::io::Result<()> {
         .parse()
         .unwrap();
     
-    let cfg = fs::read_to_string("./config.toml");
-    let cfg: Config = match cfg {
-        Ok(cfg_str) => toml::from_str(&cfg_str).expect("Invalid configuration file."),
-        Err(_) => Config::default(),
-    };
+    // let cfg = fs::read_to_string("./config.toml");
+    // let cfg: Config = match cfg {
+    //     Ok(cfg_str) => toml::from_str(&cfg_str).expect("Invalid configuration file."),
+    //     Err(_) => Config::default(),
+    // };
 
     let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
@@ -112,6 +111,11 @@ async fn main() -> std::io::Result<()> {
             //     enclave.destroy();
             //     panic!("Failed to get/generate key pair");
             // }
+            let ok=gen_keys(eid);
+            if !ok{
+                panic!("GenKey fail!")
+            }
+            info!("Create a key gen success!");
 
             let res = HttpServer::new(move || {
                 let logger = Logger::default();
@@ -121,7 +125,6 @@ async fn main() -> std::io::Result<()> {
                     .app_data(web::JsonConfig::default().limit(1024 * 1024 * 1024 * 3)) //3G limmit
                     .app_data(web::Data::new(models::app_state::AppState {
                         eid,
-                        config: cfg.clone(),
                     }))
                     .service(routes::r_process_data)
             })

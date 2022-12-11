@@ -447,6 +447,11 @@ pub fn create_attestation_report(
     }
 
     let (attn_report, sig, cert) = get_report_from_intel(ias_sock, quote_vec);
+    debug!("-------------------------------------------------------------------------------------------");
+    debug!("{:?}",attn_report);
+    debug!("{:?}",sig);
+    debug!("{:?}",cert);
+    debug!("-------------------------------------------------------------------------------------------");
     Ok((attn_report, sig, cert))
 }
 
@@ -563,7 +568,11 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
     let ecc_handle = SgxEccHandle::new();
     let _result = ecc_handle.open();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
-
+    let mut data = "hello world";
+    let sig=ecc_handle.ecdsa_sign_slice(&data.as_bytes(),&prv_k).unwrap();
+    // let sig=ecc_handle.ecdsa_sign_msg(&plaintext,&prv_k).unwrap();
+    println!("the signature x:{:?},y:{:?}",sig.x.to_vec(),sig.y.to_vec());
+    println!("the publickey x:{:?} y:{:?}",hex::encode_hex(&pub_k.gx[0..]),hex::encode_hex(&pub_k.gy[0..]));
     let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
