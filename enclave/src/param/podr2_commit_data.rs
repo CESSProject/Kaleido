@@ -11,7 +11,7 @@ use cess_curve::{hash, Hash, PublicKey, G1};
 use merkletree::proof::Proof;
 use serde::{Deserialize, Serialize};
 
-use crate::{merkletree_generator::Sha256Algorithm, pbc, secret_exchange::hex};
+use crate::{merkletree_generator::Sha256Algorithm, pbc, attestation::hex};
 
 //filetag struct
 #[derive(Serialize, Deserialize, Debug)]

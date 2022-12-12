@@ -7,18 +7,14 @@ use std::string::ToString;
 use alloc::vec::Vec;
 use cess_curve::{hash, sign_hash, Hash, Zr, G1};
 use merkletree::merkle::MerkleTree;
-use num::traits::Pow;
-use num_bigint::{BigInt, BigUint};
 use sgx_tcrypto::rsgx_sha256_slice;
 use sgx_trts::c_str::CString;
-
 use crate::merkletree_generator::Sha256Algorithm;
 use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2Data};
-use crate::secret_exchange::hex::bytes_to_bigint;
 use crate::{
     param::podr2_commit_data::{PoDR2CommitData, PoDR2Error},
     pbc,
-    secret_exchange::hex,
+    attestation::hex,
 };
 
 pub fn sig_gen(

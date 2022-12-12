@@ -70,9 +70,10 @@ mod merkletree_generator;
 mod ocall_def;
 mod param;
 mod pbc;
-mod podr2;
+mod podr2_pub;
+mod podr2_pri;
 mod podr2_proof_commit;
-mod secret_exchange;
+mod attestation;
 
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
@@ -117,6 +118,7 @@ use std::{
     time::Instant,
     untrusted::fs,
 };
+use podr2_pri::key_gen::{MacHash, Symmetric};
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 
@@ -311,7 +313,7 @@ pub extern "C" fn process_data(
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let podr2_data = podr2::sig_gen(skey, pkey, &mut d, n_blocks);
+            let podr2_data = podr2_pub::sig_gen(skey, pkey, &mut d, n_blocks);
             let podr2_data = match podr2_data {
                 Ok(d) => {
                     status.status_msg = "ok".to_string();
@@ -324,6 +326,21 @@ pub extern "C" fn process_data(
                     PoDR2Data::new()
                 }
             };
+            println!("-------------------PoDR2 TEST Pri-------------------");
+            let et = podr2_pri::key_gen::key_gen();
+            let plain = b"This is not a password";
+            let mut encrypt_result=et.symmetric_encrypt(plain,"enc").unwrap();
+            let ct=u8v_to_hexstr(&encrypt_result);
+            println!("CBC encrypt result is :{:?}",ct);
+            let mut decrypt_result=et.symmetric_decrypt(&encrypt_result,"enc").unwrap();
+            println!("CBC decrypt result is :{:?}",std::str::from_utf8(&decrypt_result).unwrap());
+
+            let mac_hash_result=et.mac_encrypt(plain).unwrap();
+            let mac_hex=u8v_to_hexstr(&mac_hash_result);
+            // podr2_pri::sig_gen::sig_gen(et);
+
+            println!("HMAC result is :{:?}",mac_hex);
+            println!("-------------------PoDR2 TEST Pri-------------------");
 
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
@@ -345,6 +362,15 @@ pub extern "C" fn process_data(
         })
         .expect("Failed to launch process_data thread");
     sgx_status_t::SGX_SUCCESS
+}
+
+pub fn u8v_to_hexstr(x: &[u8]) -> String {
+    // produce a hexnum string from a byte vector
+    let mut s = String::new();
+    for ix in 0..x.len() {
+        s.push_str(&format!("{:02x}", x[ix]));
+    }
+    s
 }
 
 fn has_enough_mem(data_len: usize) -> bool {
