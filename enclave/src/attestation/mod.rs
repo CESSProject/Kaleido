@@ -561,18 +561,16 @@ impl rustls::ServerCertVerifier for ServerAuth {
 }
 
 #[no_mangle]
-pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
+pub extern "C" fn run_server(
+    // socket_fd: c_int,
+    sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
 
     // Generate Keypair
     let ecc_handle = SgxEccHandle::new();
     let _result = ecc_handle.open();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
-    let mut data = "hello world";
-    let sig=ecc_handle.ecdsa_sign_slice(&data.as_bytes(),&prv_k).unwrap();
-    // let sig=ecc_handle.ecdsa_sign_msg(&plaintext,&prv_k).unwrap();
-    println!("the signature x:{:?},y:{:?}",sig.x.to_vec(),sig.y.to_vec());
-    println!("the publickey x:{:?} y:{:?}",hex::encode_hex(&pub_k.gx[0..]),hex::encode_hex(&pub_k.gy[0..]));
+
     let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
@@ -581,120 +579,46 @@ pub extern "C" fn run_server(socket_fd: c_int, sign_type: sgx_quote_sign_type_t)
         }
     };
 
-    let payload = attn_report + "|" + &sig + "|" + &cert;
-    let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
-        Ok(r) => r,
-        Err(e) => {
-            warn!("Error in gen_ecc_cert: {:?}", e);
-            return e;
-        }
-    };
+    // let payload = attn_report + "|" + &sig + "|" + &cert;
+    // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
+    //     Ok(r) => r,
+    //     Err(e) => {
+    //         warn!("Error in gen_ecc_cert: {:?}", e);
+    //         return e;
+    //     }
+    // };
     let _result = ecc_handle.close();
 
-    let root_ca_bin = include_bytes!("../../../bin/ca.crt");
-    let mut ca_reader = BufReader::new(&root_ca_bin[..]);
-    let mut rc_store = rustls::RootCertStore::empty();
-    // Build a root ca storage
-    rc_store.add_pem_file(&mut ca_reader).unwrap();
-    // Build a default authenticator which allow every authenticated client
+    // let root_ca_bin = include_bytes!("../../../bin/ca.crt");
+    // let mut ca_reader = BufReader::new(&root_ca_bin[..]);
+    // let mut rc_store = rustls::RootCertStore::empty();
+    // // Build a root ca storage
+    // rc_store.add_pem_file(&mut ca_reader).unwrap();
+    // // Build a default authenticator which allow every authenticated client
 
-    let authenticator = rustls::AllowAnyAuthenticatedClient::new(rc_store);
-    let mut cfg = rustls::ServerConfig::new(authenticator);
-    let mut certs = Vec::new();
-    certs.push(rustls::Certificate(cert_der));
-    let privkey = rustls::PrivateKey(key_der);
+    // let authenticator = rustls::AllowAnyAuthenticatedClient::new(rc_store);
+    // let mut cfg = rustls::ServerConfig::new(authenticator);
+    // let mut certs = Vec::new();
+    // certs.push(rustls::Certificate(cert_der));
+    // let privkey = rustls::PrivateKey(key_der);
 
-    cfg.set_single_cert_with_ocsp_and_sct(certs, privkey, vec![], vec![])
-        .unwrap();
+    // cfg.set_single_cert_with_ocsp_and_sct(certs, privkey, vec![], vec![])
+    //     .unwrap();
 
-    let mut sess = rustls::ServerSession::new(&Arc::new(cfg));
-    let mut conn = TcpStream::new(socket_fd).unwrap();
+    // let mut sess = rustls::ServerSession::new(&Arc::new(cfg));
+    // let mut conn = TcpStream::new(socket_fd).unwrap();
 
-    let mut tls = rustls::Stream::new(&mut sess, &mut conn);
-    let mut plaintext = [0u8;1024]; //Vec::new();
-    match tls.read(&mut plaintext) {
-        Ok(_) => println!("Client said: {}", str::from_utf8(&plaintext).unwrap()),
-        Err(e) => {
-            println!("Error in read_to_end: {:?}", e);
-            panic!("");
-        }
-    };
+    // let mut tls = rustls::Stream::new(&mut sess, &mut conn);
+    // let mut plaintext = [0u8;1024]; //Vec::new();
+    // match tls.read(&mut plaintext) {
+    //     Ok(_) => println!("Client said: {}", str::from_utf8(&plaintext).unwrap()),
+    //     Err(e) => {
+    //         println!("Error in read_to_end: {:?}", e);
+    //         panic!("");
+    //     }
+    // };
 
-    tls.write("hello back".as_bytes()).unwrap();
-
-    sgx_status_t::SGX_SUCCESS
-}
-
-#[no_mangle]
-pub extern "C" fn run_client(socket_fd: c_int, sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
-    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
-
-    // Generate Keypair
-    let ecc_handle = SgxEccHandle::new();
-    ecc_handle.open().unwrap();
-    let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
-
-    let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
-        Ok(r) => r,
-        Err(e) => {
-            warn!("Error in create_attestation_report: {:?}", e);
-            return e;
-        }
-    };
-
-    let payload = attn_report + "|" + &sig + "|" + &cert;
-
-    let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
-        Ok(r) => r,
-        Err(e) => {
-            warn!("Error in gen_ecc_cert: {:?}", e);
-            return e;
-        }
-    };
-    ecc_handle.close().unwrap();
-
-    let mut certs = Vec::new();
-    certs.push(rustls::Certificate(cert_der));
-    let privkey = rustls::PrivateKey(key_der);
-
-    let mut cfg = rustls::ClientConfig::new();
-    cfg.set_single_client_cert(certs, privkey).unwrap();
-    cfg.dangerous()
-        .set_certificate_verifier(Arc::new(ServerAuth::new(true)));
-    cfg.versions.clear();
-    cfg.versions.push(rustls::ProtocolVersion::TLSv1_2);
-
-    let dns_name = webpki::DNSNameRef::try_from_ascii_str("localhost").unwrap();
-    let mut sess = rustls::ClientSession::new(&Arc::new(cfg), dns_name);
-    let mut conn = TcpStream::new(socket_fd).unwrap();
-
-    let mut tls = rustls::Stream::new(&mut sess, &mut conn);
-
-    // tls.write("hello".as_bytes()).unwrap();
-
-    let mut data = Vec::new();
-    match tls.read_to_end(&mut data) {
-        Ok(_bufffer_size) => {
-            let helper = DeSerializeHelper::<Keys>::new(data);
-            let keys = match helper.decode() {
-                Some(d) => d,
-                None => {
-                    error!("Failed to encode Keys.");
-                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-                }
-            };
-            let (skey, pkey, sig) = keys.get_keys();
-            let mut keys = KEYS.lock().unwrap();
-            keys.pkey = pkey;
-            keys.skey = skey;
-            keys.sig = sig;
-            keys.save();
-        }
-        Err(ref err) if err.kind() == io::ErrorKind::ConnectionAborted => {
-            warn!("EOF (tls)");
-        }
-        Err(e) => warn!("Error in read_to_end: {:?}", e),
-    }
+    // tls.write("hello back".as_bytes()).unwrap();
 
     sgx_status_t::SGX_SUCCESS
 }

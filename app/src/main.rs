@@ -106,11 +106,6 @@ async fn main() -> std::io::Result<()> {
                 })
                 .expect("Failed to launch ra_server thread");
 
-            // // Get attested from peers to receive Signing Keys.
-            // if !get_attested_keys(eid, cfg.ra_servers.clone()).await {
-            //     enclave.destroy();
-            //     panic!("Failed to get/generate key pair");
-            // }
             let ok=gen_keys(eid);
             if !ok{
                 panic!("GenKey fail!")
@@ -186,69 +181,6 @@ fn start_ra_server(eid: u64) {
             Err(e) => error!("Failed to get client: {:?}", e),
         }
     }
-}
-
-/// Get attested from the peer Kaleido server and retrieves the signing keys.
-/// If no peers are available this will generate a new key pair as an independent node.
-/// Returns true when a key pair is received or generated else false.
-async fn get_attested_keys(eid: u64, ra_servers_addr: Vec<String>) -> bool {
-    info!("Connecting to remote attestation server");
-    debug!("Remote Attestation Address: {:?}", ra_servers_addr);
-
-    let my_ip = reqwest::blocking::get("https://ifconfig.me/ip")
-        .unwrap()
-        .text()
-        .unwrap();
-
-    debug!("My Public IP: {:?}", my_ip);
-
-    let mut addrs = Vec::new();
-    for addr in ra_servers_addr {
-        let servers: Vec<SocketAddr> = addr
-            .to_socket_addrs()
-            .expect("Unable to resolve domain")
-            .collect();
-
-        debug!("Peer: {:?}", servers);
-
-        for server in servers {
-            if server.ip().to_string().eq(&my_ip) {
-                debug!("Remote Attestation is on the same server.");
-                return gen_keys(eid);
-            }
-
-            addrs.push(server);
-        }
-    }
-
-    info!("Connecting to Remote Attestation server");
-    let socket = TcpStream::connect(addrs.as_slice());
-    let socket = match socket {
-        Ok(s) => s,
-        Err(_) => {
-            warn!("Failed to connect to Remote Attestation server, starting independent Kaleido node.");
-            return gen_keys(eid);
-        }
-    };
-    let mut retval = sgx_status_t::SGX_SUCCESS;
-    let result = unsafe {
-        enclave::ecalls::run_client(
-            eid,
-            &mut retval,
-            socket.as_raw_fd(),
-            sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
-        )
-    };
-    match result {
-        sgx_status_t::SGX_SUCCESS => {
-            info!("Client attested successfully!");
-        }
-        _ => {
-            error!("Client Attestation failed {}!", result.as_str());
-            return false;
-        }
-    }
-    true
 }
 
 fn gen_keys(eid: u64) -> bool {
