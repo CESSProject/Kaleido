@@ -329,14 +329,16 @@ pub extern "C" fn process_data(
             println!("-------------------PoDR2 TEST Pri-------------------");
             let et = podr2_pri::key_gen::key_gen();
             let plain = b"This is not a password";
-            let mut encrypt_result=et.symmetric_encrypt(plain).unwrap();
+            let mut encrypt_result=et.symmetric_encrypt(plain,"enc").unwrap();
             let ct=u8v_to_hexstr(&encrypt_result);
-            let mut decrypt_result=et.symmetric_decrypt(&encrypt_result).unwrap();
             println!("CBC encrypt result is :{:?}",ct);
+            let mut decrypt_result=et.symmetric_decrypt(&encrypt_result,"enc").unwrap();
             println!("CBC decrypt result is :{:?}",std::str::from_utf8(&decrypt_result).unwrap());
 
             let mac_hash_result=et.mac_encrypt(plain).unwrap();
             let mac_hex=u8v_to_hexstr(&mac_hash_result);
+            // podr2_pri::sig_gen::sig_gen(et);
+
             println!("HMAC result is :{:?}",mac_hex);
             println!("-------------------PoDR2 TEST Pri-------------------");
 
