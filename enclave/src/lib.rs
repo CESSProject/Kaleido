@@ -339,10 +339,10 @@ pub extern "C" fn process_data(
             let mac_hex=u8v_to_hexstr(&mac_hash_result);
             println!("HMAC result is :{:?}",mac_hex);
             let mut matrix:Vec<Vec<u8>>=vec![];
-            matrix.push(et.get_prf());
-            matrix.push(et.get_prf());
-            matrix.push(et.get_prf());
-            matrix.push(et.get_prf());
+            matrix.push(vec![11,22,33,44,55,66]);
+            matrix.push(vec![11,22,33,44,55,66]);
+            matrix.push(vec![11,22,33,44,55,66]);
+            matrix.push(vec![11,22,33,44,55,66]);
             println!("matrix is {:?}",matrix);
             let sig_gen_result=podr2_pri::sig_gen::sig_gen(matrix.clone(),et.clone());
             println!("sigmas:{:?}",sig_gen_result.0);

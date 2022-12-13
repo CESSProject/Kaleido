@@ -20,7 +20,7 @@ pub struct EncryptionType {
 pub trait Symmetric {
     fn symmetric_encrypt(&self, orig_data: &[u8],key_type: &str) -> Result<Vec<u8>, PoDR2Error>;
     fn symmetric_decrypt(&self, ciphertext: &[u8],key_type: &str) -> Result<Vec<u8>, PoDR2Error>;
-    fn get_prf(&self) ->Vec<u8>;
+    fn get_prf(&self) ->String;
 }
 
 pub trait MacHash {
@@ -93,8 +93,9 @@ impl Symmetric for EncryptionType {
         Ok(final_result)
     }
 
-    fn get_prf(&self) ->Vec<u8>{
-        self.aes.prf.to_vec().clone()
+    fn get_prf(&self) ->String{
+        // std::str::from_utf8(&self.aes.prf.to_vec()).unwrap().to_string()
+        crate::u8v_to_hexstr(&self.aes.prf.clone())
     }
 }
 
