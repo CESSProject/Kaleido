@@ -43,14 +43,14 @@ impl Tag0 {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "PascalCase")]
 pub struct EncEncrypt {
-    pub prf: Vec<u8>,
-    pub alpha: Vec<i128>,
+    pub prf: String,
+    pub alpha: Vec<i64>,
 }
 
 impl EncEncrypt {
     pub fn new() -> EncEncrypt {
         EncEncrypt {
-            prf: vec![],
+            prf: "".to_string(),
             alpha: vec![]
         }
     }

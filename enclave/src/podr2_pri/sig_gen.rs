@@ -11,23 +11,18 @@ use num_bigint::{BigInt,ToBigInt,Sign};
 use sgx_rand::Rng;
 use podr2_pri::{EncEncrypt, Tag, Tag0};
 
-// pub fn notify(matrix: &Vec<Vec<u8>>, et: &EncryptionType) {
-//     println!("Breaking news! {}", item.summarize());
-// }
-
 pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
     where T: Symmetric + MacHash
 {
 
-    let mut alphas:Vec<i128> =vec![];
-    // let mut alpha_big :Vec<BigInt>=Default::default();
+    let mut alphas:Vec<i64> =vec![];
     let mut alpha_big :Vec<BigInt>=vec![];
 
-    for item in matrix[0].iter(){
-        let mut rng_128 = sgx_rand::random::<i128>();
-        // let mut rng_128 = 100_i128;
-        alphas.push(rng_128);
-        alpha_big.push(rng_128.to_bigint().unwrap());
+    for item in matrix[0].clone(){
+        let mut rng_64 = sgx_rand::random::<i64>();
+        alphas.push(rng_64);
+        alpha_big.push(rng_64.to_bigint().unwrap());
+        rng_64+=1
     }
 
     let mut tag =Tag::new();
@@ -35,14 +30,12 @@ pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
     let mut enc =EncEncrypt::new();
     enc.prf=ct.get_prf();
     enc.alpha=alphas;
-    let mut enc_serialized = serde_json::to_string(&enc).unwrap();
-    let mut enc_serialized_bytes = enc_serialized.clone().into_bytes();
+    let mut enc_serialized_bytes = serde_json::to_vec(&enc).unwrap();
 
     //t0 be n||Enckencc(kprf||α1||···||αs)
     t0.n= matrix.len() as i64;
     t0.enc=ct.symmetric_encrypt(&enc_serialized_bytes,"enc").unwrap();
     let mut t0_serialized_bytes = serde_json::to_vec(&t0).unwrap();
-    // let mut t0_serialized_bytes = t0_serialized.clone().into_bytes();
 
     tag.t=t0;
     tag.mac_t0=ct.mac_encrypt(&t0_serialized_bytes).unwrap();
@@ -55,7 +48,6 @@ pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
         let mut j=0_usize;
         for per in item{
             let tmp=(alpha_big[j].clone()) * ((per as i64).to_bigint().unwrap());
-            // let sum_b=sum.clone();
             sum+=tmp;
             j+=1;
         }
