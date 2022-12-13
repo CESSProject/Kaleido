@@ -1,12 +1,17 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use serde::{Serialize, Deserialize};
 
 pub mod key_gen;
 pub mod sig_gen;
+pub mod chal_gen;
+pub mod gen_proof;
+pub mod verify_proof;
 
-struct Tag {
-    t: Tag0,
-    mac_t0: Vec<u8>,
+#[derive(Clone)]
+pub struct Tag {
+    pub t: Tag0,
+    pub mac_t0: Vec<u8>,
 }
 
 impl Tag {
@@ -18,9 +23,12 @@ impl Tag {
     }
 }
 
-struct Tag0 {
-    n: i64,
-    enc: Vec<u8>,
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+#[derive(Clone)]
+pub struct Tag0 {
+    pub n: i64,
+    pub enc: Vec<u8>,
 }
 
 impl Tag0 {
@@ -32,16 +40,23 @@ impl Tag0 {
     }
 }
 
-struct EncEncrypt {
-    prf: String,
-    alpha: Vec<i128>,
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+pub struct EncEncrypt {
+    pub prf: Vec<u8>,
+    pub alpha: Vec<i128>,
 }
 
 impl EncEncrypt {
     pub fn new() -> EncEncrypt {
         EncEncrypt {
-            prf: "".to_string(),
+            prf: vec![],
             alpha: vec![]
         }
     }
+}
+#[derive(Clone)]
+pub struct QElement {
+    pub i: i64,
+    pub v: i64
 }

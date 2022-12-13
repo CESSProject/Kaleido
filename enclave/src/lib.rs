@@ -337,9 +337,23 @@ pub extern "C" fn process_data(
 
             let mac_hash_result=et.mac_encrypt(plain).unwrap();
             let mac_hex=u8v_to_hexstr(&mac_hash_result);
-            // podr2_pri::sig_gen::sig_gen(et);
-
             println!("HMAC result is :{:?}",mac_hex);
+            let mut matrix:Vec<Vec<u8>>=vec![];
+            matrix.push(et.get_prf());
+            matrix.push(et.get_prf());
+            matrix.push(et.get_prf());
+            matrix.push(et.get_prf());
+            println!("matrix is {:?}",matrix);
+            let sig_gen_result=podr2_pri::sig_gen::sig_gen(matrix.clone(),et.clone());
+            println!("sigmas:{:?}",sig_gen_result.0);
+            println!("tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",sig_gen_result.1.mac_t0.clone(),sig_gen_result.1.t.n.clone(),sig_gen_result.1.t.enc.clone());
+            let q_slice=podr2_pri::chal_gen::chal_gen(4);
+            let gen_proof_result=podr2_pri::gen_proof::gen_proof(sig_gen_result.0,q_slice.clone(),matrix.clone());
+            println!("sigma is :{:?}",gen_proof_result.0);
+            println!("miu is :{:?}",gen_proof_result.1);
+
+            let ok=podr2_pri::verify_proof::verify_proof(gen_proof_result.0,q_slice.clone(),gen_proof_result.1,sig_gen_result.1,et.clone());
+            println!("verify result is {}",ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
 
             // Post PoDR2Data to callback url.

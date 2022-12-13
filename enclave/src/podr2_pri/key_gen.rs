@@ -11,7 +11,7 @@ use sgx_rand;
 use sgx_rand::Rng;
 use crate::param::podr2_commit_data::PoDR2Error;
 
-
+#[derive(Clone)]
 pub struct EncryptionType {
     pub aes: AES,
     pub hmacsha1: HMACSHA1,
@@ -26,11 +26,11 @@ pub trait Symmetric {
 pub trait MacHash {
     fn mac_encrypt(&self, orig_data: &[u8]) -> Result<Vec<u8>, PoDR2Error>;
 }
-
+#[derive(Clone)]
 pub struct HMACSHA1 {
     pub mac: [u8; 16],
 }
-
+#[derive(Clone)]
 pub struct AES {
     pub enc: [u8; 16],
     pub prf: [u8; 16],
@@ -108,13 +108,14 @@ impl MacHash for EncryptionType {
 
 
 pub fn key_gen() -> EncryptionType {
-    // let mut enc = String::from("1234567890123456");
+    // let mut enc = String::from("1234567891234567");
     let mut enc_byte = [0u8; 16];
     let mut prf_byte = [0u8; 16];
     let mut mac_byte = [0u8; 16];
     // let mut i = 0;
     // for ix in enc.as_bytes() {
     //     enc_byte[i] = *ix;
+    //     prf_byte[i] = *ix;
     //     mac_byte[i] = *ix;
     //     i += 1;
     // }

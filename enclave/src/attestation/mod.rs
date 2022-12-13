@@ -562,7 +562,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
 
 #[no_mangle]
 pub extern "C" fn run_server(
-    // socket_fd: c_int, 
+    // socket_fd: c_int,
     sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
 
@@ -570,7 +570,7 @@ pub extern "C" fn run_server(
     let ecc_handle = SgxEccHandle::new();
     let _result = ecc_handle.open();
     let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
-    
+
     let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
         Ok(r) => r,
         Err(e) => {
