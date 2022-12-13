@@ -35,9 +35,9 @@ pub fn chal_gen(n: i64) -> Vec<QElement> {
     n_blocks.sort();
 
     for i in 0..n_samples {
-        let v_range = Range::new(0_f64, f64::MAX);
-        let v = v_range.ind_sample(&mut rng) as i64;
-
+        let mut rng = thread_rng();
+        let v_between = Range::new(0_i64, i64::MAX);
+        let v = v_between.ind_sample(&mut rng);  
         challenge.push(QElement {
             i: n_blocks[i],
             v
