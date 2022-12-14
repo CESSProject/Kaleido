@@ -98,19 +98,14 @@ async fn main() -> std::io::Result<()> {
                 panic!("Failed to initialize enclave libraries");
             }
 
-            // Start Remote Attestation server.
-            std::thread::Builder::new()
-                .name("ra_server".to_owned())
-                .spawn(move || {
-                    start_ra_server(eid);
-                })
-                .expect("Failed to launch ra_server thread");
-
-            let ok=gen_keys(eid);
-            if !ok{
-                panic!("GenKey fail!")
-            }
-            info!("Create a key gen success!");
+            let result = unsafe {
+                enclave::ecalls::run_server(
+                    eid,
+                    &mut retval,
+                    sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
+                )
+            };
+            println!("Get intel result is {:?}",result);
 
             let res = HttpServer::new(move || {
                 let logger = Logger::default();
@@ -137,58 +132,6 @@ async fn main() -> std::io::Result<()> {
         }
     };
     result
-}
-
-enum Mode {
-    Client,
-    Server,
-}
-
-fn start_ra_server(eid: u64) {
-    let port: u16 = env::var("REMOTE_ATTESTATION_PORT")
-        .unwrap_or("8088".to_string())
-        .parse()
-        .unwrap();
-
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port.to_string())).unwrap();
-    info!(
-        "Remote attestation server listening on port: {}",
-        port.to_string()
-    );
-    loop {
-        match listener.accept() {
-            Ok((socket, addr)) => {
-                info!("New client from {:?}", addr);
-                let mut retval = sgx_status_t::SGX_SUCCESS;
-                let result = unsafe {
-                    enclave::ecalls::run_server(
-                        eid,
-                        &mut retval,
-                        socket.as_raw_fd(),
-                        sgx_quote_sign_type_t::SGX_LINKABLE_SIGNATURE,
-                    )
-                };
-                match result {
-                    sgx_status_t::SGX_SUCCESS => {
-                        info!("Attestation success for client {:?}!", addr);
-                    }
-                    _ => {
-                        error!("Failed to attest client {:?} {}!", addr, result.as_str());
-                        return;
-                    }
-                }
-            }
-            Err(e) => error!("Failed to get client: {:?}", e),
-        }
-    }
-}
-
-fn gen_keys(eid: u64) -> bool {
-    let mut retval = sgx_status_t::SGX_SUCCESS;
-    unsafe {
-        enclave::ecalls::gen_keys(eid, &mut retval);
-    }
-    retval == sgx_status_t::SGX_SUCCESS
 }
 
 #[cfg(test)] 

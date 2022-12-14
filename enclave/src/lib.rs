@@ -31,6 +31,7 @@ extern crate sgx_rand;
 extern crate sgx_serialize;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
+extern crate secp256k1;
 
 #[macro_use]
 extern crate lazy_static;
@@ -52,7 +53,6 @@ extern crate alloc;
 // #[macro_use]
 // extern crate itertools;
 
-//mra dependence
 extern crate base64;
 extern crate bit_vec;
 extern crate chrono;
@@ -207,6 +207,7 @@ impl Keys {
 
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
+    static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
 );
 
 #[no_mangle]
@@ -277,6 +278,7 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
+    println!("The Payload value is :{:?}",Payload.lock().unwrap());
     let mut status = param::podr2_commit_response::StatusInfo::new();
     let mut podr2_data = PoDR2Data::new();
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
@@ -347,7 +349,7 @@ pub extern "C" fn process_data(
             let sig_gen_result=podr2_pri::sig_gen::sig_gen(matrix.clone(),et.clone());
             println!("sigmas:{:?}",sig_gen_result.0);
             println!("tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",sig_gen_result.1.mac_t0.clone(),sig_gen_result.1.t.n.clone(),sig_gen_result.1.t.enc.clone());
-            let q_slice=podr2_pri::chal_gen::chal_gen(n_blocks as i64);
+            let q_slice=podr2_pri::chal_gen::chal_gen(matrix.len() as i64);
             let gen_proof_result=podr2_pri::gen_proof::gen_proof(sig_gen_result.0,q_slice.clone(),matrix.clone());
             println!("sigma is :{:?}",gen_proof_result.0);
             println!("miu is :{:?}",gen_proof_result.1);
@@ -355,7 +357,6 @@ pub extern "C" fn process_data(
             let ok=podr2_pri::verify_proof::verify_proof(gen_proof_result.0,q_slice.clone(),gen_proof_result.1,sig_gen_result.1,et.clone());
             println!("verify result is {}",ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
-
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
                 let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);

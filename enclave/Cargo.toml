@@ -30,6 +30,7 @@ yasna = { git = "https://github.com/mesalock-linux/yasna.rs-sgx", features = [
     "num-bigint",
     "chrono"
 ] }
+libsecp256k1 = { git ="https://github.com/mesalock-linux/libsecp256k1-rs-sgx"}
 num-bigint = { git = "https://github.com/mesalock-linux/num-bigint-sgx" }
 num = { git = "https://github.com/mesalock-linux/num-sgx" }
 bit-vec = { version = "0.6", default-features = false }
