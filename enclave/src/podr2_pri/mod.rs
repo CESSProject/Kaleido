@@ -10,7 +10,7 @@ pub mod key_gen;
 pub mod sig_gen;
 pub mod verify_proof;
 
-#[derive(Serializable, DeSerializable)]
+#[derive(Clone, Serializable, DeSerializable)]
 pub struct ProofTimer {
     /// Unique random value sent by CESS Chain
     pub id: Vec<u8>,
