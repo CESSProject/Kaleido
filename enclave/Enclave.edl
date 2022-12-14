@@ -39,7 +39,7 @@ enclave {
         );
 
         //mra about
-        public sgx_status_t run_server(int fd,sgx_quote_sign_type_t quote_type);
+        public sgx_status_t run_server(sgx_quote_sign_type_t quote_type);
     };
 
     untrusted {

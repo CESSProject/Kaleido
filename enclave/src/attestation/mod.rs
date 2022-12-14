@@ -20,13 +20,14 @@
 pub mod cert;
 pub mod hex;
 
+use libc::rand;
 use sgx_rand::*;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use sgx_types::*;
 use std::backtrace::{self, PrintFormat};
-
+use secp256k1::*;
 use crate::{Keys, KEYS};
 use ocall_def::*;
 use std::env;
@@ -250,7 +251,7 @@ fn as_u32_le(array: &[u8; 4]) -> u32 {
 
 #[allow(const_err)]
 pub fn create_attestation_report(
-    pub_k: &sgx_ec256_public_t,
+    pub_k: &PublicKey,
     sign_type: sgx_quote_sign_type_t,
 ) -> Result<(String, String, String), sgx_status_t> {
     // Workflow:
@@ -304,14 +305,16 @@ pub fn create_attestation_report(
     // (2) Generate the report
     // Fill ecc256 public key into report_data
     let mut report_data: sgx_report_data_t = sgx_report_data_t::default();
-    let mut pub_k_gx = pub_k.gx.clone();
-    pub_k_gx.reverse();
+    // let mut pub_k_gx = pub_k.gx.clone();
+    // pub_k_gx.reverse();
+    //
+    // let mut pub_k_gy = pub_k.gy.clone();
+    // pub_k_gy.reverse();
+    //
+    // report_data.d[..32].clone_from_slice(&pub_k_gx);
+    // report_data.d[32..].clone_from_slice(&pub_k_gy);
 
-    let mut pub_k_gy = pub_k.gy.clone();
-    pub_k_gy.reverse();
-
-    report_data.d[..32].clone_from_slice(&pub_k_gx);
-    report_data.d[32..].clone_from_slice(&pub_k_gy);
+    report_data.d[..33].clone_from_slice(&pub_k.serialize_compressed());
 
     let rep = match rsgx_create_report(&ti, &report_data) {
         Ok(r) => {
@@ -562,16 +565,42 @@ impl rustls::ServerCertVerifier for ServerAuth {
 
 #[no_mangle]
 pub extern "C" fn run_server(
-    // socket_fd: c_int,
     sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
 
     // Generate Keypair
-    let ecc_handle = SgxEccHandle::new();
-    let _result = ecc_handle.open();
-    let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
+    let mut rand_slice =[0u8; 32];
+    let mut os_rng = sgx_rand::SgxRng::new().unwrap();
+    os_rng.fill_bytes(&mut rand_slice);
+    println!("rand slice is {:?}",rand_slice);
+    let mut ssk=SecretKey::parse_slice(&rand_slice).unwrap();
+    let mut spk=PublicKey::from_secret_key(&ssk);
+    println!("ssk is {:?}", crate::u8v_to_hexstr(&ssk.serialize()[..]));
+    println!("spk is {:?}", crate::u8v_to_hexstr(&spk.serialize_compressed()[..]));
+    let message_arr = [5u8; 32];
+    println!("message_arr is {:?}",crate::u8v_to_hexstr(&message_arr));
+    let ctx_message = Message::parse(&message_arr);
+    let (sig,recid)=secp256k1::sign(&ctx_message,&ssk);
+    let mut make_rec_sig=[0u8;65];
+    let mut index =0_usize;
+    for i in sig.serialize() {
+        make_rec_sig[index] = i;
+        index = index + 1;
+    }
+    if recid.serialize() > 26 {
+        make_rec_sig[64] = recid.serialize() + 27;
+    } else {
+        make_rec_sig[64] = recid.serialize();
+    }
+    let ok=secp256k1::verify(&ctx_message,&sig,&spk);
+    println!("Verify secp256k1 result is {}",ok);
+    println!("recid is {:?}",crate::u8v_to_hexstr(&make_rec_sig));
 
-    let (attn_report, sig, cert) = match create_attestation_report(&pub_k, sign_type) {
+    // let ecc_handle = SgxEccHandle::new();
+    // let _result = ecc_handle.open();
+    // let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
+
+    let (attn_report, sig, cert) = match create_attestation_report(&spk, sign_type) {
         Ok(r) => r,
         Err(e) => {
             warn!("Error in create_attestation_report: {:?}", e);
@@ -579,7 +608,9 @@ pub extern "C" fn run_server(
         }
     };
 
-    // let payload = attn_report + "|" + &sig + "|" + &cert;
+    let payload = attn_report + "|" + &sig + "|" + &cert;
+    let mut res=crate::Payload.lock().unwrap();
+    res.clone_from(&payload);
     // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
     //     Ok(r) => r,
     //     Err(e) => {
@@ -587,8 +618,8 @@ pub extern "C" fn run_server(
     //         return e;
     //     }
     // };
-    let _result = ecc_handle.close();
-
+    // let _result = ecc_handle.close();
+    //
     // let root_ca_bin = include_bytes!("../../../bin/ca.crt");
     // let mut ca_reader = BufReader::new(&root_ca_bin[..]);
     // let mut rc_store = rustls::RootCertStore::empty();
@@ -601,13 +632,13 @@ pub extern "C" fn run_server(
     // let mut certs = Vec::new();
     // certs.push(rustls::Certificate(cert_der));
     // let privkey = rustls::PrivateKey(key_der);
-
+    //
     // cfg.set_single_cert_with_ocsp_and_sct(certs, privkey, vec![], vec![])
     //     .unwrap();
-
+    //
     // let mut sess = rustls::ServerSession::new(&Arc::new(cfg));
     // let mut conn = TcpStream::new(socket_fd).unwrap();
-
+    //
     // let mut tls = rustls::Stream::new(&mut sess, &mut conn);
     // let mut plaintext = [0u8;1024]; //Vec::new();
     // match tls.read(&mut plaintext) {
@@ -617,7 +648,7 @@ pub extern "C" fn run_server(
     //         panic!("");
     //     }
     // };
-
+    //
     // tls.write("hello back".as_bytes()).unwrap();
 
     sgx_status_t::SGX_SUCCESS
