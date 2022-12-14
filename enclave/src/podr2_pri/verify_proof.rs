@@ -5,14 +5,39 @@ use podr2_pri::EncEncrypt;
 use podr2_pri::key_gen::{MacHash, Symmetric};
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
+use std::time::SystemTime;
+
+use crate::podr2_pri::PROOF_TIMER_LIST;
 
 use super::ProofTimer;
 
-pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec<u8>>,tag :super::Tag,ct: T, proof_timer: ProofTimer)->bool
+pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec<u8>>,tag :super::Tag,ct: T, proof_timer: &ProofTimer)->bool
     where T: Symmetric + MacHash
 {
 
-    // TODO: Check if the proof provided is within the time frame.
+    let mut proof_timer_list = PROOF_TIMER_LIST.lock().unwrap();
+    if !proof_timer_list.timers.contains(&proof_timer) {
+        warn!("Invalid ProofTimer! Does not exist.");
+        return false;
+    }
+
+    
+    // TODO: Get trusted time instead of system time.
+    let t = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => {
+            warn!("SystemTime before UNIX EPOCH!");
+            return false;
+        },
+    };
+
+    // Time of submission of proof should be lower than the given time frame.
+    if proof_timer.time < t {
+        warn!("Stale Proof! Proof invalid.");
+        return false;
+    }
+
+    debug!("Valid ProofTimer");
     
     let mut t_serialized_bytes = serde_json::to_vec(&tag.t).unwrap();
     let t0_mac=match ct.mac_encrypt(&t_serialized_bytes) {

@@ -40,15 +40,10 @@ pub fn chal_gen(n: i64, proof_timer: ProofTimer) -> Vec<QElement> {
         challenge.push(QElement { i: n_blocks[i], v });
     }
 
-    // let proof_timer = ProofTimer { id, time };
-
     let mut proof_timer_list = PROOF_TIMER_LIST.lock().unwrap();
     if !proof_timer_list.timers.contains(&proof_timer) {
-        debug!("****************Adding Time to Proof Timer List");
         proof_timer_list.timers.push(proof_timer);
-    } else {
-        debug!("****************Timer Exist");
     }
-    
+
     challenge
 }
