@@ -114,8 +114,7 @@ use std::{
     string::String,
     sync::SgxMutex,
     thread,
-    time::Duration,
-    time::Instant,
+    time::{Duration, Instant, SystemTime},
     untrusted::fs,
 };
 use podr2_pri::key_gen::{MacHash, Symmetric};
@@ -349,12 +348,22 @@ pub extern "C" fn process_data(
             let sig_gen_result=podr2_pri::sig_gen::sig_gen(matrix.clone(),et.clone());
             println!("sigmas:{:?}",sig_gen_result.0);
             println!("tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",sig_gen_result.1.mac_t0.clone(),sig_gen_result.1.t.n.clone(),sig_gen_result.1.t.enc.clone());
-            let q_slice=podr2_pri::chal_gen::chal_gen(matrix.len() as i64);
+            
+            
+            let t = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+                Ok(n) => n.as_secs(),
+                Err(_) => panic!("SystemTime before UNIX EPOCH!"),
+            };
+            println!("1970-01-01 00:00:00 UTC was {} seconds ago!", t);
+
+            let proof_timer = podr2_pri::ProofTimer { id: vec![12,244,32,12], time: 123123 };
+            let q_slice=podr2_pri::chal_gen::chal_gen(matrix.len() as i64,  proof_timer);
+
             let gen_proof_result=podr2_pri::gen_proof::gen_proof(sig_gen_result.0,q_slice.clone(),matrix.clone());
             println!("sigma is :{:?}",gen_proof_result.0);
             println!("miu is :{:?}",gen_proof_result.1);
 
-            let ok=podr2_pri::verify_proof::verify_proof(gen_proof_result.0,q_slice.clone(),gen_proof_result.1,sig_gen_result.1,et.clone());
+            let ok=podr2_pri::verify_proof::verify_proof(gen_proof_result.0,q_slice.clone(),gen_proof_result.1,sig_gen_result.1,et.clone(), proof_timer);
             println!("verify result is {}",ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.

@@ -6,9 +6,14 @@ use podr2_pri::key_gen::{MacHash, Symmetric};
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
 
-pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec<u8>>,tag :super::Tag,ct: T)->bool
+use super::ProofTimer;
+
+pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec<u8>>,tag :super::Tag,ct: T, proof_timer: ProofTimer)->bool
     where T: Symmetric + MacHash
 {
+
+    // TODO: Check if the proof provided is within the time frame.
+    
     let mut t_serialized_bytes = serde_json::to_vec(&tag.t).unwrap();
     let t0_mac=match ct.mac_encrypt(&t_serialized_bytes) {
         Ok(mac_value) => { mac_value }
