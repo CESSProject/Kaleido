@@ -10,7 +10,7 @@ pub mod key_gen;
 pub mod sig_gen;
 pub mod verify_proof;
 
-#[derive(Clone, Serializable, DeSerializable)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ProofTimer {
     /// Unique random value sent by CESS Chain
     pub id: Vec<u8>,
@@ -24,7 +24,7 @@ impl PartialEq for ProofTimer {
     }
 }
 
-#[derive(Serializable, DeSerializable)]
+#[derive(Serialize, Deserialize)]
 struct ProofTimerList {
     timers: Vec<ProofTimer>,
 }
