@@ -66,23 +66,33 @@ pub struct PoDR2CommitRequest {
     pub callback_url: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2ChalRequest {
+    pub n_blocks: usize,
+    pub random: Vec<u8>,
+    pub time: u64,
+    pub callback_url: String,
+}
+
+
 #[derive(Debug)]
-pub struct PoDR2CommitError {
+pub struct PoDR2Error {
     pub message: Option<String>,
 }
 
-impl PoDR2CommitError {
+impl PoDR2Error {
     fn message(&self) -> String {
         match &*self {
-            PoDR2CommitError {
+            PoDR2Error {
                 message: Some(message),
             } => message.clone(),
-            PoDR2CommitError { message: None } => "An unexpected error has occurred".to_string(),
+            PoDR2Error { message: None } => "An unexpected error has occurred".to_string(),
         }
     }
 }
 
-impl fmt::Display for PoDR2CommitError {
+impl fmt::Display for PoDR2Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
     }
@@ -94,7 +104,7 @@ pub struct PoDR2CommitErrorResponse {
     pub error: String,
 }
 
-impl ResponseError for PoDR2CommitError {
+impl ResponseError for PoDR2Error {
     fn status_code(&self) -> actix_web::http::StatusCode {
         StatusCode::BAD_REQUEST
     }

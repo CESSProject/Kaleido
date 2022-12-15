@@ -86,7 +86,8 @@ impl EncEncrypt {
         }
     }
 }
-#[derive(Clone)]
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct QElement {
     pub i: i64,
     pub v: i64,

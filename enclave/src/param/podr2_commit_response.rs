@@ -5,6 +5,8 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::podr2_pri::QElement;
+
 use super::Podr2Status;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -101,6 +103,23 @@ impl PoDR2Response {
         PoDR2Response {
             phi: Vec::new(),
             mht_root_sig: String::new(),
+            status: StatusInfo::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[repr(C)]
+pub struct PoDR2ChalResponse {
+    pub q_elements: Vec<QElement>,
+    pub status: StatusInfo,
+}
+
+impl PoDR2ChalResponse {
+    pub fn new() -> PoDR2ChalResponse {
+        PoDR2ChalResponse {
+            q_elements: Vec::new(),
             status: StatusInfo::new(),
         }
     }

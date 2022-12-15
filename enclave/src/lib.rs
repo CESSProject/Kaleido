@@ -25,13 +25,13 @@ extern crate cess_curve;
 extern crate http_req;
 extern crate libc;
 extern crate merkletree;
+extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_serialize;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
-extern crate secp256k1;
 
 #[macro_use]
 extern crate lazy_static;
@@ -66,14 +66,14 @@ extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
 
+mod attestation;
 mod merkletree_generator;
 mod ocall_def;
 mod param;
 mod pbc;
-mod podr2_pub;
 mod podr2_pri;
 mod podr2_proof_commit;
-mod attestation;
+mod podr2_pub;
 
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
@@ -90,7 +90,8 @@ use http_req::{
 use log::{info, warn};
 use merkletree::merkle::MerkleTree;
 use param::podr2_commit_data::PoDR2Data;
-use param::podr2_commit_response::PoDR2Response;
+use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
+use podr2_pri::QElement;
 use serde::{Deserialize, Serialize};
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use std::io::ErrorKind;
@@ -102,6 +103,7 @@ use param::{
     podr2_commit_response::{PoDR2CommitResponse, StatusInfo},
     Podr2Status,
 };
+use podr2_pri::key_gen::{MacHash, Symmetric};
 use sgx_types::*;
 use std::{
     env,
@@ -117,7 +119,8 @@ use std::{
     time::{Duration, Instant, SystemTime},
     untrusted::fs,
 };
-use podr2_pri::key_gen::{MacHash, Symmetric};
+
+use crate::podr2_pri::ProofTimer;
 
 static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 
@@ -206,7 +209,7 @@ impl Keys {
 
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
-    static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
+    static ref Payload: SgxMutex<String> = SgxMutex::new(String::new());
 );
 
 #[no_mangle]
@@ -277,7 +280,7 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
-    println!("The Payload value is :{:?}",Payload.lock().unwrap());
+    println!("The Payload value is :{:?}", Payload.lock().unwrap());
     let mut status = param::podr2_commit_response::StatusInfo::new();
     let mut podr2_data = PoDR2Data::new();
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
@@ -330,48 +333,59 @@ pub extern "C" fn process_data(
             println!("-------------------PoDR2 TEST Pri-------------------");
             let et = podr2_pri::key_gen::key_gen();
             let plain = b"This is not a password";
-            let mut encrypt_result=et.symmetric_encrypt(plain,"enc").unwrap();
-            let ct=u8v_to_hexstr(&encrypt_result);
-            println!("CBC encrypt result is :{:?}",ct);
-            let mut decrypt_result=et.symmetric_decrypt(&encrypt_result,"enc").unwrap();
-            println!("CBC decrypt result is :{:?}",std::str::from_utf8(&decrypt_result).unwrap());
+            let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
+            let ct = u8v_to_hexstr(&encrypt_result);
+            println!("CBC encrypt result is :{:?}", ct);
+            let mut decrypt_result = et.symmetric_decrypt(&encrypt_result, "enc").unwrap();
+            println!(
+                "CBC decrypt result is :{:?}",
+                std::str::from_utf8(&decrypt_result).unwrap()
+            );
 
-            let mac_hash_result=et.mac_encrypt(plain).unwrap();
-            let mac_hex=u8v_to_hexstr(&mac_hash_result);
-            println!("HMAC result is :{:?}",mac_hex);
-            let mut matrix:Vec<Vec<u8>>=vec![];
-            matrix.push(vec![11,22,33,44,55,66]);
-            matrix.push(vec![11,22,33,44,55,66]);
-            matrix.push(vec![11,22,33,44,55,66]);
-            matrix.push(vec![11,22,33,44,55,66]);
-            println!("matrix is {:?}",matrix);
-            let sig_gen_result=podr2_pri::sig_gen::sig_gen(matrix.clone(),et.clone());
-            println!("sigmas:{:?}",sig_gen_result.0);
-            println!("tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",sig_gen_result.1.mac_t0.clone(),sig_gen_result.1.t.n.clone(),sig_gen_result.1.t.enc.clone());
-            
-            
+            let mac_hash_result = et.mac_encrypt(plain).unwrap();
+            let mac_hex = u8v_to_hexstr(&mac_hash_result);
+            println!("HMAC result is :{:?}", mac_hex);
+            let mut matrix: Vec<Vec<u8>> = vec![];
+            matrix.push(vec![11, 22, 33, 44, 55, 66]);
+            matrix.push(vec![11, 22, 33, 44, 55, 66]);
+            matrix.push(vec![11, 22, 33, 44, 55, 66]);
+            matrix.push(vec![11, 22, 33, 44, 55, 66]);
+            println!("matrix is {:?}", matrix);
+            let sig_gen_result = podr2_pri::sig_gen::sig_gen(matrix.clone(), et.clone());
+            println!("sigmas:{:?}", sig_gen_result.0);
+            println!(
+                "tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",
+                sig_gen_result.1.mac_t0.clone(),
+                sig_gen_result.1.t.n.clone(),
+                sig_gen_result.1.t.enc.clone()
+            );
+
             let t = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
                 Ok(n) => n.as_secs(),
                 Err(_) => panic!("SystemTime before UNIX EPOCH!"),
             };
             debug!("1970-01-01 00:00:00 UTC was {} seconds ago!", t);
 
-            let proof_timer = podr2_pri::ProofTimer { id: vec![12,244,32,12], time: t + 10_u64 };
-            let q_slice=podr2_pri::chal_gen::chal_gen(matrix.len() as i64, proof_timer.clone());
+            let proof_timer = podr2_pri::ProofTimer {
+                id: vec![12, 244, 32, 12],
+                time: t + 10_u64,
+            };
+            let q_slice = podr2_pri::chal_gen::chal_gen(matrix.len() as i64, proof_timer.clone());
 
-            let gen_proof_result=podr2_pri::gen_proof::gen_proof(sig_gen_result.0,q_slice.clone(),matrix.clone());
-            println!("sigma is :{:?}",gen_proof_result.0);
-            println!("miu is :{:?}",gen_proof_result.1);
+            let gen_proof_result =
+                podr2_pri::gen_proof::gen_proof(sig_gen_result.0, q_slice.clone(), matrix.clone());
+            println!("sigma is :{:?}", gen_proof_result.0);
+            println!("miu is :{:?}", gen_proof_result.1);
 
-            let ok=podr2_pri::verify_proof::verify_proof(
+            let ok = podr2_pri::verify_proof::verify_proof(
                 gen_proof_result.0,
                 q_slice.clone(),
                 gen_proof_result.1,
                 sig_gen_result.1,
                 et.clone(),
-                &proof_timer
+                &proof_timer,
             );
-            println!("verify result is {}",ok);
+            println!("verify result is {}", ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
@@ -395,6 +409,61 @@ pub extern "C" fn process_data(
     sgx_status_t::SGX_SUCCESS
 }
 
+#[no_mangle]
+pub extern "C" fn gen_chal(
+    n_blocks: usize,
+    random: *mut u8,
+    random_len: usize,
+    time: u64,
+    callback_url: *const c_char,
+) -> sgx_status_t {
+    let mut r = unsafe { slice::from_raw_parts(random, random_len).to_vec() };
+
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
+    println!("*******************************************************");
+    println!("Time: {}", time);
+    println!("Random: {:?}", r);
+    println!("N_BLOCKS: {}", n_blocks);
+    println!("CALLBACK_URL: {}", callback_url_str);
+    println!("*******************************************************");
+
+    thread::Builder::new()
+        .name("process_data".to_string())
+        .spawn(move || {
+            let call_back_url = callback_url_str.clone();
+            let chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, ProofTimer { id: r, time });
+            let mut status = param::podr2_commit_response::StatusInfo::new();
+
+            if !call_back_url.is_empty() {
+                status.status_code = Podr2Status::PoDr2Success as usize;
+                status.status_msg = "ok".to_string();
+                let _ = post_chal(&chal, status, call_back_url);
+            } else {
+                status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
+                status.status_msg = "Invalid callback url".to_string();
+                let mut podr2_res = get_chal_resp(chal, status);
+                let json_data = serde_json::to_string(&podr2_res);
+                let json_data = match json_data {
+                    Ok(data) => data,
+                    Err(_) => {
+                        warn!("Failed to seralize PoDR2ChalResponse");
+                        "".to_string()
+                    }
+                };
+                debug!("PoDR2 Data: {}", json_data);
+
+                warn!("Callback URL not provided.");
+            }
+        });
+
+    sgx_status_t::SGX_SUCCESS
+}
+
 pub fn u8v_to_hexstr(x: &[u8]) -> String {
     // produce a hexnum string from a byte vector
     let mut s = String::new();
@@ -413,24 +482,22 @@ fn has_enough_mem(data_len: usize) -> bool {
     true
 }
 
-fn post_podr2_data(
-    data: PoDR2Data,
-    status_info: StatusInfo,
-    callback_url: String,
-    data_len: usize,
-) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data, status_info);
-
-    let json_data = serde_json::to_string(&podr2_res);
+fn post_chal(chal: &Vec<QElement>, status_info: StatusInfo, callback_url: String) -> sgx_status_t {
+    let mut chal_res = get_chal_resp(chal.to_vec(), status_info);
+    let json_data = serde_json::to_string(&chal_res);
     let json_data = match json_data {
         Ok(data) => data,
         Err(_) => {
-            warn!("Failed to seralize PoDR2CommitResponse");
+            warn!("Failed to seralize PoDR2ChalResponse");
             return sgx_status_t::SGX_ERROR_UNEXPECTED;
         }
     };
 
-    let addr = callback_url.parse();
+    return post_json_data(callback_url, json_data);
+}
+
+fn post_json_data(url: String, json_data: String)  -> sgx_status_t {
+    let addr = url.parse();
     let addr: Uri = match addr {
         Ok(add) => add,
         Err(_) => {
@@ -510,12 +577,39 @@ fn post_podr2_data(
             response.reason()
         );
     }
+    sgx_status_t::SGX_SUCCESS
+}
+
+fn post_podr2_data(
+    data: PoDR2Data,
+    status_info: StatusInfo,
+    callback_url: String,
+    data_len: usize,
+) -> sgx_status_t {
+    let mut podr2_res = get_podr2_resp(data, status_info);
+
+    let json_data = serde_json::to_string(&podr2_res);
+    let json_data = match json_data {
+        Ok(data) => data,
+        Err(_) => {
+            warn!("Failed to seralize PoDR2CommitResponse");
+            return sgx_status_t::SGX_ERROR_UNEXPECTED;
+        }
+    };
+
+    let result = post_json_data(callback_url, json_data);
 
     // Update available memory.
     let mem = ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
     info!("The enclave space is released to :{} (b)", mem + data_len);
 
-    return sgx_status_t::SGX_SUCCESS;
+    result
+}
+
+fn get_chal_resp(chal: Vec<QElement>, status_info: StatusInfo) -> PoDR2ChalResponse {
+    let mut chal_res = PoDR2ChalResponse::new();
+    chal_res.q_elements = chal;
+    chal_res
 }
 
 fn get_podr2_resp(data: PoDR2Data, status_info: StatusInfo) -> PoDR2Response {
