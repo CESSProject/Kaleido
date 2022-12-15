@@ -117,6 +117,7 @@ async fn main() -> std::io::Result<()> {
                         eid,
                     }))
                     .service(routes::r_process_data)
+                    .service(routes::r_get_chal)
             })
             .bind(("0.0.0.0", port))?
             .run()

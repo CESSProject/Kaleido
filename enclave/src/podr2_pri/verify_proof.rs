@@ -5,9 +5,11 @@ use podr2_pri::EncEncrypt;
 use podr2_pri::key_gen::{MacHash, Symmetric};
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
+use core::ops::Index;
 use std::time::SystemTime;
 
 use crate::podr2_pri::PROOF_TIMER_LIST;
+use sgx_types::*;
 
 use super::ProofTimer;
 
@@ -37,7 +39,12 @@ pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec
         return false;
     }
 
-    debug!("Valid ProofTimer");
+    // proof_timer_list.timers.index(index)
+    // Element will exist because we check above it the proof_timer is contained in the list.
+    let index = proof_timer_list.timers.iter().position(|x| *x == *proof_timer).unwrap();
+    debug!("Removing ProofTimer at index: {}", index);
+    proof_timer_list.timers.remove(index);
+    info!("Valid ProofTimer");
     
     let mut t_serialized_bytes = serde_json::to_vec(&tag.t).unwrap();
     let t0_mac=match ct.mac_encrypt(&t_serialized_bytes) {

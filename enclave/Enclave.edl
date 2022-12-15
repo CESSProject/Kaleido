@@ -38,6 +38,14 @@ enclave {
             [in, string] const char* callback_url
         );
 
+        public sgx_status_t gen_chal(
+            size_t n_blocks, 
+            [in, size=random_len] uint8_t* random,
+            size_t random_len,
+            uint64_t time, 
+            [in, string] const char* callback_url
+        );
+
         //mra about
         public sgx_status_t run_server(sgx_quote_sign_type_t quote_type);
     };

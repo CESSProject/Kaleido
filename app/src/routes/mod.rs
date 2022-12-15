@@ -1,13 +1,13 @@
 extern crate base64;
 
 use actix_web::http::header::ContentType;
-use actix_web::{error, post, web, HttpResponse, Responder, HttpRequest};
+use actix_web::{error, post, web, HttpRequest, HttpResponse, Responder};
 use sgx_types::*;
 
 use crate::enclave;
 use crate::models::app_state::AppState;
 use crate::models::podr2_commit_response::{
-    PoDR2CommitError, PoDR2CommitRequest, PoDR2CommitResponse,
+    PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error,
 };
 
 use std::ffi::CString;
@@ -20,20 +20,10 @@ use url::{ParseError, Url};
 pub async fn r_process_data(
     data: web::Data<AppState>,
     req: web::Json<PoDR2CommitRequest>,
-) -> Result<impl Responder, PoDR2CommitError> {
+) -> Result<impl Responder, PoDR2Error> {
     let eid = data.eid;
 
-    let callback_url = Url::parse(&req.callback_url);
-    let callback_url = match callback_url {
-        Ok(url) => url,
-        Err(_) => {
-            return Err(PoDR2CommitError {
-                message: Some("Invalid url".to_string()),
-            })
-        }
-    };
-    let c_callback_url_str = CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap();
-    debug!("Callback URL: {:?}", c_callback_url_str);
+    let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
 
     let data_base64: String = req.data.clone();
     let n_blocks: usize = req.n_blocks;
@@ -41,7 +31,7 @@ pub async fn r_process_data(
     let file_data = match file_data {
         Ok(data) => data,
         Err(_) => {
-            return Err(PoDR2CommitError {
+            return Err(PoDR2Error {
                 message: Some("Invalid base64 encoded data.".to_string()),
             })
         }
@@ -49,12 +39,12 @@ pub async fn r_process_data(
     debug!("File data decoded");
 
     let now = Instant::now();
-    let mut result = sgx_status_t::SGX_SUCCESS;
     let sigmas_len: usize = 0;
-
+    
     debug!("Processing file data");
-
+    
     // The sgx_status_t returned from ecall is reflected in `result` and not from the returned value here
+    let mut result = sgx_status_t::SGX_SUCCESS;
     let res = unsafe {
         enclave::ecalls::process_data(
             eid,
@@ -69,13 +59,60 @@ pub async fn r_process_data(
     debug!("Processing complete. Status: {}", res.as_str());
     // TODO: Make error handling more sophisticated
     if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-        return Err(PoDR2CommitError {
-                message: Some("SGX is busy, please try again later.".to_string())
-        })
+        return Err(PoDR2Error {
+            message: Some("SGX is busy, please try again later.".to_string()),
+        });
     }
 
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
     Ok(HttpResponse::Ok())
+}
+
+// r_ is appended to identify routes
+#[post("/get_chal")]
+pub async fn r_get_chal(
+    data: web::Data<AppState>,
+    req: web::Json<PoDR2ChalRequest>,
+) -> Result<impl Responder, PoDR2Error> {
+    let eid = data.eid;
+
+    let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
+
+    let mut result = sgx_status_t::SGX_SUCCESS;
+    let res = unsafe {
+        enclave::ecalls::gen_chal(
+            eid,
+            &mut result,
+            req.n_blocks,
+            req.random.as_ptr() as *mut u8,
+            req.random.len(),
+            req.time,
+            c_callback_url_str.as_ptr(),
+        )
+    };
+
+    debug!("Processing complete. Status: {}", res.as_str());
+    // TODO: Make error handling more sophisticated
+    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
+        return Err(PoDR2Error {
+            message: Some("SGX is busy, please try again later.".to_string()),
+        });
+    }
+
+    Ok(HttpResponse::Ok())
+}
+
+fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
+    let callback_url = Url::parse(url_str);
+    let callback_url = match callback_url {
+        Ok(url) => url,
+        Err(_) => {
+            return Err(PoDR2Error {
+                message: Some("Invalid url".to_string()),
+            })
+        }
+    };
+    Ok(CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap())
 }
