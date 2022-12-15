@@ -25,13 +25,13 @@ extern crate cess_curve;
 extern crate http_req;
 extern crate libc;
 extern crate merkletree;
-extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_serialize;
 extern crate sgx_tcrypto;
 extern crate sgx_types;
+extern crate secp256k1;
 
 #[macro_use]
 extern crate lazy_static;
@@ -66,14 +66,15 @@ extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
 
-mod attestation;
 mod merkletree_generator;
 mod ocall_def;
 mod param;
 mod pbc;
+mod podr2_pub;
 mod podr2_pri;
 mod podr2_proof_commit;
-mod podr2_pub;
+mod attestation;
+mod utils;
 
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
@@ -121,8 +122,6 @@ use std::{
 };
 
 use crate::podr2_pri::ProofTimer;
-
-static ENCLAVE_MEM_CAP: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -209,7 +208,7 @@ impl Keys {
 
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
-    static ref Payload: SgxMutex<String> = SgxMutex::new(String::new());
+    static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
 );
 
 #[no_mangle]
@@ -220,7 +219,7 @@ pub extern "C" fn init() -> sgx_status_t {
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
     debug!("HEAP_MAX_SIZE: {} MB", heap_max_size / (1024 * 1024));
     let max_file_size = (heap_max_size as f32 * 0.65) as usize;
-    ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
+    utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
     sgx_status_t::SGX_SUCCESS
 }
@@ -266,6 +265,21 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
+#[no_mangle]
+pub extern "C" fn get_report(
+    callback_url: *const c_char
+) -> sgx_status_t{
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    let report=Payload.lock().unwrap().to_string().clone();
+    utils::post::post_data(callback_url_str.clone(),&report);
+
+    sgx_status_t::SGX_SUCCESS
+}
+
 /// Arguments:
 /// `data` is the data that needs to be processed. It should not exceed SGX max memory size
 /// `data_len` argument is the number of **elements**, not the number of bytes.
@@ -280,7 +294,6 @@ pub extern "C" fn process_data(
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
-    println!("The Payload value is :{:?}", Payload.lock().unwrap());
     let mut status = param::podr2_commit_response::StatusInfo::new();
     let mut podr2_data = PoDR2Data::new();
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
@@ -288,16 +301,20 @@ pub extern "C" fn process_data(
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    if !has_enough_mem(data_len) {
+    if !utils::enclave_mem::has_enough_mem(data_len) {
         warn!("Enclave Busy.");
         status.status_msg = "Enclave Busy.".to_string();
         status.status_code = Podr2Status::PoDr2ErrorOutOfMemory as usize;
-        let _ = post_podr2_data(podr2_data, status, callback_url_str.clone(), 0);
+        let mut podr2_res = get_podr2_resp(podr2_data, status);
+
+        utils::post::post_data( callback_url_str.clone(),&podr2_res);
+        let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
+        info!("The enclave space is released to :{} (b)", mem);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
     // fetch_sub returns previous value. Therefore substract the data_len
-    let mem = ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
+    let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
     info!("Enclave remaining memory {}", mem - data_len);
 
     let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
@@ -334,7 +351,7 @@ pub extern "C" fn process_data(
             let et = podr2_pri::key_gen::key_gen();
             let plain = b"This is not a password";
             let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
-            let ct = u8v_to_hexstr(&encrypt_result);
+            let ct = utils::convert::u8v_to_hexstr(&encrypt_result);
             println!("CBC encrypt result is :{:?}", ct);
             let mut decrypt_result = et.symmetric_decrypt(&encrypt_result, "enc").unwrap();
             println!(
@@ -343,7 +360,7 @@ pub extern "C" fn process_data(
             );
 
             let mac_hash_result = et.mac_encrypt(plain).unwrap();
-            let mac_hex = u8v_to_hexstr(&mac_hash_result);
+            let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
             println!("HMAC result is :{:?}", mac_hex);
             let mut matrix: Vec<Vec<u8>> = vec![];
             matrix.push(vec![11, 22, 33, 44, 55, 66]);
@@ -389,7 +406,10 @@ pub extern "C" fn process_data(
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
-                let _ = post_podr2_data(podr2_data, status, call_back_url, data_len);
+                let mut podr2_res = get_podr2_resp(podr2_data, status);
+                utils::post::post_data(call_back_url, &podr2_res);
+                let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
+                info!("The enclave space is released to :{} (b)", mem + data_len);
             } else {
                 let mut podr2_res = get_podr2_resp(podr2_data, status);
                 let json_data = serde_json::to_string(&podr2_res);
@@ -442,11 +462,12 @@ pub extern "C" fn gen_chal(
             if !call_back_url.is_empty() {
                 status.status_code = Podr2Status::PoDr2Success as usize;
                 status.status_msg = "ok".to_string();
-                let _ = post_chal(&chal, status, call_back_url);
+                let mut chal_res = get_chal_resp(chal.to_vec());
+                utils::post::post_data(call_back_url,&chal_res);
             } else {
                 status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
                 status.status_msg = "Invalid callback url".to_string();
-                let mut podr2_res = get_chal_resp(chal, status);
+                let mut podr2_res = get_chal_resp(chal);
                 let json_data = serde_json::to_string(&podr2_res);
                 let json_data = match json_data {
                     Ok(data) => data,
@@ -464,149 +485,7 @@ pub extern "C" fn gen_chal(
     sgx_status_t::SGX_SUCCESS
 }
 
-pub fn u8v_to_hexstr(x: &[u8]) -> String {
-    // produce a hexnum string from a byte vector
-    let mut s = String::new();
-    for ix in 0..x.len() {
-        s.push_str(&format!("{:02x}", x[ix]));
-    }
-    s
-}
-
-fn has_enough_mem(data_len: usize) -> bool {
-    //Determine the remaining enclave memory size
-    let mem = ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
-    if mem < data_len {
-        return false;
-    }
-    true
-}
-
-fn post_chal(chal: &Vec<QElement>, status_info: StatusInfo, callback_url: String) -> sgx_status_t {
-    let mut chal_res = get_chal_resp(chal.to_vec(), status_info);
-    let json_data = serde_json::to_string(&chal_res);
-    let json_data = match json_data {
-        Ok(data) => data,
-        Err(_) => {
-            warn!("Failed to seralize PoDR2ChalResponse");
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-
-    return post_json_data(callback_url, json_data);
-}
-
-fn post_json_data(url: String, json_data: String)  -> sgx_status_t {
-    let addr = url.parse();
-    let addr: Uri = match addr {
-        Ok(add) => add,
-        Err(_) => {
-            warn!("Failed to Parse Url");
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-
-    let conn_addr = get_host_with_port(&addr);
-
-    //Connect to remote host
-    let mut stream = TcpStream::connect(&conn_addr);
-    let mut stream = match stream {
-        Ok(s) => s,
-        Err(e) => {
-            warn!("Failed to connect to {}, {}", addr, e);
-            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-        }
-    };
-
-    let json_bytes = json_data.as_bytes();
-    let mut writer = Vec::new();
-    let time_out = Some(Duration::from_millis(200));
-    if addr.scheme() == "https" {
-        //Open secure connection over TlsStream, because of `addr` (https)
-        let mut stream = tls::Config::default().connect(addr.host().unwrap_or(""), &mut stream);
-
-        let mut stream = match stream {
-            Ok(s) => s,
-            Err(e) => {
-                warn!("Failed to connect to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
-            }
-        };
-
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .method(Method::POST)
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                warn!("Failed to send https request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
-
-        info!(
-            "PoDR2 Post Data Status: {} {}",
-            response.status_code(),
-            response.reason()
-        );
-    } else {
-        let response = RequestBuilder::new(&addr)
-            .header("Connection", "Close")
-            .header("Content-Type", "Application/Json")
-            .header("Content-Length", &json_bytes.len())
-            .method(Method::POST)
-            .timeout(time_out)
-            .body(json_bytes)
-            .send(&mut stream, &mut writer);
-        let response = match response {
-            Ok(res) => res,
-            Err(e) => {
-                warn!("Failed to send http request to {}, {}", addr, e);
-                return sgx_status_t::SGX_ERROR_UNEXPECTED;
-            }
-        };
-
-        info!(
-            "PoDR2 Post Data Status: {} {}",
-            response.status_code(),
-            response.reason()
-        );
-    }
-    sgx_status_t::SGX_SUCCESS
-}
-
-fn post_podr2_data(
-    data: PoDR2Data,
-    status_info: StatusInfo,
-    callback_url: String,
-    data_len: usize,
-) -> sgx_status_t {
-    let mut podr2_res = get_podr2_resp(data, status_info);
-
-    let json_data = serde_json::to_string(&podr2_res);
-    let json_data = match json_data {
-        Ok(data) => data,
-        Err(_) => {
-            warn!("Failed to seralize PoDR2CommitResponse");
-            return sgx_status_t::SGX_ERROR_UNEXPECTED;
-        }
-    };
-
-    let result = post_json_data(callback_url, json_data);
-
-    // Update available memory.
-    let mem = ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
-    info!("The enclave space is released to :{} (b)", mem + data_len);
-
-    result
-}
-
-fn get_chal_resp(chal: Vec<QElement>, status_info: StatusInfo) -> PoDR2ChalResponse {
+fn get_chal_resp(chal: Vec<QElement>) -> PoDR2ChalResponse {
     let mut chal_res = PoDR2ChalResponse::new();
     chal_res.q_elements = chal;
     chal_res
@@ -624,19 +503,4 @@ fn get_podr2_resp(data: PoDR2Data, status_info: StatusInfo) -> PoDR2Response {
     podr2_res.phi = phi_encoded;
     podr2_res.status = status_info;
     podr2_res
-}
-
-fn get_host_with_port(addr: &Uri) -> String {
-    let port = addr.port();
-    let port: u16 = if port.is_none() {
-        let scheme = addr.scheme();
-        if scheme == "http" {
-            80
-        } else {
-            443
-        }
-    } else {
-        port.unwrap()
-    };
-    format!("{}:{}", addr.host().unwrap(), port)
 }
