@@ -6,6 +6,7 @@ use sgx_types::*;
 
 use crate::enclave;
 use crate::models::app_state::AppState;
+use crate::models::req::{ReqReport,ReqFail};
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error,
 };
@@ -67,6 +68,38 @@ pub async fn r_process_data(
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
+    Ok(HttpResponse::Ok())
+}
+
+#[post("/get_report")]
+pub async fn r_get_report(
+    data: web::Data<AppState>,
+    req: web::Json<ReqReport>,
+) -> Result<impl Responder, ReqFail> {
+    let callback_url = match Url::parse(&req.callback_url) {
+        Ok(url) => url,
+        Err(e) => {
+            warn!("Get callbcak url fail! error:{:?}",e.to_string());
+            return Err(ReqFail {
+                message: Some("Get callbcak url fail!".to_string()+ &e.to_string())
+            })
+        }
+    };
+
+    let mut result = sgx_status_t::SGX_SUCCESS;
+    let c_callback_url_str = CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap();
+    let res = unsafe {
+        enclave::ecalls::get_report(
+            data.eid,
+            &mut result,
+            c_callback_url_str.as_ptr(),
+        )
+    };
+    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
+        return Err(ReqFail {
+            message: Some("Error happened when get report from Kaleido!".to_string())
+        })
+    }
     Ok(HttpResponse::Ok())
 }
 

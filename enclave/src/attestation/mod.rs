@@ -41,6 +41,7 @@ use std::string::String;
 use std::sync::Arc;
 use std::untrusted::fs;
 use std::vec::Vec;
+use utils::{convert::u8v_to_hexstr};
 // use itertools::Itertools;
 
 pub const IAS_HOSTNAME: &'static str = env!("IAS_HOSTNAME");
@@ -575,10 +576,10 @@ pub extern "C" fn run_server(
     println!("rand slice is {:?}",rand_slice);
     let mut ssk=SecretKey::parse_slice(&rand_slice).unwrap();
     let mut spk=PublicKey::from_secret_key(&ssk);
-    println!("ssk is {:?}", crate::u8v_to_hexstr(&ssk.serialize()[..]));
-    println!("spk is {:?}", crate::u8v_to_hexstr(&spk.serialize_compressed()[..]));
+    println!("ssk is {:?}", u8v_to_hexstr(&ssk.serialize()[..]));
+    println!("spk is {:?}", u8v_to_hexstr(&spk.serialize_compressed()[..]));
     let message_arr = [5u8; 32];
-    println!("message_arr is {:?}",crate::u8v_to_hexstr(&message_arr));
+    println!("message_arr is {:?}",u8v_to_hexstr(&message_arr));
     let ctx_message = Message::parse(&message_arr);
     let (sig,recid)=secp256k1::sign(&ctx_message,&ssk);
     let mut make_rec_sig=[0u8;65];
@@ -594,7 +595,7 @@ pub extern "C" fn run_server(
     }
     let ok=secp256k1::verify(&ctx_message,&sig,&spk);
     println!("Verify secp256k1 result is {}",ok);
-    println!("recid is {:?}",crate::u8v_to_hexstr(&make_rec_sig));
+    println!("recid is {:?}",u8v_to_hexstr(&make_rec_sig));
 
     // let ecc_handle = SgxEccHandle::new();
     // let _result = ecc_handle.open();

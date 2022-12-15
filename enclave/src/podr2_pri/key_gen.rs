@@ -10,6 +10,7 @@ use crypto::digest::Digest;
 use sgx_rand;
 use sgx_rand::Rng;
 use crate::param::podr2_commit_data::PoDR2Error;
+use utils::{convert::u8v_to_hexstr};
 
 #[derive(Clone)]
 pub struct EncryptionType {
@@ -94,8 +95,7 @@ impl Symmetric for EncryptionType {
     }
 
     fn get_prf(&self) ->String{
-        // std::str::from_utf8(&self.aes.prf.to_vec()).unwrap().to_string()
-        crate::u8v_to_hexstr(&self.aes.prf.clone())
+        u8v_to_hexstr(&self.aes.prf.clone())
     }
 }
 

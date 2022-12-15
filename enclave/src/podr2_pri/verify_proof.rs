@@ -23,7 +23,7 @@ pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec
         return false;
     }
 
-    
+
     // TODO: Get trusted time instead of system time.
     let t = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
         Ok(n) => n.as_secs(),
