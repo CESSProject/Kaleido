@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::podr2_pri::QElement;
+use crate::podr2_pri::{ProofTimer, QElement};
 
 use super::Podr2Status;
 
@@ -113,6 +113,7 @@ impl PoDR2Response {
 #[repr(C)]
 pub struct PoDR2ChalResponse {
     pub q_elements: Vec<QElement>,
+    pub randomness: ProofTimer,
     pub status: StatusInfo,
 }
 
@@ -120,6 +121,10 @@ impl PoDR2ChalResponse {
     pub fn new() -> PoDR2ChalResponse {
         PoDR2ChalResponse {
             q_elements: Vec::new(),
+            randomness: ProofTimer {
+                id: Vec::new(),
+                time: 0,
+            },
             status: StatusInfo::new(),
         }
     }

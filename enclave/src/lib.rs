@@ -456,19 +456,20 @@ pub extern "C" fn gen_chal(
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, ProofTimer { id: r, time });
-            let mut status = param::podr2_commit_response::StatusInfo::new();
+            let proof_timer = ProofTimer { id: r, time };
+            let chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, proof_timer.clone());
 
             if !call_back_url.is_empty() {
-                status.status_code = Podr2Status::PoDr2Success as usize;
-                status.status_msg = "ok".to_string();
-                let mut chal_res = get_chal_resp(chal.to_vec());
+                let mut chal_res = get_chal_resp(chal.to_vec(), proof_timer.clone());
+                chal_res.status.status_code = Podr2Status::PoDr2Success as usize;
+                chal_res.status.status_msg = "ok".to_string();
+                
                 utils::post::post_data(call_back_url,&chal_res);
             } else {
-                status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
-                status.status_msg = "Invalid callback url".to_string();
-                let mut podr2_res = get_chal_resp(chal);
-                let json_data = serde_json::to_string(&podr2_res);
+                let mut chal_res = get_chal_resp(chal, proof_timer.clone());
+                chal_res.status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
+                chal_res.status.status_msg = "Invalid callback url".to_string();
+                let json_data = serde_json::to_string(&chal_res);
                 let json_data = match json_data {
                     Ok(data) => data,
                     Err(_) => {
@@ -485,9 +486,10 @@ pub extern "C" fn gen_chal(
     sgx_status_t::SGX_SUCCESS
 }
 
-fn get_chal_resp(chal: Vec<QElement>) -> PoDR2ChalResponse {
+fn get_chal_resp(chal: Vec<QElement>, proof_timer: ProofTimer) -> PoDR2ChalResponse {
     let mut chal_res = PoDR2ChalResponse::new();
     chal_res.q_elements = chal;
+    chal_res.randomness = proof_timer;
     chal_res
 }
 
