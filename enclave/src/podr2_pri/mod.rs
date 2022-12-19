@@ -41,6 +41,8 @@ lazy_static! (
     static ref PROOF_TIMER_LIST: SgxMutex<ProofTimerList> = SgxMutex::new(ProofTimerList::new());
 );
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[derive(Clone)]
 pub struct Tag {
     pub t: Tag0,

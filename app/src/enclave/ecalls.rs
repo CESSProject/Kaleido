@@ -6,9 +6,8 @@ extern "C" {
     pub fn process_data(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
-        data: *mut u8,
-        data_len: usize,
-        n_blocks: usize,
+        file_path: *const c_char,
+        block_size: usize,
         callback_url: *const c_char,
     ) -> sgx_status_t;
     pub fn gen_chal(
@@ -26,5 +25,11 @@ extern "C" {
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
         callback_url: *const c_char
+    ) -> sgx_status_t;
+    pub fn fill_random_file(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        file_path_ptr: *const c_char,
+        data_len: usize,
     ) -> sgx_status_t;
 }

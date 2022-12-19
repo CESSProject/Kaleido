@@ -119,6 +119,7 @@ async fn main() -> std::io::Result<()> {
                     .service(routes::r_process_data)
                     .service(routes::r_get_chal)
                     .service(routes::r_get_report)
+                    .service(routes::r_fill_random_file)
             })
             .bind(("0.0.0.0", port))?
             .run()

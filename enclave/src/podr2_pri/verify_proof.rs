@@ -77,7 +77,5 @@ pub fn verify_proof<T>(sigma :Vec<u8>,q_slice :Vec<super::QElement>,miu :Vec<Vec
         second+=alpha_j*miu_j;
         j+=1;
     }
-    println!("first add second {:?}",(first.clone()+second.clone()).to_string());
-    println!("sigma {:?}",num_bigint::BigInt::from_bytes_le(Sign::Plus,&sigma).to_string());
     num_bigint::BigInt::from_bytes_le(Sign::Plus,&sigma)==first+second
 }

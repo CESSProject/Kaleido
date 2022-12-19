@@ -21,50 +21,95 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![feature(core_intrinsics)]
 
+extern crate alloc;
+extern crate base64;
+extern crate bit_vec;
 extern crate cess_curve;
+extern crate chrono;
+#[cfg(not(target_env = "sgx"))]
+extern crate crypto;
+extern crate env_logger;
 extern crate http_req;
+extern crate httparse;
+#[macro_use]
+extern crate lazy_static;
 extern crate libc;
+#[macro_use]
+extern crate log;
 extern crate merkletree;
+extern crate num;
+extern crate num_bigint;
+extern crate rustls;
+extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_serialize;
-extern crate sgx_tcrypto;
-extern crate sgx_types;
-extern crate secp256k1;
-
-#[macro_use]
-extern crate lazy_static;
 #[macro_use]
 extern crate sgx_serialize_derive;
-
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-
-#[cfg(not(target_env = "sgx"))]
-extern crate crypto;
-
+extern crate sgx_tcrypto;
+extern crate sgx_trts;
+extern crate sgx_tse;
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-extern crate alloc;
+extern crate sgx_types;
+extern crate webpki;
+extern crate webpki_roots;
+extern crate yasna;
 
 // #[macro_use]
 // extern crate itertools;
 
-extern crate base64;
-extern crate bit_vec;
-extern crate chrono;
-extern crate httparse;
-extern crate num;
-extern crate num_bigint;
-extern crate rustls;
-extern crate sgx_trts;
-extern crate sgx_tse;
-extern crate webpki;
-extern crate webpki_roots;
-extern crate yasna;
+use alloc::borrow::ToOwned;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use core::convert::TryInto;
+use core::sync::atomic::AtomicUsize;
+
+use cess_curve::*;
+use http_req::{
+    request::{Method, RequestBuilder},
+    tls,
+    uri::Uri,
+};
+use http_req::response;
+use log::{info, warn};
+use merkletree::merkle::MerkleTree;
+use serde::{Deserialize, Serialize};
+use sgx_serialize::{DeSerializeHelper, SerializeHelper};
+use sgx_types::*;
+use std::{
+    env,
+    ffi::CStr,
+    io::{Error, Read, Write},
+    io::Seek,
+    net::TcpStream,
+    sgxfs::SgxFile,
+    slice,
+    string::String,
+    sync::SgxMutex,
+    thread,
+    time::{Duration, Instant, SystemTime},
+    untrusted::fs,
+};
+use std::io::ErrorKind;
+use std::sync::atomic::Ordering;
+
+// use ocall_def::ocall_post_podr2_commit_data;
+use param::{
+    podr2_commit_data::PoDR2CommitData,
+    podr2_pri_commit_data::PoDR2PriData,
+    Podr2Status,
+    StatusInfo
+};
+use param::podr2_commit_data::PoDR2Data;
+use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
+use podr2_pri::key_gen::{MacHash, Symmetric};
+use podr2_pri::QElement;
+use utils::file;
+
+use crate::podr2_pri::ProofTimer;
 
 mod merkletree_generator;
 mod ocall_def;
@@ -75,53 +120,6 @@ mod podr2_pri;
 mod podr2_proof_commit;
 mod attestation;
 mod utils;
-
-use alloc::borrow::ToOwned;
-use alloc::string::ToString;
-use alloc::vec::Vec;
-use cess_curve::*;
-use core::convert::TryInto;
-use core::sync::atomic::AtomicUsize;
-use http_req::response;
-use http_req::{
-    request::{Method, RequestBuilder},
-    tls,
-    uri::Uri,
-};
-use log::{info, warn};
-use merkletree::merkle::MerkleTree;
-use param::podr2_commit_data::PoDR2Data;
-use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
-use podr2_pri::QElement;
-use serde::{Deserialize, Serialize};
-use sgx_serialize::{DeSerializeHelper, SerializeHelper};
-use std::io::ErrorKind;
-use std::sync::atomic::Ordering;
-
-// use ocall_def::ocall_post_podr2_commit_data;
-use param::{
-    podr2_commit_data::PoDR2CommitData,
-    podr2_commit_response::{PoDR2CommitResponse, StatusInfo},
-    Podr2Status,
-};
-use podr2_pri::key_gen::{MacHash, Symmetric};
-use sgx_types::*;
-use std::{
-    env,
-    ffi::CStr,
-    io::Seek,
-    io::{Error, Read, Write},
-    net::TcpStream,
-    sgxfs::SgxFile,
-    slice,
-    string::String,
-    sync::SgxMutex,
-    thread,
-    time::{Duration, Instant, SystemTime},
-    untrusted::fs,
-};
-
-use crate::podr2_pri::ProofTimer;
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -206,7 +204,7 @@ impl Keys {
     }
 }
 
-lazy_static! (
+lazy_static!(
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
     static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
 );
@@ -288,45 +286,63 @@ pub extern "C" fn get_report(
 /// `callback_url` PoDR2 data will be posted back to this url
 #[no_mangle]
 pub extern "C" fn process_data(
-    data: *mut u8,
-    data_len: usize,
-    n_blocks: usize,
+    file_path: *const c_char,
+    block_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
-    let mut status = param::podr2_commit_response::StatusInfo::new();
-    let mut podr2_data = PoDR2Data::new();
-    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
-    let callback_url_str = match callback_url_str {
+    let mut status = StatusInfo::new();
+    let mut podr2_data = PoDR2PriData::new();
+    let callback_url_str = match unsafe { CStr::from_ptr(callback_url).to_str() } {
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    if !utils::enclave_mem::has_enough_mem(data_len) {
+    let file_path_str = match unsafe { CStr::from_ptr(file_path).to_str() } {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
+    let file_info=utils::file::read_untrusted_file(file_path_str);
+    println!("file data is {:?}",file_info.1.clone());
+
+    if file_info.0==0{
+        status.status_msg = "The file size is 0 or does not exist.".to_string();
+        status.status_code = Podr2Status::PoDr2ErrorNotexistFile as usize;
+        podr2_data.status=status;
+        utils::post::post_data( callback_url_str.clone(),&podr2_data);
+
+        let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
+        info!("The enclave space is released to :{} (b)", mem);
+        return sgx_status_t::SGX_ERROR_FILE_BAD_STATUS;
+    }
+
+    if !utils::enclave_mem::has_enough_mem(file_info.0) {
         warn!("Enclave Busy.");
         status.status_msg = "Enclave Busy.".to_string();
         status.status_code = Podr2Status::PoDr2ErrorOutOfMemory as usize;
-        let mut podr2_res = get_podr2_resp(podr2_data, status);
+        podr2_data.status=status;
+        utils::post::post_data( callback_url_str.clone(),&podr2_data);
 
-        utils::post::post_data( callback_url_str.clone(),&podr2_res);
         let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
         info!("The enclave space is released to :{} (b)", mem);
         return sgx_status_t::SGX_ERROR_BUSY;
     }
 
-    // fetch_sub returns previous value. Therefore substract the data_len
-    let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_sub(data_len, Ordering::SeqCst);
-    info!("Enclave remaining memory {}", mem - data_len);
+    // fetch_sub returns previous value. Therefore substract the file_size
+    let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_sub(file_info.0, Ordering::SeqCst);
+    info!("Enclave remaining memory {}", mem - file_info.0);
 
-    let mut d = unsafe { slice::from_raw_parts(data, data_len).to_vec() };
-    let (skey, pkey, _sig) = KEYS.lock().unwrap().get_keys();
-
-    if d.len() < n_blocks {
-        // TODO: Return Error for Invalid n_blocks (No. of Blocks can not be greater than data length.)
+    if file_info.0 < block_size {
+        // TODO: Return Error for Invalid block_size (No. of Blocks can not be greater than data length.)
         warn!(
-            "Invalid n_blocks {:?} - No. of blocks can not be greater than data length {:?}",
-            n_blocks,
-            d.len()
+            "Invalid block_size {:?} - per blocks can not be greater than data length {:?}",
+            block_size,
+            file_info.0
         );
+        status.status_msg = format!("Invalid block_size {:?} - per blocks can not be greater than data length {:?}",block_size, file_info.0).to_string();
+        status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
+        podr2_data.status=status;
+        utils::post::post_data( callback_url_str.clone(),&podr2_data);
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -334,48 +350,43 @@ pub extern "C" fn process_data(
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-            let podr2_data = podr2_pub::sig_gen(skey, pkey, &mut d, n_blocks);
-            let podr2_data = match podr2_data {
-                Ok(d) => {
-                    status.status_msg = "ok".to_string();
-                    d
-                }
-                Err(e) => {
-                    status.status_msg = e.to_string();
-                    status.status_code = Podr2Status::PoDr2Unexpected as usize;
-                    println!("PoDR2 Error: {}", e.to_string());
-                    PoDR2Data::new()
-                }
-            };
+            // let podr2_data = podr2_pub::sig_gen(skey, pkey, &mut d, block_size);
+            // let podr2_data = match podr2_data {
+            //     Ok(d) => {
+            //         status.status_msg = "ok".to_string();
+            //         d
+            //     }
+            //     Err(e) => {
+            //         status.status_msg = e.to_string();
+            //         status.status_code = Podr2Status::PoDr2Unexpected as usize;
+            //         println!("PoDR2 Error: {}", e.to_string());
+            //         PoDR2Data::new()
+            //     }
+            // };
+
+
+
             println!("-------------------PoDR2 TEST Pri-------------------");
             let et = podr2_pri::key_gen::key_gen();
-            let plain = b"This is not a password";
-            let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
-            let ct = utils::convert::u8v_to_hexstr(&encrypt_result);
-            println!("CBC encrypt result is :{:?}", ct);
-            let mut decrypt_result = et.symmetric_decrypt(&encrypt_result, "enc").unwrap();
-            println!(
-                "CBC decrypt result is :{:?}",
-                std::str::from_utf8(&decrypt_result).unwrap()
-            );
+            // let plain = b"This is not a password";
+            // let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
+            // let ct = utils::convert::u8v_to_hexstr(&encrypt_result);
+            // println!("CBC encrypt result is :{:?}", ct);
+            // let mut decrypt_result = et.symmetric_decrypt(&encrypt_result, "enc").unwrap();
+            // println!("CBC decrypt result is :{:?}",std::str::from_utf8(&decrypt_result).unwrap());
+            //
+            // let mac_hash_result = et.mac_encrypt(plain).unwrap();
+            // let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
+            // println!("HMAC result is :{:?}", mac_hex);
 
-            let mac_hash_result = et.mac_encrypt(plain).unwrap();
-            let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
-            println!("HMAC result is :{:?}", mac_hex);
-            let mut matrix: Vec<Vec<u8>> = vec![];
-            matrix.push(vec![11, 22, 33, 44, 55, 66]);
-            matrix.push(vec![11, 22, 33, 44, 55, 66]);
-            matrix.push(vec![11, 22, 33, 44, 55, 66]);
-            matrix.push(vec![11, 22, 33, 44, 55, 66]);
+            let mut matrix=file::split_file(&file_info.1,block_size);
             println!("matrix is {:?}", matrix);
+
             let sig_gen_result = podr2_pri::sig_gen::sig_gen(matrix.clone(), et.clone());
-            println!("sigmas:{:?}", sig_gen_result.0);
-            println!(
-                "tag.mac_t0 is :{:?},tag.t.n is {},tag.t.enc is {:?}",
-                sig_gen_result.1.mac_t0.clone(),
-                sig_gen_result.1.t.n.clone(),
-                sig_gen_result.1.t.enc.clone()
-            );
+            podr2_data.tag=sig_gen_result.1.clone();
+            for sigma in sig_gen_result.0.clone(){
+                podr2_data.sigmas.push(utils::convert::u8v_to_hexstr(&sigma))
+            }
 
             let t = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
                 Ok(n) => n.as_secs(),
@@ -391,8 +402,6 @@ pub extern "C" fn process_data(
 
             let gen_proof_result =
                 podr2_pri::gen_proof::gen_proof(sig_gen_result.0, q_slice.clone(), matrix.clone());
-            println!("sigma is :{:?}", gen_proof_result.0);
-            println!("miu is :{:?}", gen_proof_result.1);
 
             let ok = podr2_pri::verify_proof::verify_proof(
                 gen_proof_result.0,
@@ -406,13 +415,14 @@ pub extern "C" fn process_data(
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
-                let mut podr2_res = get_podr2_resp(podr2_data, status);
-                utils::post::post_data(call_back_url, &podr2_res);
-                let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(data_len, Ordering::SeqCst);
-                info!("The enclave space is released to :{} (b)", mem + data_len);
+                podr2_data.status.status_msg="Sig gen successful!".to_string();
+                podr2_data.status.status_code=Podr2Status::PoDr2Success as usize;
+                utils::post::post_data(call_back_url, &podr2_data);
+                let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);
+                info!("The enclave space is released to :{} (b)", mem + file_info.0);
             } else {
-                let mut podr2_res = get_podr2_resp(podr2_data, status);
-                let json_data = serde_json::to_string(&podr2_res);
+
+                let json_data = serde_json::to_string(&podr2_data);
                 let json_data = match json_data {
                     Ok(data) => data,
                     Err(_) => {
@@ -486,6 +496,20 @@ pub extern "C" fn gen_chal(
     sgx_status_t::SGX_SUCCESS
 }
 
+#[no_mangle]
+pub extern "C" fn fill_random_file(
+    file_path: *const c_char,
+    data_len: usize,
+) -> sgx_status_t {
+    let file_path = match unsafe { CStr::from_ptr(file_path).to_str() } {
+        Ok(path) => path.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    let ok=utils::file::write_untrusted_file(file_path,data_len);
+    println!("create random file :{}",ok);
+    return sgx_status_t::SGX_SUCCESS
+}
+
 fn get_chal_resp(chal: Vec<QElement>, proof_timer: ProofTimer) -> PoDR2ChalResponse {
     let mut chal_res = PoDR2ChalResponse::new();
     chal_res.q_elements = chal;
@@ -493,7 +517,7 @@ fn get_chal_resp(chal: Vec<QElement>, proof_timer: ProofTimer) -> PoDR2ChalRespo
     chal_res
 }
 
-fn get_podr2_resp(data: PoDR2Data, status_info: StatusInfo) -> PoDR2Response {
+fn get_podr2_resp(data: PoDR2Data, status_info: param::podr2_commit_response::StatusInfo) -> PoDR2Response {
     let mut podr2_res = PoDR2Response::new();
 
     let mut phi_encoded: Vec<String> = Vec::new();

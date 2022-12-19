@@ -61,8 +61,8 @@ impl PoDR2CommitResponse {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2CommitRequest {
-    pub data: String,
-    pub n_blocks: usize,
+    pub file_path: String,
+    pub block_size: usize,
     pub callback_url: String,
 }
 
