@@ -6,12 +6,12 @@ use sgx_types::*;
 
 use crate::enclave;
 use crate::models::app_state::AppState;
-use crate::models::req::{ReqReport,ReqFail};
+use crate::models::req::{ReqReport,ReqFail,ReqFillRandomFile};
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error,
 };
 
-use std::ffi::CString;
+use std::ffi::{CString, NulError};
 use std::fmt::Debug;
 use std::time::Instant;
 use url::{ParseError, Url};
@@ -25,22 +25,29 @@ pub async fn r_process_data(
     let eid = data.eid;
 
     let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
-
-    let data_base64: String = req.data.clone();
-    let n_blocks: usize = req.n_blocks;
-    let file_data = base64::decode(data_base64);
-    let file_data = match file_data {
-        Ok(data) => data,
-        Err(_) => {
+    let c_file_path_str = match CString::new(req.file_path.as_str().as_bytes().to_vec()){
+        Ok(p) => {p}
+        Err(e) => {
             return Err(PoDR2Error {
-                message: Some("Invalid base64 encoded data.".to_string()),
+                message: Some(e.to_string()),
             })
         }
     };
-    debug!("File data decoded");
+
+    // let data_base64: String = req.data.clone();
+    // let n_blocks: usize = req.n_blocks;
+    // let file_data = base64::decode(data_base64);
+    // let file_data = match file_data {
+    //     Ok(data) => data,
+    //     Err(_) => {
+    //         return Err(PoDR2Error {
+    //             message: Some("Invalid base64 encoded data.".to_string()),
+    //         })
+    //     }
+    // };
+    // debug!("File data decoded");
 
     let now = Instant::now();
-    let sigmas_len: usize = 0;
     
     debug!("Processing file data");
     
@@ -50,20 +57,19 @@ pub async fn r_process_data(
         enclave::ecalls::process_data(
             eid,
             &mut result,
-            file_data.as_ptr() as *mut u8,
-            file_data.len(),
-            n_blocks,
+            c_file_path_str.as_ptr(),
+            req.block_size,
             c_callback_url_str.as_ptr(),
         )
     };
 
     debug!("Processing complete. Status: {}", res.as_str());
     // TODO: Make error handling more sophisticated
-    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-        return Err(PoDR2Error {
-            message: Some("SGX is busy, please try again later.".to_string()),
-        });
-    }
+    // if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
+    //     return Err(PoDR2Error {
+    //         message: Some("SGX is busy, please try again later.".to_string()),
+    //     });
+    // }
 
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
@@ -137,6 +143,24 @@ pub async fn r_get_chal(
     Ok(HttpResponse::Ok())
 }
 
+#[post("/fill_random_file")]
+pub async fn r_fill_random_file(
+    data: web::Data<AppState>,
+    req: web::Json<ReqFillRandomFile>,
+) -> Result<impl Responder, ReqFail> {
+    let mut result = sgx_status_t::SGX_SUCCESS;
+    let file_path_ptr = CString::new(req.file_path.as_str().as_bytes().to_vec()).unwrap();
+    let res = unsafe {
+        enclave::ecalls::fill_random_file(
+            data.eid,
+            &mut result,
+            file_path_ptr.as_ptr(),
+            req.data_len
+        )
+    };
+    Ok(HttpResponse::Ok())
+}
+
 fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
     let callback_url = Url::parse(url_str);
     let callback_url = match callback_url {
@@ -148,4 +172,16 @@ fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
         }
     };
     Ok(CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap())
+}
+
+fn get_c_file_path_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
+    let c_file_path_str = match CString::new(url_str.as_bytes().to_vec()){
+        Ok(p) => {p}
+        Err(e) => {
+            return Err(PoDR2Error {
+                message: Some(e.to_string()),
+            })
+        }
+    };
+    Ok(c_file_path_str)
 }

@@ -32,9 +32,8 @@ enclave {
         public sgx_status_t init();
         public sgx_status_t gen_keys();
         public sgx_status_t process_data(
-            [in, size=data_len] uint8_t* data, 
-            size_t data_len, 
-            size_t n_blocks,
+            [in, string] const char* file_path,
+            size_t block_size,
             [in, string] const char* callback_url
         );
 
@@ -47,6 +46,10 @@ enclave {
         );
         public sgx_status_t get_report(
             [in, string] const char* callback_url
+        );
+        public sgx_status_t fill_random_file(
+            [in, string] const char* file_path,
+            size_t data_len
         );
         //mra about
         public sgx_status_t run_server(sgx_quote_sign_type_t quote_type);

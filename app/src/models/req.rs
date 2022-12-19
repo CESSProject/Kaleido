@@ -8,6 +8,13 @@ pub struct ReqReport {
     pub callback_url: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct ReqFillRandomFile {
+    pub file_path: String,
+    pub data_len: usize,
+}
+
 
 #[derive(Debug)]
 pub struct ReqFail {
