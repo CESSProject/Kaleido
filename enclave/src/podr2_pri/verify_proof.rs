@@ -20,7 +20,7 @@ pub fn verify_proof<T>(
     miu: Vec<Vec<u8>>,
     tag: super::Tag,
     ct: T,
-    proof_id: Vec<u8>,
+    proof_id: &Vec<u8>,
 ) -> bool
 where
     T: Symmetric + MacHash,

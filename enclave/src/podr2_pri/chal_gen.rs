@@ -57,9 +57,10 @@ pub fn chal_gen(n: i64, proof_id: &Vec<u8>) -> PoDR2Chal {
     };
     debug!("1970-01-01 00:00:00 UTC was {} seconds ago!", time_out);
 
+    let time_out = time_out + (10_u64 * 60_u64);
     let proof_id = ProofIdentifier {
         id: proof_id.to_vec(),
-        time_out: time_out + (10_u64 * 60_u64),
+        time_out,
     };
 
     if !proof_timer_list.identifiers.contains(&proof_id) {
