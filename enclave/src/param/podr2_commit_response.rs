@@ -124,6 +124,7 @@ impl PoDR2ChalResponse {
             identifier: ProofIdentifier {
                 id: Vec::new(),
                 time_out: 0,
+                q_elements: Vec::new()
             },
             status: StatusInfo::new(),
         }
