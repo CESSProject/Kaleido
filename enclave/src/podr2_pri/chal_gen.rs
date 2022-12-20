@@ -1,15 +1,25 @@
-use super::{ProofTimer, QElement, PROOF_TIMER_LIST};
+use super::{ProofIdentifier, QElement, PROOF_TIMER_LIST};
 use alloc::vec::Vec;
+use serde::{Serialize, Deserialize};
 use sgx_rand::{
     distributions::{IndependentSample, Range},
     thread_rng,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, time::SystemTime};
 
-pub fn chal_gen(n: i64, proof_timer: ProofTimer) -> Vec<QElement> {
-    let mut challenge: Vec<QElement> = vec![];
+#[derive( Serialize, Deserialize)]
+pub struct PoDR2Chal {
+    pub q_elements: Vec<QElement>,
+    pub time_out: u64,
+}
+
+pub fn chal_gen(n: i64, proof_id: &Vec<u8>) -> PoDR2Chal {
+    let mut q_elements: Vec<QElement> = vec![];
     if n == 0 {
-        return challenge;
+        return PoDR2Chal {
+            q_elements,
+            time_out: 0,
+        };
     }
 
     let mut rng = thread_rng();
@@ -37,13 +47,27 @@ pub fn chal_gen(n: i64, proof_timer: ProofTimer) -> Vec<QElement> {
         let mut rng = thread_rng();
         let v_between = Range::new(0_i64, i64::MAX);
         let v = v_between.ind_sample(&mut rng);
-        challenge.push(QElement { i: n_blocks[i], v });
+        q_elements.push(QElement { i: n_blocks[i], v });
     }
 
     let mut proof_timer_list = PROOF_TIMER_LIST.lock().unwrap();
-    if !proof_timer_list.timers.contains(&proof_timer) {
-        proof_timer_list.timers.push(proof_timer);
+    let time_out = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(n) => n.as_secs(),
+        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
+    };
+    debug!("1970-01-01 00:00:00 UTC was {} seconds ago!", time_out);
+
+    let proof_id = ProofIdentifier {
+        id: proof_id.to_vec(),
+        time_out: time_out + (10_u64 * 60_u64),
+    };
+
+    if !proof_timer_list.identifiers.contains(&proof_id) {
+        proof_timer_list.identifiers.push(proof_id);
     }
 
-    challenge
+    PoDR2Chal {
+        q_elements,
+        time_out,
+    }
 }

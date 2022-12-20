@@ -16,7 +16,6 @@ extern "C" {
         n_blocks: usize,
         random: *mut u8,
         random_len: usize,
-        time: u64,
         callback_url: *const c_char,
     ) -> sgx_status_t;
 

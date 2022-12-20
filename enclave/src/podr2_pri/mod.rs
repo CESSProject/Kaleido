@@ -11,34 +11,35 @@ pub mod sig_gen;
 pub mod verify_proof;
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ProofTimer {
+pub struct ProofIdentifier {
     /// Unique random value sent by CESS Chain
     pub id: Vec<u8>,
     /// Epoch Time sent by CESS Chain in seconds
-    pub time: u64,
+    pub time_out: u64,
 }
 
-impl PartialEq for ProofTimer {
+impl PartialEq for ProofIdentifier {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id && self.time == other.time
+        // Match only id
+        self.id == other.id // && self.time == other.time
     }
 }
 
 #[derive(Serialize, Deserialize)]
-struct ProofTimerList {
-    timers: Vec<ProofTimer>,
+struct ProofIdentifierList {
+    identifiers: Vec<ProofIdentifier>,
 }
 
-impl ProofTimerList {
-    pub const fn new() -> ProofTimerList {
-        ProofTimerList {
-            timers: Vec::new(),
+impl ProofIdentifierList {
+    pub const fn new() -> ProofIdentifierList {
+        ProofIdentifierList {
+            identifiers: Vec::new(),
         }
     }
 }
 
 lazy_static! (
-    static ref PROOF_TIMER_LIST: SgxMutex<ProofTimerList> = SgxMutex::new(ProofTimerList::new());
+    static ref PROOF_TIMER_LIST: SgxMutex<ProofIdentifierList> = SgxMutex::new(ProofIdentifierList::new());
 );
 
 #[derive(Serialize, Deserialize)]
