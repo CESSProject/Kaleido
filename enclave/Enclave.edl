@@ -41,7 +41,6 @@ enclave {
             size_t n_blocks, 
             [in, size=random_len] uint8_t* random,
             size_t random_len,
-            uint64_t time, 
             [in, string] const char* callback_url
         );
         public sgx_status_t get_report(

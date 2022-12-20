@@ -125,9 +125,8 @@ pub async fn r_get_chal(
             eid,
             &mut result,
             req.n_blocks,
-            req.random.as_ptr() as *mut u8,
-            req.random.len(),
-            req.time,
+            req.proof_id.as_ptr() as *mut u8,
+            req.proof_id.len(),
             c_callback_url_str.as_ptr(),
         )
     };

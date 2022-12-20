@@ -70,8 +70,7 @@ pub struct PoDR2CommitRequest {
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2ChalRequest {
     pub n_blocks: usize,
-    pub random: Vec<u8>,
-    pub time: u64,
+    pub proof_id: Vec<u8>,
     pub callback_url: String,
 }
 
