@@ -64,9 +64,9 @@ extern crate yasna;
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use podr2_pri::chal_gen::PoDR2Chal;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
+use podr2_pri::chal_gen::PoDR2Chal;
 
 use cess_curve::*;
 use http_req::response;
@@ -99,13 +99,13 @@ use std::{
 
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::podr2_commit_data::PoDR2Data;
-use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
+use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response, PoDR2VerificationResponse};
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
     StatusInfo,
 };
 use podr2_pri::key_gen::{MacHash, Symmetric};
-use podr2_pri::QElement;
+use podr2_pri::{QElement, Tag};
 use utils::file;
 
 use crate::podr2_pri::ProofIdentifier;
@@ -205,16 +205,17 @@ impl Keys {
 
 lazy_static! (
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
-    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> = SgxMutex::new(podr2_pri::key_gen::key_gen());
-    static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
+    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> =
+        SgxMutex::new(podr2_pri::key_gen::key_gen());
+    static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
 );
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
     env_logger::init();
     // pbc::init_pairings();
-    if !init_keys(){
-        return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS
+    if !init_keys() {
+        return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
     }
     let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
@@ -225,21 +226,24 @@ pub extern "C" fn init() -> sgx_status_t {
     sgx_status_t::SGX_SUCCESS
 }
 
-fn init_keys()->bool{
+fn init_keys() -> bool {
     {
         let mut file = match SgxFile::open(podr2_pri::key_gen::EncryptionType::FILE_NAME) {
             Ok(f) => f,
             Err(_) => {
-                info!("{} file not found, creating new file.", podr2_pri::key_gen::EncryptionType::FILE_NAME);
+                info!(
+                    "{} file not found, creating new file.",
+                    podr2_pri::key_gen::EncryptionType::FILE_NAME
+                );
 
                 let saved = ENCRYPTIONTYPE.lock().unwrap().save();
                 if !saved {
                     error!("Failed to save keys");
-                    return false
+                    return false;
                 }
 
                 info!("Signing keys generated!");
-                return true
+                return true;
             }
         };
     }
@@ -296,7 +300,7 @@ pub extern "C" fn get_report(callback_url: *const c_char) -> sgx_status_t {
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    let report = Payload.lock().unwrap().to_string().clone();
+    let report = PAYLOAD.lock().unwrap().to_string().clone();
     utils::post::post_data(callback_url_str.clone(), &report);
 
     sgx_status_t::SGX_SUCCESS
@@ -392,7 +396,7 @@ pub extern "C" fn process_data(
             // };
 
             println!("-------------------PoDR2 TEST Pri-------------------");
-            let et=ENCRYPTIONTYPE.lock().unwrap();
+            let et = ENCRYPTIONTYPE.lock().unwrap();
             // let et = podr2_pri::key_gen::key_gen();
             // let plain = b"This is not a password";
             // let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
@@ -418,8 +422,7 @@ pub extern "C" fn process_data(
 
             let proof_id = vec![12, 244, 32, 12];
 
-            let podr2_chal =
-                podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id);
+            let podr2_chal = podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id);
 
             let gen_proof_result = podr2_pri::gen_proof::gen_proof(
                 sig_gen_result.0,
@@ -492,16 +495,67 @@ pub extern "C" fn gen_chal(
     println!("*******************************************************");
 
     thread::Builder::new()
-        .name("process_data".to_string())
+        .name("chal_gen".to_string())
         .spawn(move || {
+            let proof_id = pid.clone();
             let call_back_url = callback_url_str.clone();
-            let podr2_chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, &pid);
+            let podr2_chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, &proof_id);
 
-            let mut chal_res = get_chal_resp(podr2_chal, pid);
+            let mut chal_res = get_chal_resp(podr2_chal, proof_id);
             chal_res.status.status_code = Podr2Status::PoDr2Success as usize;
             chal_res.status.status_msg = "ok".to_string();
 
             utils::post::post_data(call_back_url, &chal_res);
+        });
+
+    sgx_status_t::SGX_SUCCESS
+}
+
+// TODO: INSERT PROOF DATA HERE
+#[no_mangle]
+pub extern "C" fn verify_proof(
+    proof_id: *mut u8,
+    proof_id_len: usize,
+    callback_url: *const c_char,
+) -> sgx_status_t {
+    let mut pid = unsafe { slice::from_raw_parts(proof_id, proof_id_len).to_vec() };
+
+    let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
+    let callback_url_str = match callback_url_str {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+
+    if callback_url_str.is_empty() {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    thread::Builder::new()
+        .name("verify_proof".to_string())
+        .spawn(move || {
+            let call_back_url = callback_url_str.clone();
+            let proof_id = pid.clone();
+
+            // TODO: INSERT PROOF DATA HERE
+            let podr2_result = podr2_pri::verify_proof::verify_proof(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Tag::new(),
+                ENCRYPTIONTYPE.lock().unwrap().clone(),
+                proof_id,
+            );
+
+            // TODO: INSERT PROOF DATA HERE
+            let mut result_res = get_verification_resp(
+                podr2_result,
+                "INSERT BLOOM FILTER DATA HERE".to_string(),
+                Vec::new(),
+            );
+            result_res.status.status_code = Podr2Status::PoDr2Success as usize;
+            result_res.status.status_msg = "ok".to_string();
+
+            utils::post::post_data(call_back_url, &result_res);
         });
 
     sgx_status_t::SGX_SUCCESS
@@ -524,6 +578,20 @@ fn get_chal_resp(chal: PoDR2Chal, proof_id: Vec<u8>) -> PoDR2ChalResponse {
     chal_res.identifier.id = proof_id;
     chal_res.identifier.time_out = chal.time_out;
     chal_res
+}
+
+fn get_verification_resp(
+    result: bool,
+    bloom_filter: String,
+    proof_id: Vec<u8>,
+) -> PoDR2VerificationResponse {
+    // TODO: INSERT PROOF DATA HERE
+    let mut resp = PoDR2VerificationResponse::new();
+    resp.result = result;
+    resp.bloom_filter = bloom_filter;
+    resp.proof_id = proof_id;
+
+    resp
 }
 
 fn get_podr2_resp(

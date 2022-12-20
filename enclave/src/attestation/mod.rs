@@ -610,7 +610,7 @@ pub extern "C" fn run_server(
     };
 
     let payload = attn_report + "|" + &sig + "|" + &cert;
-    let mut res=crate::Payload.lock().unwrap();
+    let mut res=crate::PAYLOAD.lock().unwrap();
     res.clone_from(&payload);
     // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
     //     Ok(r) => r,
