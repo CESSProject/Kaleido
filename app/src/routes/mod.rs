@@ -8,7 +8,7 @@ use crate::enclave;
 use crate::models::app_state::AppState;
 use crate::models::req::{ReqReport,ReqFail,ReqFillRandomFile};
 use crate::models::podr2_commit_response::{
-    PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error,
+    PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error, PoDR2VerifyRequest,
 };
 
 use std::ffi::{CString, NulError};
@@ -139,6 +139,38 @@ pub async fn r_get_chal(
         });
     }
 
+    Ok(HttpResponse::Ok())
+}
+
+
+#[post("/verify_proof")]
+pub async fn r_verify_proof(
+    data: web::Data<AppState>,
+    req: web::Json<PoDR2VerifyRequest>,
+) -> Result<impl Responder, PoDR2Error> {
+    let eid = data.eid;
+
+    let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
+
+    let mut result = sgx_status_t::SGX_SUCCESS;
+    let res = unsafe {
+        // TODO: INSERT PROOF DATA HERE
+        enclave::ecalls::verify_proof(
+            eid,
+            &mut result,
+            req.proof_id.as_ptr() as *mut u8,
+            req.proof_id.len(),
+            c_callback_url_str.as_ptr(),
+        )
+    };
+
+    debug!("Processing complete. Status: {}", res.as_str());
+    // TODO: Make error handling more sophisticated
+    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
+        return Err(PoDR2Error {
+            message: Some("SGX is busy, please try again later.".to_string()),
+        });
+    }
     Ok(HttpResponse::Ok())
 }
 

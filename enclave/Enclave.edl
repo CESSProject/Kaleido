@@ -43,6 +43,14 @@ enclave {
             size_t random_len,
             [in, string] const char* callback_url
         );
+
+        // TODO: INSERT PROOF DATA HERE
+        public sgx_status_t verify_proof(
+            [in, size=random_len] uint8_t* random,
+            size_t random_len,
+            [in, string] const char* callback_url
+        );
+
         public sgx_status_t get_report(
             [in, string] const char* callback_url
         );

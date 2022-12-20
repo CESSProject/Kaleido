@@ -57,7 +57,6 @@ impl PoDR2CommitResponse {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2CommitRequest {
@@ -70,6 +69,14 @@ pub struct PoDR2CommitRequest {
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2ChalRequest {
     pub n_blocks: usize,
+    pub proof_id: Vec<u8>,
+    pub callback_url: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct PoDR2VerifyRequest {
+    // TODO: INSERT PROOF DATA HERE
     pub proof_id: Vec<u8>,
     pub callback_url: String,
 }
