@@ -16,7 +16,7 @@ use super::ProofIdentifier;
 
 pub fn verify_proof<T>(
     sigma: Vec<u8>,
-    q_slice: Vec<super::QElement>,
+    q_element: Vec<super::QElement>,
     miu: Vec<Vec<u8>>,
     tag: super::Tag,
     ct: T,
@@ -80,7 +80,7 @@ where
         return false;
     }
     let mut first: BigInt = Zero::zero();
-    for q in q_slice {
+    for q in q_element {
         let f_kprf = ct.symmetric_encrypt(&q.i.to_ne_bytes(), "prf").unwrap();
         let vi = q.v.to_bigint().unwrap();
         first += num_bigint::BigInt::from_bytes_le(Sign::Plus, &f_kprf) * vi

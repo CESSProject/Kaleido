@@ -516,6 +516,7 @@ pub extern "C" fn gen_chal(
 pub extern "C" fn verify_proof(
     proof_id: *mut u8,
     proof_id_len: usize,
+    proof_json: *const c_char,
     callback_url: *const c_char,
 ) -> sgx_status_t {
     let mut pid = unsafe { slice::from_raw_parts(proof_id, proof_id_len).to_vec() };
@@ -525,8 +526,12 @@ pub extern "C" fn verify_proof(
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
+    let proof_json_str = match unsafe { CStr::from_ptr(proof_json).to_str() } {
+        Ok(p) => p.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
 
-    if callback_url_str.is_empty() {
+    if callback_url_str.is_empty() || proof_json_str.is_empty() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
@@ -535,13 +540,13 @@ pub extern "C" fn verify_proof(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
-
+            let (sigma,miu,tag)=podr2_pri::convert_miner_proof(&proof_json_str);
             // TODO: INSERT PROOF DATA HERE
             let podr2_result = podr2_pri::verify_proof::verify_proof(
+                sigma,
                 Vec::new(),
-                Vec::new(),
-                Vec::new(),
-                Tag::new(),
+                miu,
+                tag,
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
                 &proof_id,
             );
