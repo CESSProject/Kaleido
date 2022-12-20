@@ -48,6 +48,7 @@ enclave {
         public sgx_status_t verify_proof(
             [in, size=random_len] uint8_t* random,
             size_t random_len,
+            [in, string] const char* proof_json,
             [in, string] const char* callback_url
         );
 

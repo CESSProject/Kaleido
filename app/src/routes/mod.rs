@@ -151,7 +151,7 @@ pub async fn r_verify_proof(
     let eid = data.eid;
 
     let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
-
+    let c_proof_json_str = get_c_url_str_from_string(&req.proof_json)?;
     let mut result = sgx_status_t::SGX_SUCCESS;
     let res = unsafe {
         // TODO: INSERT PROOF DATA HERE
@@ -160,6 +160,7 @@ pub async fn r_verify_proof(
             &mut result,
             req.proof_id.as_ptr() as *mut u8,
             req.proof_id.len(),
+            c_proof_json_str.as_ptr(),
             c_callback_url_str.as_ptr(),
         )
     };

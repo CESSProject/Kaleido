@@ -78,6 +78,7 @@ pub struct PoDR2ChalRequest {
 pub struct PoDR2VerifyRequest {
     // TODO: INSERT PROOF DATA HERE
     pub proof_id: Vec<u8>,
+    pub proof_json: String,
     pub callback_url: String,
 }
 

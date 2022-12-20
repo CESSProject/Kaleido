@@ -25,6 +25,7 @@ extern "C" {
         retval: *mut sgx_status_t,
         proof_id: *mut u8,
         proof_id_len: usize,
+        proof_json: *const c_char,
         callback_url: *const c_char,
     ) -> sgx_status_t;
     pub fn run_server(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, sign_type: sgx_quote_sign_type_t) -> sgx_status_t;
