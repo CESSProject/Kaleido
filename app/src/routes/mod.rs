@@ -151,15 +151,31 @@ pub async fn r_verify_proof(
     let eid = data.eid;
 
     let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
-    let c_proof_json_str = get_c_url_str_from_string(&req.proof_json)?;
+    let c_proof_json_str = CString::new(req.proof_json.as_str().as_bytes().to_vec());
+    let c_proof_json_str = match c_proof_json_str {
+        Ok(s) => s,
+        Err(_) => return Err(PoDR2Error {
+            message: Some("Invalid c_proof_json_str".to_string()),
+        })
+    };
+
     let mut result = sgx_status_t::SGX_SUCCESS;
+
+    let proof_id = base64::decode(req.proof_id.clone());
+    let proof_id = match proof_id {
+        Ok(id) => id,
+        Err(e) =>  return Err(PoDR2Error {
+            message: Some("Invalid proof_id".to_string()),
+        })
+    }; 
+
     let res = unsafe {
         // TODO: INSERT PROOF DATA HERE
         enclave::ecalls::verify_proof(
             eid,
             &mut result,
-            req.proof_id.as_ptr() as *mut u8,
-            req.proof_id.len(),
+            proof_id.as_ptr() as *mut u8,
+            proof_id.len(),
             c_proof_json_str.as_ptr(),
             c_callback_url_str.as_ptr(),
         )
