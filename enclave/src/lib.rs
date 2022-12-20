@@ -436,7 +436,7 @@ pub extern "C" fn process_data(
                 gen_proof_result.1,
                 sig_gen_result.1,
                 et.clone(),
-                proof_id,
+                &proof_id,
             );
             println!("verify result is {}", ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
@@ -543,14 +543,14 @@ pub extern "C" fn verify_proof(
                 Vec::new(),
                 Tag::new(),
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
-                proof_id,
+                &proof_id,
             );
 
             // TODO: INSERT PROOF DATA HERE
             let mut result_res = get_verification_resp(
                 podr2_result,
                 "INSERT BLOOM FILTER DATA HERE".to_string(),
-                Vec::new(),
+                proof_id,
             );
             result_res.status.status_code = Podr2Status::PoDr2Success as usize;
             result_res.status.status_msg = "ok".to_string();
