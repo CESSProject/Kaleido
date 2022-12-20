@@ -16,7 +16,6 @@ use super::ProofIdentifier;
 
 pub fn verify_proof<T>(
     sigma: Vec<u8>,
-    q_element: Vec<super::QElement>,
     miu: Vec<Vec<u8>>,
     tag: super::Tag,
     ct: T,
@@ -29,6 +28,7 @@ where
     if !proof_timer_list.identifiers.contains(&ProofIdentifier {
         id: proof_id.clone(),
         time_out: 0,
+        q_elements: Vec::new()
     }) {
         warn!("Invalid ProofTimer! Does not exist.");
         return false;
@@ -57,6 +57,8 @@ where
         return false;
     }
 
+    let q_elements = proof_timer_list.identifiers.index(index).q_elements.clone();
+
     debug!("Removing ProofTimer at index: {}", index);
 
     proof_timer_list.identifiers.remove(index);
@@ -80,7 +82,7 @@ where
         return false;
     }
     let mut first: BigInt = Zero::zero();
-    for q in q_element {
+    for q in q_elements {
         let f_kprf = ct.symmetric_encrypt(&q.i.to_ne_bytes(), "prf").unwrap();
         let vi = q.v.to_bigint().unwrap();
         first += num_bigint::BigInt::from_bytes_le(Sign::Plus, &f_kprf) * vi

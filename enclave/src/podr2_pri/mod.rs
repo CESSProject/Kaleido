@@ -17,6 +17,7 @@ pub struct ProofIdentifier {
     pub id: Vec<u8>,
     /// Epoch Time sent by CESS Chain in seconds
     pub time_out: u64,
+    pub q_elements: Vec<QElement>
 }
 
 impl PartialEq for ProofIdentifier {

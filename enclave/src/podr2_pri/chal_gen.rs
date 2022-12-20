@@ -61,6 +61,7 @@ pub fn chal_gen(n: i64, proof_id: &Vec<u8>) -> PoDR2Chal {
     let proof_id = ProofIdentifier {
         id: proof_id.to_vec(),
         time_out,
+        q_elements: q_elements.clone(),
     };
 
     if !proof_timer_list.identifiers.contains(&proof_id) {

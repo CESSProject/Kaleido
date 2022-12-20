@@ -432,7 +432,6 @@ pub extern "C" fn process_data(
 
             let ok = podr2_pri::verify_proof::verify_proof(
                 gen_proof_result.0,
-                podr2_chal.q_elements.clone(),
                 gen_proof_result.1,
                 sig_gen_result.1,
                 et.clone(),
@@ -544,7 +543,6 @@ pub extern "C" fn verify_proof(
             // TODO: INSERT PROOF DATA HERE
             let podr2_result = podr2_pri::verify_proof::verify_proof(
                 sigma,
-                Vec::new(),
                 miu,
                 tag,
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
