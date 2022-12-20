@@ -1,11 +1,11 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-
-use sgx_rand;
+// use sgx_rand;
 use sgx_rand::Rng;
-use std::io::{Read, Seek, Write};
-use std::untrusted::fs;
-
+use std::{
+    untrusted::fs,
+    io::{Read, Seek, Write},
+};
 pub fn write_untrusted_file(file_path: String, data_len: usize) -> bool {
     let mut data = vec![0u8; 1024];
     let mut os_rng = sgx_rand::SgxRng::new().unwrap();
