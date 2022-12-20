@@ -206,13 +206,17 @@ impl Keys {
 
 lazy_static!(
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
+    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> = SgxMutex::new(podr2_pri::key_gen::key_gen());
     static ref Payload :SgxMutex<String>=SgxMutex::new(String::new());
 );
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
     env_logger::init();
-    pbc::init_pairings();
+    // pbc::init_pairings();
+    if !init_keys(){
+        return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS
+    }
     let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();
     debug!("HEAP_MAX_SIZE: {} MB", heap_max_size / (1024 * 1024));
@@ -220,6 +224,29 @@ pub extern "C" fn init() -> sgx_status_t {
     utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
     sgx_status_t::SGX_SUCCESS
+}
+
+fn init_keys()->bool{
+    {
+        let mut file = match SgxFile::open(podr2_pri::key_gen::EncryptionType::FILE_NAME) {
+            Ok(f) => f,
+            Err(_) => {
+                info!("{} file not found, creating new file.", podr2_pri::key_gen::EncryptionType::FILE_NAME);
+
+                let saved = ENCRYPTIONTYPE.lock().unwrap().save();
+                if !saved {
+                    error!("Failed to save keys");
+                    return false
+                }
+
+                info!("Signing keys generated!");
+                return true
+            }
+        };
+    }
+
+    let mut guard = ENCRYPTIONTYPE.lock().unwrap();
+    guard.load()
 }
 
 #[no_mangle]
@@ -367,7 +394,8 @@ pub extern "C" fn process_data(
 
 
             println!("-------------------PoDR2 TEST Pri-------------------");
-            let et = podr2_pri::key_gen::key_gen();
+            let et=ENCRYPTIONTYPE.lock().unwrap();
+            // let et = podr2_pri::key_gen::key_gen();
             // let plain = b"This is not a password";
             // let mut encrypt_result = et.symmetric_encrypt(plain, "enc").unwrap();
             // let ct = utils::convert::u8v_to_hexstr(&encrypt_result);

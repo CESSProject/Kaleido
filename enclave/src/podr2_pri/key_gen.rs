@@ -1,5 +1,10 @@
 use alloc::string::{String, ToString};
-use std::vec::Vec;
+use std::{
+    vec::Vec,
+    sgxfs::SgxFile,
+    io::ErrorKind,
+    io::{Error, Write},
+};
 use crypto::{symmetriccipher, buffer, aes, blockmodes};
 use crypto::buffer::{ ReadBuffer, WriteBuffer, BufferResult };
 use crypto::hmac::Hmac;
@@ -11,7 +16,10 @@ use sgx_rand;
 use sgx_rand::Rng;
 use crate::param::podr2_commit_data::PoDR2Error;
 use utils::{convert::u8v_to_hexstr};
+use sgx_serialize::{DeSerializeHelper, SerializeHelper,Serializable};
+use std::io::Read;
 
+#[derive(Serializable, DeSerializable)]
 #[derive(Clone)]
 pub struct EncryptionType {
     pub aes: AES,
@@ -22,19 +30,25 @@ pub trait Symmetric {
     fn symmetric_encrypt(&self, orig_data: &[u8],key_type: &str) -> Result<Vec<u8>, PoDR2Error>;
     fn symmetric_decrypt(&self, ciphertext: &[u8],key_type: &str) -> Result<Vec<u8>, PoDR2Error>;
     fn get_prf(&self) ->String;
+    fn get_enc(&self) ->String;
 }
 
 pub trait MacHash {
     fn mac_encrypt(&self, orig_data: &[u8]) -> Result<Vec<u8>, PoDR2Error>;
+    fn get_mac(&self) ->String;
 }
+
+#[derive(Serializable, DeSerializable)]
 #[derive(Clone)]
 pub struct HMACSHA1 {
-    pub mac: [u8; 16],
+    mac: [u8; 16],
 }
+
+#[derive(Serializable, DeSerializable)]
 #[derive(Clone)]
 pub struct AES {
-    pub enc: [u8; 16],
-    pub prf: [u8; 16],
+    enc: [u8; 16],
+    prf: [u8; 16],
 }
 
 impl Symmetric for EncryptionType {
@@ -97,6 +111,10 @@ impl Symmetric for EncryptionType {
     fn get_prf(&self) ->String{
         u8v_to_hexstr(&self.aes.prf.clone())
     }
+
+    fn get_enc(&self) ->String{
+        u8v_to_hexstr(&self.aes.enc.clone())
+    }
 }
 
 impl MacHash for EncryptionType {
@@ -104,6 +122,10 @@ impl MacHash for EncryptionType {
         let mut hmac = Hmac::new(Sha256::new(), &self.hmacsha1.mac);
         hmac.input(orig_data);
         Ok(hmac.result().code().to_vec())
+    }
+
+    fn get_mac(&self) ->String{
+        u8v_to_hexstr(&self.hmacsha1.mac.clone())
     }
 }
 
@@ -135,5 +157,56 @@ pub fn key_gen() -> EncryptionType {
     EncryptionType {
         aes,
         hmacsha1,
+    }
+}
+
+impl EncryptionType{
+    pub const FILE_NAME: &'static str = "keys";
+
+    pub fn save(self: &mut Self) -> bool {
+        let helper = SerializeHelper::new();
+        let data = match helper.encode(self.clone()) {
+            Some(d) => d,
+            None => {
+                return false;
+            }
+        };
+
+        let mut file = match SgxFile::create(EncryptionType::FILE_NAME) {
+            Ok(f) => f,
+            Err(e) => {
+                return false;
+            }
+        };
+
+        let _write_size = match file.write(data.as_slice()) {
+            Ok(len) => len,
+            Err(_) => {
+                return false;
+            }
+        };
+        return true;
+    }
+
+    pub fn load(self: &mut Self) -> bool {
+        let mut file = SgxFile::open(EncryptionType::FILE_NAME).unwrap();
+
+        let mut data = Vec::new();
+        file.read_to_end(&mut data);
+
+        let helper = DeSerializeHelper::<EncryptionType>::new(data);
+
+        let d=match helper.decode() {
+            Some(d) => d,
+            None => {
+                error!("Failed to decode file {}", EncryptionType::FILE_NAME);
+                return false
+            }
+        };
+        self.aes.enc=d.aes.enc;
+        self.aes.prf=d.aes.prf;
+        self.hmacsha1.mac=d.hmacsha1.mac;
+
+        return true
     }
 }
