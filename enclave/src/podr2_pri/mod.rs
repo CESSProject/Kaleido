@@ -63,7 +63,7 @@ impl Tag {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 #[derive(Clone)]
 pub struct Tag0 {
     pub n: i64,
@@ -77,7 +77,7 @@ impl Tag0 {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 pub struct EncEncrypt {
     pub prf: String,
     pub alpha: Vec<i64>,
@@ -99,7 +99,7 @@ pub struct QElement {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 #[derive(Clone)]
 pub struct MinerProof {
     pub sigma: String,
@@ -108,15 +108,15 @@ pub struct MinerProof {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 #[derive(Clone)]
-pub struct MinerTag {
+pub struct DMinerTag {
     pub t: MinerTag0,
     pub mac_t0: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "snake_case")]
 #[derive(Clone)]
 pub struct MinerTag0 {
     pub n: i64,
