@@ -104,7 +104,7 @@ pub struct QElement {
 pub struct MinerProof {
     pub sigma: String,
     pub miu: Vec<String>,
-    pub tag: MinerTag,
+    pub tag: DMinerTag,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

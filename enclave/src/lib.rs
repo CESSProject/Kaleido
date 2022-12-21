@@ -525,21 +525,22 @@ pub extern "C" fn verify_proof(
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    let proof_json_str = match unsafe { CStr::from_ptr(proof_json).to_str() } {
+    let proof_json_hex_str = match unsafe { CStr::from_ptr(proof_json).to_str() } {
         Ok(p) => p.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    if callback_url_str.is_empty() || proof_json_str.is_empty() {
+    if callback_url_str.is_empty() || proof_json_hex_str.is_empty() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
+    // let proof_json_str=utils::convert::hexstr_to_u8v()
 
     thread::Builder::new()
         .name("verify_proof".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
-            let (sigma,miu,tag)=podr2_pri::convert_miner_proof(&proof_json_str);
+            let (sigma,miu,tag)=podr2_pri::convert_miner_proof(&proof_json_hex_str);
             // TODO: INSERT PROOF DATA HERE
             let podr2_result = podr2_pri::verify_proof::verify_proof(
                 sigma,

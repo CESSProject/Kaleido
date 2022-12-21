@@ -56,7 +56,10 @@ pub fn read_untrusted_file(file_path: String) -> (usize, Vec<u8>) {
 
 pub fn split_file(file_data: &Vec<u8>, block_size: usize) -> Vec<Vec<u8>> {
     let mut matrix: Vec<Vec<u8>> = vec![];
-    let block_num = file_data.len() / block_size;
+    let mut block_num = file_data.len() / block_size;
+    if file_data.len()%block_size!=0{
+        block_num+=1
+    }
     for num in 0..block_num {
         if num == block_num - 1 {
             let mut last_chunk=file_data.clone()[num * block_size..].to_vec();
