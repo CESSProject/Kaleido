@@ -12,7 +12,7 @@ use sgx_rand::{
 
 use crate::{
     merkletree_generator::Sha256Algorithm,
-    param::podr2_commit_data::{MHTProof, PoDR2Chal, PoDR2Data, PoDR2Error, PoDR2Proof},
+    param::podr2_commit_data::{MHTProof, PoDR2Chal, PoDR2SigGenData, PoDR2Error, PoDR2Proof},
     pbc,
     podr2_pub::get_mht,
     attestation::hex::bytes_to_bigint,
@@ -49,7 +49,7 @@ pub fn gen_chal(phi_len: usize) -> PoDR2Chal {
 // 4. sig_sk(H(R)) received during PoDR2 sig_gen()
 pub fn gen_proof(
     chal: &PoDR2Chal,
-    podr2_pub: &PoDR2Data,
+    podr2_pub: &PoDR2SigGenData,
     data: &mut Vec<u8>,
 ) -> Result<PoDR2Proof, PoDR2Error> {
     if chal.i.len() != chal.vi.len() {
@@ -121,7 +121,7 @@ pub fn gen_proof(
 }
 
 // Verification of the generated proof from gen_proof will be performed by CESS nodes.
-pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2Data, chal: &PoDR2Chal) -> bool {
+pub fn verify(proof: &PoDR2Proof, podr2_data: &PoDR2SigGenData, chal: &PoDR2Chal) -> bool {
     // 1. Verify MHT root R e(sig_sk(H(R)),g) ?= e (H(R), g^sk)
     // 2. Verify e(σ, g) ?= e(H(m0)^v0.u^μ + H(m1)^v1.u^μ + ... + H(mi)^vi.u^μ, v)
     // v = public key

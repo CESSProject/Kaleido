@@ -86,7 +86,7 @@ impl fmt::Display for PoDR2Error {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
-pub struct PoDR2Data {
+pub struct PoDR2SigGenData {
     /// phi Φ = {σi}, 1 < i < n
     /// Where σi <- (H(mi).u^mi)^sk
     pub(crate) phi: Vec<Vec<u8>>,
@@ -101,9 +101,9 @@ pub struct PoDR2Data {
     pub pkey: Vec<u8>,
 }
 
-impl PoDR2Data {
-    pub fn new() -> PoDR2Data {
-        PoDR2Data {
+impl PoDR2SigGenData {
+    pub fn new() -> PoDR2SigGenData {
+        PoDR2SigGenData {
             phi: Vec::new(),
             mht_root_sig: Vec::new(),
             u: Vec::new(),
