@@ -1,20 +1,19 @@
 extern crate base64;
 
-use actix_web::http::header::ContentType;
-use actix_web::{error, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{post, web, HttpResponse, Responder};
 use sgx_types::*;
 
 use crate::enclave;
+use crate::enclave::sgx_to_podr2_error::PoDR2SgxErrorResponder;
 use crate::models::app_state::AppState;
-use crate::models::req::{ReqReport,ReqFail,ReqFillRandomFile};
 use crate::models::podr2_commit_response::{
-    PoDR2ChalRequest, PoDR2CommitRequest, PoDR2CommitResponse, PoDR2Error, PoDR2VerifyRequest,
+    PoDR2ChalRequest, PoDR2CommitRequest, PoDR2Error, PoDR2VerifyRequest,
 };
+use crate::models::req::{ReqFillRandomFile, ReqReport};
 
-use std::ffi::{CString, NulError};
-use std::fmt::Debug;
+use std::ffi::CString;
 use std::time::Instant;
-use url::{ParseError, Url};
+use url::Url;
 
 // r_ is appended to identify routes
 #[post("/process_data")]
@@ -25,8 +24,8 @@ pub async fn r_process_data(
     let eid = data.eid;
 
     let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
-    let c_file_path_str = match CString::new(req.file_path.as_str().as_bytes().to_vec()){
-        Ok(p) => {p}
+    let c_file_path_str = match CString::new(req.file_path.as_str().as_bytes().to_vec()) {
+        Ok(p) => p,
         Err(e) => {
             return Err(PoDR2Error {
                 message: Some(e.to_string()),
@@ -48,65 +47,45 @@ pub async fn r_process_data(
     // debug!("File data decoded");
 
     let now = Instant::now();
-    
     debug!("Processing file data");
-    
-    // The sgx_status_t returned from ecall is reflected in `result` and not from the returned value here
-    let mut result = sgx_status_t::SGX_SUCCESS;
-    let res = unsafe {
+
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
+    let result2 = unsafe {
         enclave::ecalls::process_data(
             eid,
-            &mut result,
+            &mut result1,
             c_file_path_str.as_ptr(),
             req.block_size,
             c_callback_url_str.as_ptr(),
         )
     };
-
-    debug!("Processing complete. Status: {}", res.as_str());
-    // TODO: Make error handling more sophisticated
-    // if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-    //     return Err(PoDR2Error {
-    //         message: Some("SGX is busy, please try again later.".to_string()),
-    //     });
-    // }
-
     let elapsed = now.elapsed();
     debug!("Signatures generated in {:.2?}!", elapsed);
 
-    Ok(HttpResponse::Ok())
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
 
 #[post("/get_report")]
 pub async fn r_get_report(
     data: web::Data<AppState>,
     req: web::Json<ReqReport>,
-) -> Result<impl Responder, ReqFail> {
+) -> Result<impl Responder, PoDR2Error> {
     let callback_url = match Url::parse(&req.callback_url) {
         Ok(url) => url,
         Err(e) => {
-            warn!("Get callbcak url fail! error:{:?}",e.to_string());
-            return Err(ReqFail {
-                message: Some("Get callbcak url fail!".to_string()+ &e.to_string())
-            })
+            warn!("Get callbcak url fail! error:{:?}", e.to_string());
+            return Err(PoDR2Error {
+                message: Some("Get callbcak url fail!".to_string() + &e.to_string()),
+            });
         }
     };
 
-    let mut result = sgx_status_t::SGX_SUCCESS;
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
     let c_callback_url_str = CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap();
-    let res = unsafe {
-        enclave::ecalls::get_report(
-            data.eid,
-            &mut result,
-            c_callback_url_str.as_ptr(),
-        )
-    };
-    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-        return Err(ReqFail {
-            message: Some("Error happened when get report from Kaleido!".to_string())
-        })
-    }
-    Ok(HttpResponse::Ok())
+    let result2 =
+        unsafe { enclave::ecalls::get_report(data.eid, &mut result1, c_callback_url_str.as_ptr()) };
+
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
 
 // r_ is appended to identify routes
@@ -119,11 +98,11 @@ pub async fn r_get_chal(
 
     let c_callback_url_str = get_c_url_str_from_string(&req.callback_url)?;
 
-    let mut result = sgx_status_t::SGX_SUCCESS;
-    let res = unsafe {
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
+    let result2 = unsafe {
         enclave::ecalls::gen_chal(
             eid,
-            &mut result,
+            &mut result1,
             req.n_blocks,
             req.proof_id.as_ptr() as *mut u8,
             req.proof_id.len(),
@@ -131,17 +110,8 @@ pub async fn r_get_chal(
         )
     };
 
-    debug!("Processing complete. Status: {}", res.as_str());
-    // TODO: Make error handling more sophisticated
-    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-        return Err(PoDR2Error {
-            message: Some("SGX is busy, please try again later.".to_string()),
-        });
-    }
-
-    Ok(HttpResponse::Ok())
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
-
 
 #[post("/verify_proof")]
 pub async fn r_verify_proof(
@@ -154,26 +124,29 @@ pub async fn r_verify_proof(
     let c_proof_json_str = CString::new(req.proof_json.as_str().as_bytes().to_vec());
     let c_proof_json_str = match c_proof_json_str {
         Ok(s) => s,
-        Err(_) => return Err(PoDR2Error {
-            message: Some("Invalid c_proof_json_str".to_string()),
-        })
+        Err(_) => {
+            return Err(PoDR2Error {
+                message: Some("Invalid c_proof_json_str".to_string()),
+            })
+        }
     };
 
-    let mut result = sgx_status_t::SGX_SUCCESS;
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
 
     let proof_id = base64::decode(req.proof_id.clone());
     let proof_id = match proof_id {
         Ok(id) => id,
-        Err(e) =>  return Err(PoDR2Error {
-            message: Some("Invalid proof_id".to_string()),
-        })
-    }; 
+        Err(e) => {
+            return Err(PoDR2Error {
+                message: Some("Invalid proof_id".to_string()),
+            })
+        }
+    };
 
-    let res = unsafe {
-        // TODO: INSERT PROOF DATA HERE
+    let result2 = unsafe {
         enclave::ecalls::verify_proof(
             eid,
-            &mut result,
+            &mut result1,
             proof_id.as_ptr() as *mut u8,
             proof_id.len(),
             c_proof_json_str.as_ptr(),
@@ -181,32 +154,27 @@ pub async fn r_verify_proof(
         )
     };
 
-    debug!("Processing complete. Status: {}", res.as_str());
-    // TODO: Make error handling more sophisticated
-    if res != sgx_status_t::SGX_SUCCESS || result != sgx_status_t::SGX_SUCCESS {
-        return Err(PoDR2Error {
-            message: Some("SGX is busy, please try again later.".to_string()),
-        });
-    }
-    Ok(HttpResponse::Ok())
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
 
 #[post("/fill_random_file")]
 pub async fn r_fill_random_file(
     data: web::Data<AppState>,
     req: web::Json<ReqFillRandomFile>,
-) -> Result<impl Responder, ReqFail> {
-    let mut result = sgx_status_t::SGX_SUCCESS;
+) -> Result<impl Responder, PoDR2Error> {
     let file_path_ptr = CString::new(req.file_path.as_str().as_bytes().to_vec()).unwrap();
-    let res = unsafe {
+
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
+    let result2 = unsafe {
         enclave::ecalls::fill_random_file(
             data.eid,
-            &mut result,
+            &mut result1,
             file_path_ptr.as_ptr(),
-            req.data_len
+            req.data_len,
         )
     };
-    Ok(HttpResponse::Ok())
+
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
 
 fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
@@ -223,8 +191,8 @@ fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
 }
 
 fn get_c_file_path_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
-    let c_file_path_str = match CString::new(url_str.as_bytes().to_vec()){
-        Ok(p) => {p}
+    let c_file_path_str = match CString::new(url_str.as_bytes().to_vec()) {
+        Ok(p) => p,
         Err(e) => {
             return Err(PoDR2Error {
                 message: Some(e.to_string()),

@@ -18,7 +18,6 @@ pub mod verify_proof;
 
 lazy_static! (
     static ref CHAL_IDENTIFIER: SgxMutex<ChalIdentifier> = SgxMutex::new(ChalIdentifier::new());
-    static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
 );
 
 #[derive(Serialize, Deserialize)]

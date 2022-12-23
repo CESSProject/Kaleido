@@ -31,15 +31,9 @@ use dotenv::dotenv;
 use log::{error, info};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::borrow::{Borrow, BorrowMut};
-use std::fs;
-use std::io::Read;
 use std::{
     env,
-    net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
-    os::unix::io::{AsRawFd, IntoRawFd},
     str,
-    str::FromStr,
 };
 
 

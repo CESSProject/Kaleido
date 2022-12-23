@@ -1,11 +1,17 @@
-use crate::utils::{
-    bloom_filter::{BloomFilter, Hash},
-    post::post_data,
-    timer::{self, Guard, Time, Timer},
+use crate::{
+    utils::{
+        bloom_filter::{BloomFilter, Hash},
+        post::post_data,
+        timer::{self, Guard, Time, Timer},
+    },
+    CHAL_DATA,
 };
 
-use super::{QElement, CHAL_DATA, CHAL_IDENTIFIER};
-use alloc::{string::ToString, vec::Vec};
+use super::{QElement, CHAL_IDENTIFIER};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use core::ops::Index;
 use serde::{Deserialize, Serialize};
@@ -15,6 +21,7 @@ use sgx_rand::{
 };
 use std::{
     collections::HashMap,
+    env,
     sync::{mpsc::channel, SgxMutex},
     thread,
     time::SystemTime,
@@ -43,6 +50,12 @@ impl ChalData {
             chal_id: Vec::new(),
         }
     }
+
+    pub fn clear(&mut self) {
+        self.bloom_filter.clear();
+        self.failed_file_hashes.clear();
+        self.chal_id.clear();
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -65,12 +78,11 @@ impl ChalIdentifier {
             q_elements: Vec::new(),
         }
     }
-}
 
-impl PartialEq for ChalIdentifier {
-    fn eq(&self, other: &Self) -> bool {
-        // Match only id
-        self.chal_id == other.chal_id // && self.time == other.time
+    pub fn clear(&mut self) {
+        self.chal_id.clear();
+        self.time_out = 0;
+        self.q_elements.clear();
     }
 }
 
@@ -88,12 +100,12 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
 
     if chal_ident.chal_id.is_empty() {
         let now = Time::now();
-        debug!("New Challenge ID Received At {}: {}!", now, now.timestamp());
+        info!("New Challenge ID Received At {}: {}!", now, now.timestamp());
 
         let schedule_time = now + Duration::seconds(10);
         time_out = schedule_time.timestamp();
 
-        chal_ident.chal_id = chal_id.to_vec();
+        chal_ident.chal_id = chal_id.to_vec().clone();
         q_elements = QElement::get_elements(n);
         chal_ident.q_elements = q_elements.clone();
         chal_ident.time_out = schedule_time.timestamp();
@@ -117,9 +129,13 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
                 );
 
                 rx.recv().unwrap();
-                post_chal_data()
+                post_chal_data();
             });
     } else {
+        info!(
+            "Existing Challenge! ID: {:?}, Scheduled At: {}!",
+            chal_ident.chal_id, chal_ident.time_out
+        );
         time_out = chal_ident.time_out;
         q_elements = chal_ident.q_elements.clone();
     }
@@ -133,20 +149,21 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
 fn post_chal_data() {
     info!("Submitting Proofs to Chain");
     let mut chal_data = CHAL_DATA.lock().unwrap();
-
-    post_data::<ChalData>(
-        "https://webhook.site/78f20830-9832-42c4-bd0f-91e29aeea930".to_string(),
-        &chal_data,
-    );
-
-    // Clear contents of CHAL_DATA
-    chal_data.bloom_filter = BloomFilter::zero();
-    chal_data.failed_file_hashes = Vec::new();
-    chal_data.chal_id = Vec::new();
-
-    // Clear CHAL_IDENTIFIER as well
     let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
-    chal_ident.chal_id = Vec::new();
-    chal_ident.q_elements = Vec::new();
-    chal_ident.time_out = 0;
+
+    let url: String = match env::var("CESS_POST_CHAL_URL") {
+        Ok(url) => url,
+        Err(e) => {
+            warn!("CESS_POST_CHAL_URL environment variable not set. Resetting Challenge Data");
+            chal_ident.clear();
+            chal_data.clear();
+            return;
+        }
+    };
+
+    post_data::<ChalData>(url, &chal_data);
+
+    info!("Resetting Challenge Data");
+    chal_data.clear();
+    chal_ident.clear();
 }

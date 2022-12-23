@@ -19,7 +19,6 @@ extern "C" {
         callback_url: *const c_char,
     ) -> sgx_status_t;
 
-    // TODO: INSERT PROOF DATA HERE
     pub fn verify_proof(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
