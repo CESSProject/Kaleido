@@ -1,8 +1,13 @@
 use std::sync::SgxMutex;
 
+use self::chal_gen::{ChalData, ChalIdentifier};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
+use sgx_rand::{
+    distributions::{IndependentSample, Range},
+    thread_rng,
+};
 use utils;
 
 pub mod chal_gen;
@@ -11,37 +16,9 @@ pub mod key_gen;
 pub mod sig_gen;
 pub mod verify_proof;
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ProofIdentifier {
-    /// Unique random value sent by CESS Chain
-    pub id: Vec<u8>,
-    /// Epoch Time sent by CESS Chain in seconds
-    pub time_out: u64,
-    pub q_elements: Vec<QElement>
-}
-
-impl PartialEq for ProofIdentifier {
-    fn eq(&self, other: &Self) -> bool {
-        // Match only id
-        self.id == other.id // && self.time == other.time
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct ProofIdentifierList {
-    identifiers: Vec<ProofIdentifier>,
-}
-
-impl ProofIdentifierList {
-    pub const fn new() -> ProofIdentifierList {
-        ProofIdentifierList {
-            identifiers: Vec::new(),
-        }
-    }
-}
-
 lazy_static! (
-    static ref PROOF_TIMER_LIST: SgxMutex<ProofIdentifierList> = SgxMutex::new(ProofIdentifierList::new());
+    static ref CHAL_IDENTIFIER: SgxMutex<ChalIdentifier> = SgxMutex::new(ChalIdentifier::new());
+    static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
 );
 
 #[derive(Serialize, Deserialize)]
@@ -98,6 +75,42 @@ pub struct QElement {
     pub v: i64,
 }
 
+impl QElement {
+    #[inline]
+    pub fn get_elements(n: i64) -> Vec<QElement> {
+        let mut q_elements: Vec<QElement> = vec![];
+
+        let mut rng = thread_rng();
+
+        let range = (n as f64 * 4.6) / 100_f64;
+
+        let mut low = range.floor();
+        let mut high = range.ceil();
+
+        if low < 1_f64 {
+            low = 1_f64;
+        }
+        if high < 1_f64 {
+            high = 1_f64;
+        }
+
+        let between = Range::new(low, high + 1_f64);
+        let n_samples = between.ind_sample(&mut rng) as usize;
+
+        // Choose random blocks
+        let mut n_blocks = sgx_rand::sample(&mut rng, 0..n, n_samples);
+        n_blocks.sort();
+
+        for i in 0..n_samples {
+            let mut rng = thread_rng();
+            let v_between = Range::new(0_i64, i64::MAX);
+            let v = v_between.ind_sample(&mut rng);
+            q_elements.push(QElement { i: n_blocks[i], v });
+        }
+        q_elements
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 #[derive(Clone)]
@@ -123,26 +136,25 @@ pub struct MinerTag0 {
     pub enc: String,
 }
 
-pub fn convert_miner_proof(proof:&String) ->(Vec<u8>,Vec<Vec<u8>>,Tag) {
+pub fn convert_miner_proof(proof: &String) -> (Vec<u8>, Vec<Vec<u8>>, Tag) {
     let miner_proof: MinerProof = serde_json::from_str(proof).unwrap();
 
     //convert sigma
-    let mut sigma=Vec::new();
+    let mut sigma = Vec::new();
     utils::convert::hexstr_to_u8v(miner_proof.sigma.as_str(), &mut sigma);
 
     //convert miu
-    let mut miu=Vec::new();
-    for item in miner_proof.miu{
-        let mut i =Vec::new();
-        utils::convert::hexstr_to_u8v(item.as_str(),&mut i);
+    let mut miu = Vec::new();
+    for item in miner_proof.miu {
+        let mut i = Vec::new();
+        utils::convert::hexstr_to_u8v(item.as_str(), &mut i);
         miu.push(i);
     }
     //convert tag
     let mut tag = Tag::new();
-    tag.t.n=miner_proof.tag.t.n;
-    utils::convert::hexstr_to_u8v(miner_proof.tag.t.enc.as_str(),&mut tag.t.enc);
-    utils::convert::hexstr_to_u8v(miner_proof.tag.mac_t0.as_str(),&mut tag.mac_t0);
+    tag.t.n = miner_proof.tag.t.n;
+    utils::convert::hexstr_to_u8v(miner_proof.tag.t.enc.as_str(), &mut tag.t.enc);
+    utils::convert::hexstr_to_u8v(miner_proof.tag.mac_t0.as_str(), &mut tag.mac_t0);
 
-    (sigma,miu,tag)
-
+    (sigma, miu, tag)
 }

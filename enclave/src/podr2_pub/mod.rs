@@ -10,7 +10,7 @@ use merkletree::merkle::MerkleTree;
 use sgx_tcrypto::rsgx_sha256_slice;
 use sgx_trts::c_str::CString;
 use crate::merkletree_generator::Sha256Algorithm;
-use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2Data};
+use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2SigGenData};
 use crate::{
     param::podr2_commit_data::{PoDR2CommitData, PoDR2Error},
     pbc,
@@ -22,8 +22,8 @@ pub fn sig_gen(
     pkey: cess_curve::PublicKey,
     data: &mut Vec<u8>,
     n_blocks: usize,
-) -> Result<PoDR2Data, PoDR2Error> {
-    let mut podr2_data = PoDR2Data::new();
+) -> Result<PoDR2SigGenData, PoDR2Error> {
+    let mut podr2_data = PoDR2SigGenData::new();
 
     let (phi, u) = gen_phi(skey, pkey, data, n_blocks)?;
     podr2_data.phi = phi;

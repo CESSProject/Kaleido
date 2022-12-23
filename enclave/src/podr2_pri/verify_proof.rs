@@ -1,5 +1,6 @@
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use serde::{Serialize, Deserialize};
 use core::ops::Index;
 use num::traits::{One, Zero};
 use num_bigint::{BigInt, Sign, ToBigInt};
@@ -8,11 +9,12 @@ use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::EncEncrypt;
 use std::time::SystemTime;
 
-use crate::podr2_pri::PROOF_TIMER_LIST;
+use crate::podr2_pri::CHAL_IDENTIFIER;
+use crate::podr2_pri::chal_gen::ChalIdentifier;
+use crate::utils::bloom_filter::{BloomFilter, Hash};
 use crate::utils::post::post_data;
+use crate::utils::timer::Time;
 use sgx_types::*;
-
-use super::ProofIdentifier;
 
 pub fn verify_proof<T>(
     sigma: Vec<u8>,
@@ -24,45 +26,18 @@ pub fn verify_proof<T>(
 where
     T: Symmetric + MacHash,
 {
-    let mut proof_timer_list = PROOF_TIMER_LIST.lock().unwrap();
-    if !proof_timer_list.identifiers.contains(&ProofIdentifier {
-        id: proof_id.clone(),
-        time_out: 0,
-        q_elements: Vec::new()
-    }) {
-        warn!("Invalid ProofTimer! Does not exist.");
-        return false;
-    }
+    let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
 
     // TODO: Get trusted time instead of system time.
-    let now = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs(),
-        Err(_) => {
-            warn!("SystemTime before UNIX EPOCH!");
-            return false;
-        }
-    };
-
-    // proof_timer_list.timers.index(index)
-    // Element will exist because we check above it the proof_timer is contained in the list.
-    let index = proof_timer_list
-        .identifiers
-        .iter()
-        .position(|x| *x.id == *proof_id)
-        .unwrap();
+    let now = Time::now();
 
     // Time of submission of proof should be lower than the given time frame.
-    if proof_timer_list.identifiers.index(index).time_out < now {
+    if chal_ident.time_out < now.timestamp() {
         warn!("Stale Proof! Proof invalid.");
         return false;
     }
 
-    let q_elements = proof_timer_list.identifiers.index(index).q_elements.clone();
-
-    debug!("Removing ProofTimer at index: {}", index);
-
-    proof_timer_list.identifiers.remove(index);
-    info!("Valid ProofTimer");
+    let q_elements = chal_ident.q_elements.clone();
 
     let mut t_serialized_bytes = serde_json::to_vec(&tag.t).unwrap();
     let t0_mac = match ct.mac_encrypt(&t_serialized_bytes) {

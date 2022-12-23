@@ -17,7 +17,7 @@ cess_curve = { path = "../cess_curve" }
 sgx_serialize_derive = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 base64 = { git = "https://github.com/mesalock-linux/rust-base64-sgx" }
 serde = { git = "https://github.com/mesalock-linux/serde-sgx", features = [
-    "derive"
+    "derive",
 ] }
 rust-crypto = { git = "https://github.com/mesalock-linux/rust-crypto-sgx" }
 serde_json = { git = "https://github.com/mesalock-linux/serde-json-sgx" }
@@ -28,9 +28,9 @@ webpki = { git = "https://github.com/mesalock-linux/webpki", branch = "mesalock_
 yasna = { git = "https://github.com/mesalock-linux/yasna.rs-sgx", features = [
     "bit-vec",
     "num-bigint",
-    "chrono"
+    "chrono",
 ] }
-libsecp256k1 = { git ="https://github.com/mesalock-linux/libsecp256k1-rs-sgx"}
+libsecp256k1 = { git = "https://github.com/mesalock-linux/libsecp256k1-rs-sgx" }
 num-bigint = { git = "https://github.com/mesalock-linux/num-bigint-sgx" }
 num = { git = "https://github.com/mesalock-linux/num-sgx" }
 bit-vec = { version = "0.6", default-features = false }
@@ -38,7 +38,7 @@ httparse = { version = "1.3.2", default-features = false }
 # itertools = { git = "https://github.com/mesalock-linux/rust-itertools-sgx" }
 webpki-roots = { git = "https://github.com/mesalock-linux/webpki-roots", branch = "mesalock_sgx" }
 lazy_static = { version = "*", default-features = false, features = [
-    "spin_no_std"
+    "spin_no_std",
 ] }
 log = { git = "https://github.com/mesalock-linux/log-sgx" }
 env_logger = { git = "https://github.com/mesalock-linux/env_logger-sgx" }
@@ -54,7 +54,7 @@ sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", features = [
     "net",
     "thread",
-    "backtrace"
+    "backtrace",
 ] }
 sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 sgx_rand = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }

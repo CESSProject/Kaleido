@@ -67,6 +67,7 @@ use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use podr2_pri::chal_gen::PoDR2Chal;
+use utils::bloom_filter::BloomFilter;
 
 use cess_curve::*;
 use http_req::response;
@@ -98,7 +99,7 @@ use std::{
 };
 
 // use ocall_def::ocall_post_podr2_commit_data;
-use param::podr2_commit_data::PoDR2Data;
+use param::podr2_commit_data::PoDR2SigGenData;
 use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response, PoDR2VerificationResponse};
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
@@ -107,8 +108,6 @@ use param::{
 use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::{QElement, Tag};
 use utils::file;
-
-use crate::podr2_pri::ProofIdentifier;
 
 mod attestation;
 mod merkletree_generator;
@@ -186,7 +185,7 @@ impl Keys {
         let mut file = SgxFile::open(Keys::FILE_NAME)?;
 
         let mut data = Vec::new();
-        file.read_to_end(&mut data);
+        let _ = file.read_to_end(&mut data);
 
         let helper = DeSerializeHelper::<Keys>::new(data);
 
@@ -487,13 +486,7 @@ pub extern "C" fn gen_chal(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    println!("*******************************************************");
-    println!("Proof Id: {:?}", pid);
-    println!("N_BLOCKS: {}", n_blocks);
-    println!("CALLBACK_URL: {}", callback_url_str);
-    println!("*******************************************************");
-
-    thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("chal_gen".to_string())
         .spawn(move || {
             let proof_id = pid.clone();
@@ -535,12 +528,12 @@ pub extern "C" fn verify_proof(
     }
     // let proof_json_str=utils::convert::hexstr_to_u8v()
 
-    thread::Builder::new()
+    let _ = thread::Builder::new()
         .name("verify_proof".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
-            let (sigma,miu,tag)=podr2_pri::convert_miner_proof(&proof_json_hex_str);
+            let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
             // TODO: INSERT PROOF DATA HERE
             let podr2_result = podr2_pri::verify_proof::verify_proof(
                 sigma,
@@ -579,7 +572,7 @@ pub extern "C" fn fill_random_file(file_path: *const c_char, data_len: usize) ->
 fn get_chal_resp(chal: PoDR2Chal, proof_id: Vec<u8>) -> PoDR2ChalResponse {
     let mut chal_res = PoDR2ChalResponse::new();
     chal_res.q_elements = chal.q_elements;
-    chal_res.identifier.id = proof_id;
+    chal_res.identifier.chal_id = proof_id;
     chal_res.identifier.time_out = chal.time_out;
     chal_res
 }
@@ -598,8 +591,9 @@ fn get_verification_resp(
     resp
 }
 
+#[allow(unused)]
 fn get_podr2_resp(
-    data: PoDR2Data,
+    data: PoDR2SigGenData,
     status_info: param::podr2_commit_response::StatusInfo,
 ) -> PoDR2Response {
     let mut podr2_res = PoDR2Response::new();
