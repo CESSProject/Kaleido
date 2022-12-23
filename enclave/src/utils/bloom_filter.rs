@@ -39,6 +39,12 @@ impl BloomFilter {
         BloomFilter([0u64; BLOOM_FILTER_LENGTH])
     }
 
+    pub fn clear(&mut self) {
+        for elem in self.0.iter_mut() {
+            *elem = 0;
+        }
+    }
+
     pub fn insert(&mut self, elem: [u8; 256]) -> Result<(), BloomError> {
         let mut index: usize = 0;
         for value in elem {

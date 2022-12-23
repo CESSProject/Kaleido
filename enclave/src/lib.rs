@@ -66,7 +66,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
-use podr2_pri::chal_gen::PoDR2Chal;
+use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
 use utils::bloom_filter::BloomFilter;
 
 use cess_curve::*;
@@ -100,7 +100,7 @@ use std::{
 
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::podr2_commit_data::PoDR2SigGenData;
-use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response, PoDR2VerificationResponse};
+use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
     StatusInfo,
@@ -118,6 +118,14 @@ mod podr2_pri;
 mod podr2_proof_commit;
 mod podr2_pub;
 mod utils;
+
+lazy_static! (
+    static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
+    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> =
+        SgxMutex::new(podr2_pri::key_gen::key_gen());
+    static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
+    static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
+);
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -201,13 +209,6 @@ impl Keys {
         }
     }
 }
-
-lazy_static! (
-    static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
-    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> =
-        SgxMutex::new(podr2_pri::key_gen::key_gen());
-    static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
-);
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
@@ -486,7 +487,7 @@ pub extern "C" fn gen_chal(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    let _ = thread::Builder::new()
+    match thread::Builder::new()
         .name("chal_gen".to_string())
         .spawn(move || {
             let proof_id = pid.clone();
@@ -498,12 +499,12 @@ pub extern "C" fn gen_chal(
             chal_res.status.status_msg = "ok".to_string();
 
             utils::post::post_data(call_back_url, &chal_res);
-        });
-
-    sgx_status_t::SGX_SUCCESS
+        }) {
+        Ok(_) => return sgx_status_t::SGX_SUCCESS,
+        Err(_) => return sgx_status_t::SGX_ERROR_OUT_OF_TCS,
+    };
 }
 
-// TODO: INSERT PROOF DATA HERE
 #[no_mangle]
 pub extern "C" fn verify_proof(
     proof_id: *mut u8,
@@ -534,7 +535,7 @@ pub extern "C" fn verify_proof(
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
             let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
-            // TODO: INSERT PROOF DATA HERE
+
             let podr2_result = podr2_pri::verify_proof::verify_proof(
                 sigma,
                 miu,
@@ -543,16 +544,8 @@ pub extern "C" fn verify_proof(
                 &proof_id,
             );
 
-            // TODO: INSERT PROOF DATA HERE
-            let mut result_res = get_verification_resp(
-                podr2_result,
-                "INSERT BLOOM FILTER DATA HERE".to_string(),
-                proof_id,
-            );
-            result_res.status.status_code = Podr2Status::PoDr2Success as usize;
-            result_res.status.status_msg = "ok".to_string();
-
-            utils::post::post_data(call_back_url, &result_res);
+            // TODO: Update ChalData
+            let chal_data = CHAL_DATA.lock().unwrap();
         });
 
     sgx_status_t::SGX_SUCCESS
@@ -575,20 +568,6 @@ fn get_chal_resp(chal: PoDR2Chal, proof_id: Vec<u8>) -> PoDR2ChalResponse {
     chal_res.identifier.chal_id = proof_id;
     chal_res.identifier.time_out = chal.time_out;
     chal_res
-}
-
-fn get_verification_resp(
-    result: bool,
-    bloom_filter: String,
-    proof_id: Vec<u8>,
-) -> PoDR2VerificationResponse {
-    // TODO: INSERT PROOF DATA HERE
-    let mut resp = PoDR2VerificationResponse::new();
-    resp.result = result;
-    resp.bloom_filter = bloom_filter;
-    resp.proof_id = proof_id;
-
-    resp
 }
 
 #[allow(unused)]

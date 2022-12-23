@@ -130,24 +130,3 @@ impl PoDR2ChalResponse {
         }
     }
 }
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[repr(C)]
-pub struct PoDR2VerificationResponse {
-    pub result: bool,
-    pub bloom_filter: String,
-    pub proof_id: Vec<u8>,
-    pub status: StatusInfo,
-}
-
-impl PoDR2VerificationResponse {
-    pub fn new() -> PoDR2VerificationResponse {
-        PoDR2VerificationResponse {
-            result: false,
-            bloom_filter: String::new(),
-            proof_id: Vec::new(),
-            status: StatusInfo::new(),
-        }
-    }
-}

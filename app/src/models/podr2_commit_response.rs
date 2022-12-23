@@ -76,7 +76,6 @@ pub struct PoDR2ChalRequest {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2VerifyRequest {
-    // TODO: INSERT PROOF DATA HERE
     pub proof_id: String,
     pub proof_json: String,
     pub callback_url: String,
