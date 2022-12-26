@@ -1,4 +1,5 @@
 use crate::{
+    param::podr2_commit_data::PoDR2Error,
     utils::{
         bloom_filter::{BloomFilter, Hash},
         post::post_data,
@@ -26,6 +27,10 @@ use std::{
     thread,
     time::SystemTime,
 };
+
+lazy_static! (
+    static ref TIMER: SgxMutex<Timer> = SgxMutex::new(Timer::new());
+);
 
 /// Random Challenge for which the miner have to prove data possession.
 #[derive(Serialize, Deserialize)]
@@ -86,13 +91,12 @@ impl ChalIdentifier {
     }
 }
 
-pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
+pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
     let mut q_elements: Vec<QElement> = vec![];
-    if n == 0 {
-        return PoDR2Chal {
-            q_elements,
-            time_out: 0,
-        };
+    if n < 0 {
+        return Err(PoDR2Error {
+            message: Some("n should be greater than 0".to_string()),
+        });
     }
 
     let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
@@ -102,7 +106,7 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
         let now = Time::now();
         info!("New Challenge ID Received At {}: {}!", now, now.timestamp());
 
-        let schedule_time = now + Duration::seconds(10);
+        let schedule_time = now + Duration::seconds(30);
         time_out = schedule_time.timestamp();
 
         chal_ident.chal_id = chal_id.to_vec().clone();
@@ -110,7 +114,7 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
         chal_ident.q_elements = q_elements.clone();
         chal_ident.time_out = schedule_time.timestamp();
 
-        let _ = thread::Builder::new()
+        let _ = match thread::Builder::new()
             .name(format!(
                 "post_challenge_{}",
                 base64::encode(chal_id.to_vec())
@@ -118,19 +122,35 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
             .spawn(move || {
                 let (tx, rx) = channel();
 
-                let timer = Timer::new();
-                let _guard = timer.schedule_with_date(schedule_time, move || {
-                    tx.send(()).unwrap();
-                });
+                let _guard = TIMER
+                    .lock()
+                    .unwrap()
+                    .schedule_with_date(schedule_time, move || {
+                        match tx.send(()) {
+                            Ok(m) => m,
+                            Err(e) => {
+                                error!("Failed to post_challenge thread message: {}", e.to_string())
+                            }
+                        };
+                    });
 
                 debug!(
                     "Challenge Post Scheduled for {}: {}!",
                     schedule_time, time_out
                 );
 
-                rx.recv().unwrap();
-                post_chal_data();
-            });
+                match rx.recv() {
+                    Ok(_) => post_chal_data(),
+                    Err(e) => error!("Failed to submit proofs to chain: {}", e.to_string()),
+                };
+            }) {
+            Ok(handle) => handle,
+            Err(e) => {
+                return Err(PoDR2Error {
+                    message: Some(format!("{}", e.to_string())),
+                })
+            }
+        };
     } else {
         info!(
             "Existing Challenge! ID: {:?}, Scheduled At: {}!",
@@ -140,10 +160,10 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> PoDR2Chal {
         q_elements = chal_ident.q_elements.clone();
     }
 
-    PoDR2Chal {
+    Ok(PoDR2Chal {
         q_elements,
         time_out,
-    }
+    })
 }
 
 fn post_chal_data() {
@@ -166,4 +186,5 @@ fn post_chal_data() {
     info!("Resetting Challenge Data");
     chal_data.clear();
     chal_ident.clear();
+    debug!("Resetting Completed!");
 }
