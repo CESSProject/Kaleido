@@ -8,7 +8,7 @@ use crate::{
     CHAL_DATA,
 };
 
-use super::{QElement, CHAL_IDENTIFIER};
+use super::{QElement, CHALLENGE};
 use alloc::{
     string::{String, ToString},
     vec::Vec,
