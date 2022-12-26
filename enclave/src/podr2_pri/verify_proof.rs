@@ -9,8 +9,8 @@ use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::EncEncrypt;
 use std::time::SystemTime;
 
-use crate::podr2_pri::CHAL_IDENTIFIER;
-use crate::podr2_pri::chal_gen::ChalIdentifier;
+use crate::podr2_pri::CHALLENGE;
+use crate::podr2_pri::chal_gen::Challenge;
 use crate::utils::bloom_filter::{BloomFilter, Hash};
 use crate::utils::post::post_data;
 use crate::utils::timer::Time;
@@ -26,18 +26,20 @@ pub fn verify_proof<T>(
 where
     T: Symmetric + MacHash,
 {
-    let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
+    let mut challenge = CHALLENGE.lock().unwrap();
 
     // TODO: Get trusted time instead of system time.
     let now = Time::now();
 
     // Time of submission of proof should be lower than the given time frame.
-    if chal_ident.time_out < now.timestamp() {
+    // If the proof is already submitted to the chain chal_ident_time_out will be set to i64::MIN.
+    // Resulting all the proofs submitted after the time expiration to be invalid.
+    if challenge.time_out < now.timestamp() {
         warn!("Stale Proof! Proof invalid.");
         return false;
     }
 
-    let q_elements = chal_ident.q_elements.clone();
+    let q_elements = challenge.q_elements.clone();
 
     let mut t_serialized_bytes = serde_json::to_vec(&tag.t).unwrap();
     let t0_mac = match ct.mac_encrypt(&t_serialized_bytes) {

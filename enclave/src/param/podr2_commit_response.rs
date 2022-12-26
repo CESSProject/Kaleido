@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::podr2_pri::{QElement, chal_gen::ChalIdentifier};
+use crate::podr2_pri::{QElement, chal_gen::Challenge};
 
 use super::Podr2Status;
 
@@ -112,20 +112,14 @@ impl PoDR2Response {
 #[serde(rename_all = "snake_case")]
 #[repr(C)]
 pub struct PoDR2ChalResponse {
-    pub q_elements: Vec<QElement>,
-    pub identifier: ChalIdentifier,
+    pub challenge: Challenge,
     pub status: StatusInfo,
 }
 
 impl PoDR2ChalResponse {
     pub fn new() -> PoDR2ChalResponse {
         PoDR2ChalResponse {
-            q_elements: Vec::new(),
-            identifier: ChalIdentifier {
-                chal_id: Vec::new(),
-                time_out: 0,
-                q_elements: Vec::new()
-            },
+            challenge: Challenge::new(),
             status: StatusInfo::new(),
         }
     }

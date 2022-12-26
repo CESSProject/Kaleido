@@ -596,11 +596,11 @@ pub extern "C" fn fill_random_file(file_path: *const c_char, data_len: usize) ->
     return sgx_status_t::SGX_SUCCESS;
 }
 
-fn get_chal_resp(chal: PoDR2Chal, proof_id: Vec<u8>) -> PoDR2ChalResponse {
+fn get_chal_resp(chal: PoDR2Chal, chal_id: Vec<u8>) -> PoDR2ChalResponse {
     let mut chal_res = PoDR2ChalResponse::new();
-    chal_res.q_elements = chal.q_elements;
-    chal_res.identifier.chal_id = proof_id;
-    chal_res.identifier.time_out = chal.time_out;
+    chal_res.challenge.chal_id = chal_id;
+    chal_res.challenge.time_out = chal.time_out;
+    chal_res.challenge.q_elements = chal.q_elements;
     chal_res
 }
 
