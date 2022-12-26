@@ -420,9 +420,23 @@ pub extern "C" fn process_data(
                     .push(utils::convert::u8v_to_hexstr(&sigma))
             }
 
+            podr2_data.status.status_msg = "Sig gen successful!".to_string();
+            podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
+
             let proof_id = vec![12, 244, 32, 12];
 
-            let podr2_chal = podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id);
+            let podr2_chal = match podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id) {
+                Ok(chal) => chal,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    podr2_data.status.status_msg = format!("{}", e.to_string());
+                    podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize;
+                    PoDR2Chal {
+                        q_elements: Vec::new(),
+                        time_out: 0,
+                    }
+                }
+            };
 
             let gen_proof_result = podr2_pri::gen_proof::gen_proof(
                 sig_gen_result.0,
@@ -441,8 +455,6 @@ pub extern "C" fn process_data(
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
-                podr2_data.status.status_msg = "Sig gen successful!".to_string();
-                podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
                 utils::post::post_data(call_back_url, &podr2_data);
                 let mem =
                     utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);
@@ -471,11 +483,11 @@ pub extern "C" fn process_data(
 #[no_mangle]
 pub extern "C" fn gen_chal(
     n_blocks: usize,
-    proof_id: *mut u8,
+    chal_id: *mut u8,
     proof_id_len: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
-    let mut pid = unsafe { slice::from_raw_parts(proof_id, proof_id_len).to_vec() };
+    let mut __chal_id = unsafe { slice::from_raw_parts(chal_id, proof_id_len).to_vec() };
 
     let callback_url_str = unsafe { CStr::from_ptr(callback_url).to_str() };
     let callback_url_str = match callback_url_str {
@@ -488,15 +500,37 @@ pub extern "C" fn gen_chal(
     }
 
     match thread::Builder::new()
-        .name("chal_gen".to_string())
+        .name(format!(
+            "chal_gen_{}",
+            base64::encode(__chal_id.to_vec())))
         .spawn(move || {
-            let proof_id = pid.clone();
+            let proof_id = __chal_id.clone();
             let call_back_url = callback_url_str.clone();
-            let podr2_chal = podr2_pri::chal_gen::chal_gen(n_blocks as i64, &proof_id);
+
+            let mut status_code: usize;
+            let mut status_msg: String;
+            let podr2_chal = match podr2_pri::chal_gen::chal_gen(n_blocks as i64, &proof_id) {
+                Ok(chal) => {
+                    status_code = Podr2Status::PoDr2Success as usize;
+                    status_msg = "ok".to_string();
+                    chal
+                }
+                Err(e) => {
+                    status_code = Podr2Status::PoDr2Unexpected as usize;
+                    status_msg = match e.message {
+                        Some(m) => m,
+                        None => "Failed to generate challenge".to_string(),
+                    };
+                    PoDR2Chal {
+                        q_elements: Vec::new(),
+                        time_out: 0,
+                    }
+                }
+            };
 
             let mut chal_res = get_chal_resp(podr2_chal, proof_id);
-            chal_res.status.status_code = Podr2Status::PoDr2Success as usize;
-            chal_res.status.status_msg = "ok".to_string();
+            chal_res.status.status_code = status_code;
+            chal_res.status.status_msg = status_msg;
 
             utils::post::post_data(call_back_url, &chal_res);
         }) {

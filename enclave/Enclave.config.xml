@@ -14,7 +14,8 @@
   <HeapMaxSize>0x8000000</HeapMaxSize>
   
   <!-- The number of trusted threads -->
-  <TCSNum>10</TCSNum>  
+  <!-- Kaleido requires at least 14 threads -->
+  <TCSNum>14</TCSNum>  
 
   <!-- TCS management policy -->
   <TCSPolicy>0</TCSPolicy>  

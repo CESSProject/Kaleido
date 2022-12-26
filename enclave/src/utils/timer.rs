@@ -322,7 +322,7 @@ where
                 scheduler.run()
             })
             .unwrap();
-        TimerBase { tx: tx }
+        TimerBase { tx }
     }
 
     pub fn schedule_with_delay(&self, delay: Duration, data: T) -> Guard {
@@ -348,9 +348,9 @@ where
         self.tx
             .send(Op::Schedule(Schedule {
                 date: date.with_timezone(&Utc),
-                data: data,
+                data,
                 guard: guard.clone(),
-                repeat: repeat,
+                repeat,
             }))
             .unwrap();
         guard
