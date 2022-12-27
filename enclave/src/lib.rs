@@ -57,6 +57,7 @@ extern crate sgx_types;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
+extern crate timer;
 
 // #[macro_use]
 // extern crate itertools;
@@ -64,10 +65,11 @@ extern crate yasna;
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use sgx_tcrypto::rsgx_sha256_slice;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
-use utils::bloom_filter::BloomFilter;
+use utils::bloom_filter::{BloomFilter, BloomHash};
 
 use cess_curve::*;
 use http_req::response;
@@ -579,7 +581,19 @@ pub extern "C" fn verify_proof(
             );
 
             // TODO: Update ChalData
-            let chal_data = CHAL_DATA.lock().unwrap();
+            let mut chal_data = CHAL_DATA.lock().unwrap();
+            let hash = rsgx_sha256_slice(b"hello").unwrap();
+        
+            let bloom_hash = BloomHash(hash);
+            let binary = match bloom_hash.binary() {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!("Failed to compute bloom binary: {}", e);
+                    [0u8; 256]
+                }
+            };
+            chal_data.bloom_filter.insert(binary);
+            // chal_data.failed_file_hashes = failed_file_hashes; // TODO: Insert hashes of failed files.
         });
 
     sgx_status_t::SGX_SUCCESS

@@ -1,9 +1,8 @@
 use crate::{
     param::podr2_commit_data::PoDR2Error,
     utils::{
-        bloom_filter::{BloomFilter, Hash},
+        bloom_filter::{BloomFilter, BloomHash},
         post::post_data,
-        timer::{self, Guard, Time, Timer},
     },
     CHAL_DATA,
 };
@@ -14,6 +13,7 @@ use alloc::{
     vec::Vec,
 };
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use timer::{Timer, Time};
 use core::ops::Index;
 use serde::{Deserialize, Serialize};
 use sgx_rand::{
@@ -42,9 +42,9 @@ pub struct PoDR2Chal {
 /// Contains {bloom_filter, failed_file_hashes, proof_id} to be send back to CESS chain
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChalData {
-    bloom_filter: BloomFilter,
-    failed_file_hashes: Vec<Hash>,
-    chal_id: Vec<u8>,
+    pub bloom_filter: BloomFilter,
+    pub failed_file_hashes: Vec<BloomHash>,
+    pub chal_id: Vec<u8>,
 }
 
 impl ChalData {

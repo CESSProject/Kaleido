@@ -1,20 +1,21 @@
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use serde::{Serialize, Deserialize};
+use sgx_tcrypto::rsgx_sha256_slice;
+use timer::Time;
 use core::ops::Index;
 use num::traits::{One, Zero};
 use num_bigint::{BigInt, Sign, ToBigInt};
 use param::podr2_commit_data::PoDR2Error;
 use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::EncEncrypt;
+use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
-use crate::podr2_pri::CHALLENGE;
 use crate::podr2_pri::chal_gen::Challenge;
-use crate::utils::bloom_filter::{BloomFilter, Hash};
 use crate::utils::post::post_data;
-use crate::utils::timer::Time;
 use sgx_types::*;
+
+use super::CHALLENGE;
 
 pub fn verify_proof<T>(
     sigma: Vec<u8>,
