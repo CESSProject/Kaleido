@@ -409,10 +409,15 @@ pub extern "C" fn process_data(
             // let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
             // println!("HMAC result is :{:?}", mac_hex);
 
-            let mut matrix = file::split_file(&file_info.1, block_size);
+            let mut matrix = file::split_file(&file_info.1.clone(), block_size);
             println!("matrix is {:?}", matrix);
 
-            let sig_gen_result = podr2_pri::sig_gen::sig_gen(matrix.clone(), et.clone());
+            let mut file_hash=match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
+                Ok(hash) => hash,
+                Err(e)=> {panic!(e);},
+            };
+
+            let sig_gen_result = podr2_pri::sig_gen::sig_gen(matrix.clone(),file_hash.to_vec(), et.clone());
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data
@@ -423,7 +428,7 @@ pub extern "C" fn process_data(
             podr2_data.status.status_msg = "Sig gen successful!".to_string();
             podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
 
-            let proof_id = vec![12, 244, 32, 12];
+            let proof_id = vec![1,3,0,255];
 
             let podr2_chal = match podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id) {
                 Ok(chal) => chal,

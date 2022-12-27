@@ -2,6 +2,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use serde::{Serialize, Deserialize};
 use core::ops::Index;
+use num::ToPrimitive;
 use num::traits::{One, Zero};
 use num_bigint::{BigInt, Sign, ToBigInt};
 use param::podr2_commit_data::PoDR2Error;
@@ -60,16 +61,18 @@ where
     for q in q_elements {
         let f_kprf = ct.symmetric_encrypt(&q.i.to_ne_bytes(), "prf").unwrap();
         let vi = q.v.to_bigint().unwrap();
-        first += num_bigint::BigInt::from_bytes_le(Sign::Plus, &f_kprf) * vi
+        first += num_bigint::BigInt::from_bytes_be(Sign::Plus, f_kprf.as_slice()) * vi
     }
 
     let mut second: BigInt = Zero::zero();
     let mut j = 0_usize;
     for m in miu {
         let alpha_j = enc.alpha[j].to_bigint().unwrap();
-        let miu_j = num_bigint::BigInt::from_bytes_le(Sign::Plus, &m);
+        let miu_j = num_bigint::BigInt::from_bytes_be(Sign::Plus, m.as_slice());
         second += alpha_j * miu_j;
         j += 1;
     }
-    num_bigint::BigInt::from_bytes_le(Sign::Plus, &sigma) == first + second
+
+    let left =num_bigint::BigInt::from_bytes_be(Sign::Plus, sigma.as_slice());
+    left == first + second
 }

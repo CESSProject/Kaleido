@@ -17,7 +17,7 @@ impl PoDR2PriData {
     pub fn new() -> PoDR2PriData {
         PoDR2PriData {
             sigmas: vec![],
-            tag: Tag { t: Tag0 { n: 0, enc: vec![] }, mac_t0: vec![] },
+            tag: Tag { t: Tag0 { n: 0, enc: vec![], file_hash: vec![] }, mac_t0: vec![] },
             status: super::StatusInfo { status_code: 0, status_msg: "".to_string() }
         }
     }
