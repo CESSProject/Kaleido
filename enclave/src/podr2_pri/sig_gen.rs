@@ -9,9 +9,10 @@ use num::ToPrimitive;
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
 use sgx_rand::Rng;
+use sgx_types::uint8_t;
 use podr2_pri::{EncEncrypt, Tag, Tag0};
 
-pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
+pub fn sig_gen<T>(matrix:Vec<Vec<u8>>,file_hash:Vec<u8>, ct: T) -> (Vec<Vec<u8>>, Tag)
     where T: Symmetric + MacHash
 {
 
@@ -35,6 +36,7 @@ pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
     //t0 be n||Enckencc(kprf||α1||···||αs)
     t0.n= matrix.len() as i64;
     t0.enc=ct.symmetric_encrypt(&enc_serialized_bytes,"enc").unwrap();
+    t0.file_hash=file_hash;
     let mut t0_serialized_bytes = serde_json::to_vec(&t0).unwrap();
 
     tag.t=t0;
@@ -51,7 +53,7 @@ pub fn sig_gen<T>(matrix:Vec<Vec<u8>>, ct: T) -> (Vec<Vec<u8>>, Tag)
             sum+=tmp;
             j+=1;
         }
-        sigmas[i]=(num_bigint::BigInt::from_bytes_le(Sign::Plus,&f_kprf)+sum).to_bytes_le().1;
+        sigmas[i]=(num_bigint::BigInt::from_bytes_be(Sign::Plus,&f_kprf)+sum).to_bytes_be().1;
         i+=1;
     }
     (sigmas, tag)
