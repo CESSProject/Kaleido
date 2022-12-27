@@ -13,7 +13,6 @@ use alloc::{
     vec::Vec,
 };
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use timer::{Timer, Time};
 use core::ops::Index;
 use serde::{Deserialize, Serialize};
 use sgx_rand::{
@@ -27,6 +26,7 @@ use std::{
     thread,
     time::SystemTime,
 };
+use timer::{Time, Timer};
 
 lazy_static! (
     static ref TIMER: SgxMutex<Timer> = SgxMutex::new(Timer::new());
@@ -43,7 +43,7 @@ pub struct PoDR2Chal {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChalData {
     pub bloom_filter: BloomFilter,
-    pub failed_file_hashes: Vec<BloomHash>,
+    pub failed_file_hashes: Vec<Vec<u8>>,
     pub chal_id: Vec<u8>,
 }
 
@@ -172,7 +172,7 @@ fn post_chal_data() {
     info!("Submitting Proofs to Chain");
     let mut chal_data = CHAL_DATA.lock().unwrap();
     let mut challenge = CHALLENGE.lock().unwrap();
-    
+
     let url: String = match env::var("CESS_POST_CHAL_URL") {
         Ok(url) => url,
         Err(e) => {

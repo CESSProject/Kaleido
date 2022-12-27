@@ -54,10 +54,10 @@ extern crate sgx_tse;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
+extern crate timer;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
-extern crate timer;
 
 // #[macro_use]
 // extern crate itertools;
@@ -65,10 +65,10 @@ extern crate timer;
 use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use sgx_tcrypto::rsgx_sha256_slice;
 use core::convert::TryInto;
 use core::sync::atomic::AtomicUsize;
 use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
+use sgx_tcrypto::rsgx_sha256_slice;
 use utils::bloom_filter::{BloomFilter, BloomHash};
 
 use cess_curve::*;
@@ -111,6 +111,8 @@ use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::{QElement, Tag};
 use utils::file;
 
+use crate::attestation::hex;
+
 mod attestation;
 mod merkletree_generator;
 mod ocall_def;
@@ -121,13 +123,13 @@ mod podr2_proof_commit;
 mod podr2_pub;
 mod utils;
 
-lazy_static! (
+lazy_static! {
     static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
     static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> =
         SgxMutex::new(podr2_pri::key_gen::key_gen());
     static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
     static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
-);
+};
 
 #[derive(Serializable, DeSerializable)]
 struct Keys {
@@ -414,12 +416,15 @@ pub extern "C" fn process_data(
             let mut matrix = file::split_file(&file_info.1.clone(), block_size);
             println!("matrix is {:?}", matrix);
 
-            let mut file_hash=match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
+            let mut file_hash = match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
                 Ok(hash) => hash,
-                Err(e)=> {panic!(e);},
+                Err(e) => {
+                    panic!(e);
+                }
             };
 
-            let sig_gen_result = podr2_pri::sig_gen::sig_gen(matrix.clone(),file_hash.to_vec(), et.clone());
+            let sig_gen_result =
+                podr2_pri::sig_gen::sig_gen(matrix.clone(), file_hash.to_vec(), et.clone());
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data
@@ -430,7 +435,7 @@ pub extern "C" fn process_data(
             podr2_data.status.status_msg = "Sig gen successful!".to_string();
             podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
 
-            let proof_id = vec![1,3,0,255];
+            let proof_id = vec![1, 3, 0, 255];
 
             let podr2_chal = match podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id) {
                 Ok(chal) => chal,
@@ -454,10 +459,35 @@ pub extern "C" fn process_data(
             let ok = podr2_pri::verify_proof::verify_proof(
                 gen_proof_result.0,
                 gen_proof_result.1,
-                sig_gen_result.1,
+                &sig_gen_result.1,
                 et.clone(),
                 &proof_id,
             );
+
+            if !ok {
+                let mut chal_data = CHAL_DATA.lock().unwrap();
+                chal_data
+                    .failed_file_hashes
+                    .push(podr2_data.tag.t.file_hash.clone());
+                let hex = utils::convert::u8v_to_hexstr(&podr2_data.tag.t.file_hash);
+
+                let mut hash = [0u8; 64];
+                let bytes = hex.as_bytes();
+                for i in 0..bytes.len() {
+                    hash[i] = bytes[i];
+                }
+
+                let bloom_hash = BloomHash(hash);
+                let binary = match bloom_hash.binary() {
+                    Ok(b) => b,
+                    Err(e) => {
+                        warn!("Failed to compute bloom binary: {}", e);
+                        [0u8; 256]
+                    }
+                };
+                chal_data.bloom_filter.insert(binary);
+            }
+
             println!("verify result is {}", ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
@@ -507,9 +537,7 @@ pub extern "C" fn gen_chal(
     }
 
     match thread::Builder::new()
-        .name(format!(
-            "chal_gen_{}",
-            base64::encode(__chal_id.to_vec())))
+        .name(format!("chal_gen_{}", base64::encode(__chal_id.to_vec())))
         .spawn(move || {
             let proof_id = __chal_id.clone();
             let call_back_url = callback_url_str.clone();
@@ -577,28 +605,35 @@ pub extern "C" fn verify_proof(
             let proof_id = pid.clone();
             let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
 
-            let podr2_result = podr2_pri::verify_proof::verify_proof(
+            let ok = podr2_pri::verify_proof::verify_proof(
                 sigma,
                 miu,
-                tag,
+                &tag,
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
                 &proof_id,
             );
 
-            // TODO: Update ChalData
-            let mut chal_data = CHAL_DATA.lock().unwrap();
-            let hash = rsgx_sha256_slice(b"hello").unwrap();
-        
-            let bloom_hash = BloomHash(hash);
-            let binary = match bloom_hash.binary() {
-                Ok(b) => b,
-                Err(e) => {
-                    warn!("Failed to compute bloom binary: {}", e);
-                    [0u8; 256]
+            if !ok {
+                let mut chal_data = CHAL_DATA.lock().unwrap();
+                chal_data.failed_file_hashes.push(tag.t.file_hash.clone());
+
+                let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
+                let mut hash = [0u8; 64];
+                let bytes = hex.as_bytes();
+                for i in 0..bytes.len() {
+                    hash[i] = bytes[i];
                 }
-            };
-            chal_data.bloom_filter.insert(binary);
-            // chal_data.failed_file_hashes = failed_file_hashes; // TODO: Insert hashes of failed files.
+
+                let bloom_hash = BloomHash(hash);
+                let binary = match bloom_hash.binary() {
+                    Ok(b) => b,
+                    Err(e) => {
+                        warn!("Failed to compute bloom binary: {}", e);
+                        [0u8; 256]
+                    }
+                };
+                chal_data.bloom_filter.insert(binary);
+            }
         });
 
     sgx_status_t::SGX_SUCCESS

@@ -21,7 +21,7 @@ use super::CHALLENGE;
 pub fn verify_proof<T>(
     sigma: Vec<u8>,
     miu: Vec<Vec<u8>>,
-    tag: super::Tag,
+    tag: &super::Tag,
     ct: T,
     proof_id: &Vec<u8>,
 ) -> bool
