@@ -582,6 +582,7 @@ pub extern "C" fn verify_proof(
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
                 &proof_id,
             );
+            println!("podr2_result is :{}",podr2_result);
 
             // TODO: Update ChalData
             let chal_data = CHAL_DATA.lock().unwrap();
