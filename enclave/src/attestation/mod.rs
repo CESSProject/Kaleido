@@ -20,19 +20,19 @@
 pub mod cert;
 pub mod hex;
 
+use crate::{Keys, KEYS};
 use libc::rand;
+use ocall_def::*;
+use secp256k1::*;
 use sgx_rand::*;
 use sgx_serialize::{DeSerializeHelper, SerializeHelper};
 use sgx_tcrypto::*;
 use sgx_tse::*;
 use sgx_types::*;
 use std::backtrace::{self, PrintFormat};
-use secp256k1::*;
-use crate::{Keys, KEYS};
-use ocall_def::*;
 use std::env;
 use std::io;
-use std::io::{Read, Write,BufReader};
+use std::io::{BufReader, Read, Write};
 use std::net::TcpStream;
 use std::prelude::v1::*;
 use std::ptr;
@@ -41,7 +41,7 @@ use std::string::String;
 use std::sync::Arc;
 use std::untrusted::fs;
 use std::vec::Vec;
-use utils::{convert::u8v_to_hexstr};
+use utils::convert::u8v_to_hexstr;
 // use itertools::Itertools;
 
 pub const IAS_HOSTNAME: &'static str = env!("IAS_HOSTNAME");
@@ -452,9 +452,9 @@ pub fn create_attestation_report(
 
     let (attn_report, sig, cert) = get_report_from_intel(ias_sock, quote_vec);
     debug!("-------------------------------------------------------------------------------------------");
-    debug!("{:?}",attn_report);
-    debug!("{:?}",sig);
-    debug!("{:?}",cert);
+    debug!("{:?}", attn_report);
+    debug!("{:?}", sig);
+    debug!("{:?}", cert);
     debug!("-------------------------------------------------------------------------------------------");
     Ok((attn_report, sig, cert))
 }
@@ -565,25 +565,33 @@ impl rustls::ServerCertVerifier for ServerAuth {
 }
 
 #[no_mangle]
-pub extern "C" fn run_server(
-    sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
+pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
 
-    // Generate Keypair
-    let mut rand_slice =[0u8; 32];
-    let mut os_rng = sgx_rand::SgxRng::new().unwrap();
-    os_rng.fill_bytes(&mut rand_slice);
-    println!("rand slice is {:?}",rand_slice);
-    let mut ssk=SecretKey::parse_slice(&rand_slice).unwrap();
-    let mut spk=PublicKey::from_secret_key(&ssk);
+    // // Generate Keypair
+    // let mut rand_slice = [0u8; 32];
+    // let mut os_rng = sgx_rand::SgxRng::new().unwrap();
+    // os_rng.fill_bytes(&mut rand_slice);
+    // println!("rand slice is {:?}", rand_slice);
+    // let mut ssk = SecretKey::parse_slice(&rand_slice).unwrap();
+    // let mut spk = PublicKey::from_secret_key(&ssk);
+
+    let keys = KEYS.lock().unwrap();
+    let ssk = &keys.skey;
+    let spk = &keys.pkey;
+
     println!("ssk is {:?}", u8v_to_hexstr(&ssk.serialize()[..]));
-    println!("spk is {:?}", u8v_to_hexstr(&spk.serialize_compressed()[..]));
+    println!(
+        "spk is {:?}",
+        u8v_to_hexstr(&spk.serialize_compressed()[..])
+    );
+    
     let message_arr = [5u8; 32];
-    println!("message_arr is {:?}",u8v_to_hexstr(&message_arr));
+    println!("message_arr is {:?}", u8v_to_hexstr(&message_arr));
     let ctx_message = Message::parse(&message_arr);
-    let (sig,recid)=secp256k1::sign(&ctx_message,&ssk);
-    let mut make_rec_sig=[0u8;65];
-    let mut index =0_usize;
+    let (sig, recid) = secp256k1::sign(&ctx_message, &ssk);
+    let mut make_rec_sig = [0u8; 65];
+    let mut index = 0_usize;
     for i in sig.serialize() {
         make_rec_sig[index] = i;
         index = index + 1;
@@ -593,9 +601,9 @@ pub extern "C" fn run_server(
     } else {
         make_rec_sig[64] = recid.serialize();
     }
-    let ok=secp256k1::verify(&ctx_message,&sig,&spk);
-    println!("Verify secp256k1 result is {}",ok);
-    println!("recid is {:?}",u8v_to_hexstr(&make_rec_sig));
+    let ok = secp256k1::verify(&ctx_message, &sig, &spk);
+    println!("Verify secp256k1 result is {}", ok);
+    println!("recid is {:?}", u8v_to_hexstr(&make_rec_sig));
 
     // let ecc_handle = SgxEccHandle::new();
     // let _result = ecc_handle.open();
@@ -610,7 +618,7 @@ pub extern "C" fn run_server(
     };
 
     let payload = attn_report + "|" + &sig + "|" + &cert;
-    let mut res=crate::PAYLOAD.lock().unwrap();
+    let mut res = crate::PAYLOAD.lock().unwrap();
     res.clone_from(&payload);
     // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
     //     Ok(r) => r,

@@ -59,45 +59,28 @@ extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
 
-// #[macro_use]
-// extern crate itertools;
-
-use alloc::borrow::ToOwned;
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use core::convert::TryInto;
-use core::sync::atomic::AtomicUsize;
 use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
-use sgx_tcrypto::rsgx_sha256_slice;
-use utils::bloom_filter::{BloomFilter, BloomHash};
+use secp256k1::{PublicKey, SecretKey};
+use sgx_rand::Rng;
+use utils::bloom_filter::BloomHash;
 
 use cess_curve::*;
-use http_req::response;
-use http_req::{
-    request::{Method, RequestBuilder},
-    tls,
-    uri::Uri,
-};
 use log::{info, warn};
-use merkletree::merkle::MerkleTree;
-use serde::{Deserialize, Serialize};
-use sgx_serialize::{DeSerializeHelper, SerializeHelper};
+use sgx_serialize::{DeSerializeHelper, Serializable, SerializeHelper};
 use sgx_types::*;
 use std::io::ErrorKind;
 use std::sync::atomic::Ordering;
 use std::{
     env,
     ffi::CStr,
-    io::Seek,
     io::{Error, Read, Write},
-    net::TcpStream,
     sgxfs::SgxFile,
     slice,
     string::String,
     sync::SgxMutex,
     thread,
-    time::{Duration, Instant, SystemTime},
-    untrusted::fs,
 };
 
 // use ocall_def::ocall_post_podr2_commit_data;
@@ -112,6 +95,7 @@ use podr2_pri::{QElement, Tag};
 use utils::file;
 
 use crate::attestation::hex;
+use crate::statics::*;
 
 mod attestation;
 mod merkletree_generator;
@@ -121,58 +105,69 @@ mod pbc;
 mod podr2_pri;
 mod podr2_proof_commit;
 mod podr2_pub;
+mod statics;
 mod utils;
 
-lazy_static! {
-    static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::new());
-    static ref ENCRYPTIONTYPE: SgxMutex<podr2_pri::key_gen::EncryptionType> =
-        SgxMutex::new(podr2_pri::key_gen::key_gen());
-    static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
-    static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
-};
+pub struct Keys {
+    skey: secp256k1::SecretKey,
+    pkey: secp256k1::PublicKey,
+}
 
-#[derive(Serializable, DeSerializable)]
-struct Keys {
-    skey: SecretKey,
-    pkey: PublicKey,
-    sig: G1,
+impl sgx_serialize::Serializable for Keys {
+    fn encode<S: sgx_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        // TODO: Encode Keys
+        Ok(())
+    }
+}
+
+impl sgx_serialize::DeSerializable for Keys {
+    fn decode<D: sgx_serialize::Decoder>(d: &mut D) -> Result<Self, D::Error> {
+        // TODO: Decode Keys
+        Ok(Keys::gen_keys())
+    }
 }
 
 impl Keys {
     const FILE_NAME: &'static str = "keys";
 
-    pub const fn new() -> Keys {
-        Keys {
-            skey: SecretKey::zero(),
-            pkey: PublicKey::zero(),
-            sig: G1::zero(),
-        }
+    // Try to Load from the file 1st
+    // If not generate new.
+    pub fn get_instance() -> Keys {
+        let mut file = match SgxFile::open(Keys::FILE_NAME) {
+            Ok(f) => f,
+            Err(_) => {
+                info!("{} file not found, creating new file.", Keys::FILE_NAME);
+
+                // Generate Keys
+                let keys = Keys::gen_keys();
+                let saved = keys.save();
+                if !saved {
+                    error!("Failed to save keys");
+                }
+
+                info!("Signing keys generated!");
+                return keys;
+            }
+        };
+
+        info!("Keys Loaded!");
+        Keys::load(&mut file)
     }
 
-    pub fn gen_keys(self: &mut Self) {
-        let (skey, pkey, sig) = pbc::key_gen();
-        self.skey = skey;
-        self.pkey = pkey;
-        self.sig = sig;
+    pub fn gen_keys() -> Keys {
+        let mut rand_slice = [0u8; 32];
+        let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
+        let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
+        let mut pkey = PublicKey::from_secret_key(&skey);
+        Keys{ skey, pkey }
     }
 
-    pub fn get_keys(self: &Self) -> (SecretKey, PublicKey, G1) {
-        (self.skey, self.pkey, self.sig)
-    }
-
-    pub fn get_instance(self: &mut Self) -> Keys {
-        let mut keys = Keys::new();
-        keys.pkey = self.pkey.clone();
-        keys.skey = self.skey.clone();
-        keys.sig = self.sig.clone();
-        keys
-    }
-
-    pub fn save(self: &mut Self) -> bool {
+    fn save(&self) -> bool {
         let helper = SerializeHelper::new();
-        let data = match helper.encode(self.get_instance()) {
+        let data = match helper.encode(self) {
             Some(d) => d,
             None => {
+                warn!("Key encoding failed");
                 return false;
             }
         };
@@ -180,6 +175,7 @@ impl Keys {
         let mut file = match SgxFile::create(Keys::FILE_NAME) {
             Ok(f) => f,
             Err(e) => {
+                warn!("Failed to create file {}", Keys::FILE_NAME);
                 return false;
             }
         };
@@ -187,28 +183,23 @@ impl Keys {
         let _write_size = match file.write(data.as_slice()) {
             Ok(len) => len,
             Err(_) => {
+                warn!("Failed to write file {}", Keys::FILE_NAME);
                 return false;
             }
         };
         return true;
     }
 
-    pub fn load() -> Result<Keys, std::io::Error> {
-        let mut file = SgxFile::open(Keys::FILE_NAME)?;
-
+    fn load(file: &mut SgxFile) -> Keys {
         let mut data = Vec::new();
         let _ = file.read_to_end(&mut data);
 
         let helper = DeSerializeHelper::<Keys>::new(data);
 
         match helper.decode() {
-            Some(d) => Ok(d),
+            Some(d) => d,
             None => {
-                error!("decode data failed.");
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Failed to decode file {}", Keys::FILE_NAME),
-                ));
+                panic!("Failed to decode file {}.", Keys::FILE_NAME);
             }
         }
     }
@@ -231,26 +222,24 @@ pub extern "C" fn init() -> sgx_status_t {
 }
 
 fn init_keys() -> bool {
-    {
-        let mut file = match SgxFile::open(podr2_pri::key_gen::EncryptionType::FILE_NAME) {
-            Ok(f) => f,
-            Err(_) => {
-                info!(
-                    "{} file not found, creating new file.",
-                    podr2_pri::key_gen::EncryptionType::FILE_NAME
-                );
+    let mut file = match SgxFile::open(podr2_pri::key_gen::EncryptionType::FILE_NAME) {
+        Ok(f) => f,
+        Err(_) => {
+            info!(
+                "{} file not found, creating new file.",
+                podr2_pri::key_gen::EncryptionType::FILE_NAME
+            );
 
-                let saved = ENCRYPTIONTYPE.lock().unwrap().save();
-                if !saved {
-                    error!("Failed to save keys");
-                    return false;
-                }
-
-                info!("Signing keys generated!");
-                return true;
+            let saved = ENCRYPTIONTYPE.lock().unwrap().save();
+            if !saved {
+                error!("Failed to save keys");
+                return false;
             }
-        };
-    }
+
+            info!("Signing keys generated!");
+            return true;
+        }
+    };
 
     let mut guard = ENCRYPTIONTYPE.lock().unwrap();
     guard.load()
@@ -258,41 +247,39 @@ fn init_keys() -> bool {
 
 #[no_mangle]
 pub extern "C" fn gen_keys() -> sgx_status_t {
-    let filename = "keys";
-    {
-        let mut file = match SgxFile::open(filename) {
-            Ok(f) => f,
-            Err(_) => {
-                info!("{} file not found, creating new file.", filename);
+    // let filename = "keys";
 
-                // Generate Keys
-                KEYS.lock().unwrap().gen_keys();
-                let saved = KEYS.lock().unwrap().save();
-                if !saved {
-                    error!("Failed to save keys");
-                    return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-                }
+    // let mut file = match SgxFile::open(filename) {
+    //     Ok(f) => f,
+    //     Err(_) => {
+    //         info!("{} file not found, creating new file.", filename);
 
-                info!("Signing keys generated!");
-                return sgx_status_t::SGX_SUCCESS;
-            }
-        };
-    }
+            // Generate Keys
+            // KEYS.lock().unwrap().gen_keys();
+            // let saved = KEYS.lock().unwrap().save();
+            // if !saved {
+            //     error!("Failed to save keys");
+            //     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+            // }
+
+            // info!("Signing keys generated!");
+            return sgx_status_t::SGX_SUCCESS;
+    //     }
+    // };
 
     // While encoding 4 bits are added by the encoder
-    match Keys::load() {
-        Ok(keys) => {
-            let mut guard = KEYS.lock().unwrap();
-            guard.pkey = keys.pkey;
-            guard.skey = keys.skey;
-            guard.sig = keys.sig;
+    // match Keys::load() {
+    //     Ok(keys) => {
+    //         let mut guard = KEYS.lock().unwrap();
+    //         guard.pkey = keys.pkey;
+    //         guard.skey = keys.skey;
 
-            info!("Signing keys loaded successfully!");
-        }
-        Err(_) => {
-            return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-        }
-    }
+    //         info!("Signing keys loaded successfully!");
+    //     }
+    //     Err(_) => {
+    //         return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+    //     }
+    // }
 
     sgx_status_t::SGX_SUCCESS
 }
@@ -612,7 +599,7 @@ pub extern "C" fn verify_proof(
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
                 &proof_id,
             );
-            println!("podr2_result is :{}",podr2_result);
+            debug!("podr2_result is :{}", ok);
 
             if !ok {
                 let mut chal_data = CHAL_DATA.lock().unwrap();

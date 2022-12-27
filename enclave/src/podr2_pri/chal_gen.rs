@@ -1,6 +1,8 @@
 use crate::{
     param::podr2_commit_data::PoDR2Error,
+    statics::KEYS,
     utils::{
+        self,
         bloom_filter::{BloomFilter, BloomHash},
         post::post_data,
     },
@@ -14,11 +16,13 @@ use alloc::{
 };
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use core::ops::Index;
+use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use sgx_rand::{
     distributions::{IndependentSample, Range},
     thread_rng,
 };
+use sgx_tcrypto::rsgx_sha256_slice;
 use std::{
     collections::HashMap,
     env,
@@ -45,6 +49,8 @@ pub struct ChalData {
     pub bloom_filter: BloomFilter,
     pub failed_file_hashes: Vec<Vec<u8>>,
     pub chal_id: Vec<u8>,
+    pub pkey: Vec<u8>,
+    pub sig: Vec<u8>,
 }
 
 impl ChalData {
@@ -53,6 +59,8 @@ impl ChalData {
             bloom_filter: BloomFilter::zero(),
             failed_file_hashes: Vec::new(),
             chal_id: Vec::new(),
+            pkey: Vec::new(),
+            sig: Vec::new(),
         }
     }
 
@@ -60,6 +68,8 @@ impl ChalData {
         self.bloom_filter.clear();
         self.failed_file_hashes.clear();
         self.chal_id.clear();
+        self.sig.clear();
+        self.pkey.clear();
     }
 }
 
@@ -183,6 +193,25 @@ fn post_chal_data() {
             return;
         }
     };
+
+    let keys = KEYS.lock().unwrap();
+
+    let bf_json = serde_json::to_string(&chal_data.bloom_filter).unwrap();
+    let file_hashes_json = serde_json::to_string(&chal_data.failed_file_hashes).unwrap();
+    let chal_json = serde_json::to_string(&chal_data.chal_id).unwrap();
+
+    let message = bf_json + "|" + &file_hashes_json + "|" + &chal_json;
+    debug!("MESSAGE: {}", message);
+
+    let hash = rsgx_sha256_slice(&message.as_bytes()).unwrap();
+    let msg_hash = Message::parse(&hash);
+    let (sig, recid) = secp256k1::sign(&msg_hash, &keys.skey);
+
+    chal_data.pkey = keys.pkey.serialize_compressed().to_vec();
+    chal_data.sig = sig.serialize().to_vec();
+
+    // let result = secp256k1::verify(&ctx_message, &sig, &keys.pkey);
+    // info!("SIGNATURE RESULT >>>>>>>>>>{}<<<<<<<<<< ", result);
 
     post_data::<ChalData>(url, &chal_data);
 

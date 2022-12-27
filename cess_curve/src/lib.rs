@@ -12,7 +12,7 @@ use sgx_serialize::{DeSerializable, Decoder, Encoder, Serializable};
 
 use sgx_tcrypto::rsgx_sha256_slice;
 
-use core::fmt::{self, Error};
+use core::fmt;
 use std::string::String;
 use std::vec::Vec;
 

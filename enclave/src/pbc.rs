@@ -3,6 +3,7 @@ use core::convert::TryFrom;
 use sgx_trts::c_str::CString;
 use sgx_types::*;
 use std::string::String;
+use cess_curve::{SecretKey, PublicKey};
 
 pub fn init_pairings() {
     let context = CURVE_INFO.context as u64;
