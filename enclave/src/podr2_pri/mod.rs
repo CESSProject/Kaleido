@@ -134,6 +134,7 @@ pub struct DMinerTag {
 pub struct MinerTag0 {
     pub n: i64,
     pub enc: String,
+    pub file_hash :String,
 }
 
 pub fn convert_miner_proof(proof:&String) ->(Vec<u8>,Vec<Vec<u8>>,Tag) {
@@ -153,6 +154,7 @@ pub fn convert_miner_proof(proof:&String) ->(Vec<u8>,Vec<Vec<u8>>,Tag) {
     let mut tag = Tag::new();
     tag.t.n=miner_proof.tag.t.n;
     tag.t.enc=base64::decode(miner_proof.tag.t.enc.as_str()).unwrap();
+    tag.t.file_hash=base64::decode(miner_proof.tag.t.file_hash.as_str()).unwrap();
     tag.mac_t0=base64::decode(miner_proof.tag.mac_t0.as_str()).unwrap();
 
     (sigma,miu,tag)

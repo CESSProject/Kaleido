@@ -612,6 +612,7 @@ pub extern "C" fn verify_proof(
                 ENCRYPTIONTYPE.lock().unwrap().clone(),
                 &proof_id,
             );
+            println!("podr2_result is :{}",podr2_result);
 
             if !ok {
                 let mut chal_data = CHAL_DATA.lock().unwrap();
