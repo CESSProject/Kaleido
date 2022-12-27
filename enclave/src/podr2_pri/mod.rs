@@ -32,7 +32,7 @@ impl Tag {
     pub fn new() -> Tag {
         use std::time::SystemTime;
         Tag {
-            t: Tag0 { n: 0, enc: vec![] },
+            t: Tag0 { n: 0, enc: vec![], file_hash: vec![] },
             mac_t0: vec![],
         }
     }
@@ -44,11 +44,12 @@ impl Tag {
 pub struct Tag0 {
     pub n: i64,
     pub enc: Vec<u8>,
+    pub file_hash:Vec<u8>,
 }
 
 impl Tag0 {
     pub fn new() -> Tag0 {
-        Tag0 { n: 0, enc: vec![] }
+        Tag0 { n: 0, enc: vec![], file_hash: vec![] }
     }
 }
 
@@ -135,25 +136,25 @@ pub struct MinerTag0 {
     pub enc: String,
 }
 
-pub fn convert_miner_proof(proof: &String) -> (Vec<u8>, Vec<Vec<u8>>, Tag) {
-    let miner_proof: MinerProof = serde_json::from_str(proof).unwrap();
+pub fn convert_miner_proof(proof:&String) ->(Vec<u8>,Vec<Vec<u8>>,Tag) {
+    let proof_byte=base64::decode(proof.clone()).unwrap();
+    let miner_proof: MinerProof = serde_json::from_slice(&proof_byte).unwrap();
 
     //convert sigma
-    let mut sigma = Vec::new();
-    utils::convert::hexstr_to_u8v(miner_proof.sigma.as_str(), &mut sigma);
+    let mut sigma=base64::decode(miner_proof.sigma.as_str()).unwrap();
 
     //convert miu
-    let mut miu = Vec::new();
-    for item in miner_proof.miu {
-        let mut i = Vec::new();
-        utils::convert::hexstr_to_u8v(item.as_str(), &mut i);
+    let mut miu=Vec::new();
+    for item in miner_proof.miu{
+        let mut i =base64::decode(item.as_str()).unwrap();
         miu.push(i);
     }
     //convert tag
     let mut tag = Tag::new();
-    tag.t.n = miner_proof.tag.t.n;
-    utils::convert::hexstr_to_u8v(miner_proof.tag.t.enc.as_str(), &mut tag.t.enc);
-    utils::convert::hexstr_to_u8v(miner_proof.tag.mac_t0.as_str(), &mut tag.mac_t0);
+    tag.t.n=miner_proof.tag.t.n;
+    tag.t.enc=base64::decode(miner_proof.tag.t.enc.as_str()).unwrap();
+    tag.mac_t0=base64::decode(miner_proof.tag.mac_t0.as_str()).unwrap();
 
-    (sigma, miu, tag)
+    (sigma,miu,tag)
+
 }

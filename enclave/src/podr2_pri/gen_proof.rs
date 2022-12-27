@@ -19,16 +19,16 @@ pub fn gen_proof(sigmas:Vec<Vec<u8>>,q_slice:Vec<super::QElement>,matrix:Vec<Vec
             // let sum_b=sum.clone();
             sum+=vi*mij;
         }
-        miu[j]=sum.to_bytes_le().1;
+        miu[j]=sum.to_bytes_be().1;
         j+=1;
     };
     let mut sigma: BigInt=Zero::zero();
     for q in &q_slice{
-        let sigma_i=num_bigint::BigInt::from_bytes_le(Sign::Plus,&sigmas[q.i as usize]);
+        let sigma_i=num_bigint::BigInt::from_bytes_be(Sign::Plus,&sigmas[q.i as usize]);
         let vi=q.v.to_bigint().unwrap();
         sigma+=sigma_i*vi;
     };
 
-    return (sigma.to_bytes_le().1,miu)
+    return (sigma.to_bytes_be().1,miu)
 
 }
