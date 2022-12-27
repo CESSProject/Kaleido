@@ -1,6 +1,6 @@
 use std::sync::SgxMutex;
 
-use self::chal_gen::{ChalData, ChalIdentifier};
+use self::chal_gen::{ChalData, Challenge};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ pub mod sig_gen;
 pub mod verify_proof;
 
 lazy_static! (
-    static ref CHAL_IDENTIFIER: SgxMutex<ChalIdentifier> = SgxMutex::new(ChalIdentifier::new());
+    static ref CHALLENGE: SgxMutex<Challenge> = SgxMutex::new(Challenge::new());
 );
 
 #[derive(Serialize, Deserialize)]

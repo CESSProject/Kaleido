@@ -100,9 +100,9 @@ impl fmt::Display for HashError {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Hash(#[serde(with = "arrays")] pub [u8; 64]);
+pub struct BloomHash(#[serde(with = "arrays")] pub [u8; 64]);
 
-impl Hash {
+impl BloomHash {
     pub fn binary(&self) -> Result<[u8; 256], HashError> {
         let mut elem: [u8; 256] = [0u8; 256];
         let mut index: usize = 0;

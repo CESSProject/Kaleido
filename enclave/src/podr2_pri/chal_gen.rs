@@ -1,14 +1,13 @@
 use crate::{
     param::podr2_commit_data::PoDR2Error,
     utils::{
-        bloom_filter::{BloomFilter, Hash},
+        bloom_filter::{BloomFilter, BloomHash},
         post::post_data,
-        timer::{self, Guard, Time, Timer},
     },
     CHAL_DATA,
 };
 
-use super::{QElement, CHAL_IDENTIFIER};
+use super::{QElement, CHALLENGE};
 use alloc::{
     string::{String, ToString},
     vec::Vec,
@@ -27,6 +26,7 @@ use std::{
     thread,
     time::SystemTime,
 };
+use timer::{Time, Timer};
 
 lazy_static! (
     static ref TIMER: SgxMutex<Timer> = SgxMutex::new(Timer::new());
@@ -42,9 +42,9 @@ pub struct PoDR2Chal {
 /// Contains {bloom_filter, failed_file_hashes, proof_id} to be send back to CESS chain
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChalData {
-    bloom_filter: BloomFilter,
-    failed_file_hashes: Vec<Hash>,
-    chal_id: Vec<u8>,
+    pub bloom_filter: BloomFilter,
+    pub failed_file_hashes: Vec<Vec<u8>>,
+    pub chal_id: Vec<u8>,
 }
 
 impl ChalData {
@@ -64,7 +64,7 @@ impl ChalData {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ChalIdentifier {
+pub struct Challenge {
     /// Unique random value sent by CESS Chain
     pub chal_id: Vec<u8>,
 
@@ -75,18 +75,18 @@ pub struct ChalIdentifier {
     pub q_elements: Vec<QElement>,
 }
 
-impl ChalIdentifier {
-    pub fn new() -> ChalIdentifier {
-        ChalIdentifier {
+impl Challenge {
+    pub fn new() -> Challenge {
+        Challenge {
             chal_id: Vec::new(),
-            time_out: 0,
+            time_out: i64::MIN,
             q_elements: Vec::new(),
         }
     }
 
     pub fn clear(&mut self) {
         self.chal_id.clear();
-        self.time_out = 0;
+        self.time_out = i64::MIN;
         self.q_elements.clear();
     }
 }
@@ -99,7 +99,7 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
         });
     }
 
-    let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
+    let mut chal_ident = CHALLENGE.lock().unwrap();
     let mut time_out: i64;
 
     if chal_ident.chal_id.is_empty() {
@@ -109,6 +109,8 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
         let schedule_time = now + Duration::seconds(30);
         time_out = schedule_time.timestamp();
 
+        let mut chal_data = CHAL_DATA.lock().unwrap();
+        chal_data.chal_id = chal_id.to_vec().clone();
         chal_ident.chal_id = chal_id.to_vec().clone();
         q_elements = QElement::get_elements(n);
         chal_ident.q_elements = q_elements.clone();
@@ -169,14 +171,15 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
 fn post_chal_data() {
     info!("Submitting Proofs to Chain");
     let mut chal_data = CHAL_DATA.lock().unwrap();
-    let mut chal_ident = CHAL_IDENTIFIER.lock().unwrap();
+    let mut challenge = CHALLENGE.lock().unwrap();
 
     let url: String = match env::var("CESS_POST_CHAL_URL") {
         Ok(url) => url,
         Err(e) => {
             warn!("CESS_POST_CHAL_URL environment variable not set. Resetting Challenge Data");
-            chal_ident.clear();
+            challenge.clear();
             chal_data.clear();
+            debug!("Resetting Completed!");
             return;
         }
     };
@@ -185,6 +188,6 @@ fn post_chal_data() {
 
     info!("Resetting Challenge Data");
     chal_data.clear();
-    chal_ident.clear();
+    challenge.clear();
     debug!("Resetting Completed!");
 }

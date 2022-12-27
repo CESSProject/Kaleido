@@ -14,6 +14,7 @@ default = []
 [dependencies]
 cess_pbc = { path = "../cess_pbc" }
 cess_curve = { path = "../cess_curve" }
+timer = { git = "https://github.com/CESSProject/timer.rs" }
 sgx_serialize_derive = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
 base64 = { git = "https://github.com/mesalock-linux/rust-base64-sgx" }
 serde = { git = "https://github.com/mesalock-linux/serde-sgx", features = [
