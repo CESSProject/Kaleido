@@ -566,7 +566,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
 
 #[no_mangle]
 pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
-    let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
+    // let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
 
     // // Generate Keypair
     // let mut rand_slice = [0u8; 32];
