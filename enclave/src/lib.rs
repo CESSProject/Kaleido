@@ -67,8 +67,9 @@ use sgx_rand::Rng;
 use utils::bloom_filter::BloomHash;
 
 use cess_curve::*;
+use core::convert::TryInto;
 use log::{info, warn};
-use sgx_serialize::{DeSerializeHelper, Serializable, SerializeHelper};
+use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
 use sgx_types::*;
 use std::io::ErrorKind;
 use std::sync::atomic::Ordering;
@@ -115,20 +116,76 @@ pub struct Keys {
 
 impl sgx_serialize::Serializable for Keys {
     fn encode<S: sgx_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        // TODO: Encode Keys
+        let skey = self.skey.serialize();
+        s.emit_seq(skey.len(), |s| {
+            for (i, e) in skey.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        });
+
+        let pkey = self.pkey.serialize();
+        s.emit_seq(pkey.len(), |s| {
+            for (i, e) in pkey.iter().enumerate() {
+                s.emit_seq_elt(i, |s| e.encode(s))?
+            }
+            Ok(())
+        });
         Ok(())
     }
 }
 
 impl sgx_serialize::DeSerializable for Keys {
     fn decode<D: sgx_serialize::Decoder>(d: &mut D) -> Result<Self, D::Error> {
-        // TODO: Decode Keys
-        Ok(Keys::gen_keys())
+        d.read_seq(|d, len| {
+            let skey_len = secp256k1::util::SECRET_KEY_SIZE;
+
+            // Retrieve Secret Key
+            let mut ssk = Vec::with_capacity(skey_len);
+
+            for i in 0..skey_len {
+                ssk.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
+            }
+
+            let skey_res = ssk.try_into();
+            let skey_arr: [u8; secp256k1::util::SECRET_KEY_SIZE] = match skey_res {
+                Ok(arr) => arr,
+                Err(v) => {
+                    error!(
+                        "Expected a SecretKey of length {} but it was {}",
+                        skey_len,
+                        v.len()
+                    );
+                    return Err(d.error(
+                        format!(
+                            "Expected a SecretKey of length {} but it was {}",
+                            skey_len,
+                            v.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+            };
+
+            let skey = match SecretKey::parse(&skey_arr) {
+                Ok(k) => k,
+                Err(e) => {
+                    error!("Failed to parse SecretKey");
+                    return Err(d.error("Failed to parse SecretKey"));
+                }
+            };
+
+            // PublicKey can be derived from SecretKey
+            let pkey = PublicKey::from_secret_key(&skey);
+
+
+            Ok(Keys { skey, pkey })
+        })
     }
 }
 
 impl Keys {
-    const FILE_NAME: &'static str = "keys";
+    const FILE_NAME: &'static str = "rakeys";
 
     // Try to Load from the file 1st
     // If not generate new.
@@ -159,7 +216,7 @@ impl Keys {
         let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
         let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
         let mut pkey = PublicKey::from_secret_key(&skey);
-        Keys{ skey, pkey }
+        Keys { skey, pkey }
     }
 
     fn save(&self) -> bool {
@@ -254,16 +311,16 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     //     Err(_) => {
     //         info!("{} file not found, creating new file.", filename);
 
-            // Generate Keys
-            // KEYS.lock().unwrap().gen_keys();
-            // let saved = KEYS.lock().unwrap().save();
-            // if !saved {
-            //     error!("Failed to save keys");
-            //     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
-            // }
+    // Generate Keys
+    // KEYS.lock().unwrap().gen_keys();
+    // let saved = KEYS.lock().unwrap().save();
+    // if !saved {
+    //     error!("Failed to save keys");
+    //     return sgx_status_t::SGX_ERROR_ENCLAVE_FILE_ACCESS;
+    // }
 
-            // info!("Signing keys generated!");
-            return sgx_status_t::SGX_SUCCESS;
+    // info!("Signing keys generated!");
+    return sgx_status_t::SGX_SUCCESS;
     //     }
     // };
 

@@ -28,6 +28,7 @@ bin/sgx_driver.txt
 **/bin/key.txt
 **/bin/spid.txt
 **/bin/keys
+**/bin/rakeys
 
 #vscode
 .vscode
