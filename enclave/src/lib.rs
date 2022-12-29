@@ -320,7 +320,7 @@ pub extern "C" fn gen_keys() -> sgx_status_t {
     // }
 
     // info!("Signing keys generated!");
-    return sgx_status_t::SGX_SUCCESS;
+    // return sgx_status_t::SGX_SUCCESS;
     //     }
     // };
 
@@ -378,31 +378,18 @@ pub extern "C" fn process_data(
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    let file_info = utils::file::read_untrusted_file(file_path_str);
-    println!("file data is {:?}", file_info.1.clone());
-
-    if file_info.0 == 0 {
-        status.status_msg = "The file size is 0 or does not exist.".to_string();
-        status.status_code = Podr2Status::PoDr2ErrorNotexistFile as usize;
-        podr2_data.status = status;
-        utils::post::post_data(callback_url_str.clone(), &podr2_data);
-
-        let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
-        info!("The enclave space is released to :{} (b)", mem);
-        return sgx_status_t::SGX_ERROR_FILE_BAD_STATUS;
-    }
-
-    if !utils::enclave_mem::has_enough_mem(file_info.0) {
-        warn!("Enclave Busy.");
-        status.status_msg = "Enclave Busy.".to_string();
-        status.status_code = Podr2Status::PoDr2ErrorOutOfMemory as usize;
-        podr2_data.status = status;
-        utils::post::post_data(callback_url_str.clone(), &podr2_data);
-
-        let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
-        info!("The enclave space is released to :{} (b)", mem);
-        return sgx_status_t::SGX_ERROR_BUSY;
-    }
+    let file_info = match utils::file::read_untrusted_file(file_path_str){
+        Ok(f) =>f,
+        Err(e) =>{
+            status.status_msg = e.to_string();
+            status.status_code = Podr2Status::PoDr2ErrorNotexistFile as usize;
+            podr2_data.status = status;
+            utils::post::post_data(callback_url_str.clone(), &podr2_data);
+            let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
+            info!("The enclave space is released to :{} (b)", mem);
+            return sgx_status_t::SGX_ERROR_BUSY;
+        }
+    };
 
     // fetch_sub returns previous value. Therefore substract the file_size
     let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_sub(file_info.0, Ordering::SeqCst);
@@ -457,9 +444,9 @@ pub extern "C" fn process_data(
             // let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
             // println!("HMAC result is :{:?}", mac_hex);
 
-            let mut matrix = file::split_file(&file_info.1.clone(), block_size);
-            println!("matrix is {:?}", matrix);
-
+            let n = file::count_file(&file_info.1, block_size);
+            // let mut matrix = file::split_file(&file_info.1, block_size);
+            // println!("matrix is {:?}", matrix);
             let mut file_hash = match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
                 Ok(hash) => hash,
                 Err(e) => {
@@ -468,7 +455,7 @@ pub extern "C" fn process_data(
             };
 
             let sig_gen_result =
-                podr2_pri::sig_gen::sig_gen(matrix.clone(), file_hash.to_vec(), et.clone());
+                podr2_pri::sig_gen::sig_gen(&file_info.1,block_size,n, file_hash.to_vec(), et.clone());
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data
@@ -479,60 +466,60 @@ pub extern "C" fn process_data(
             podr2_data.status.status_msg = "Sig gen successful!".to_string();
             podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
 
-            let proof_id = vec![1, 3, 0, 255];
+            // let proof_id = vec![1, 3, 0, 255];
 
-            let podr2_chal = match podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id) {
-                Ok(chal) => chal,
-                Err(e) => {
-                    error!("{}", e.to_string());
-                    podr2_data.status.status_msg = format!("{}", e.to_string());
-                    podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize;
-                    PoDR2Chal {
-                        q_elements: Vec::new(),
-                        time_out: 0,
-                    }
-                }
-            };
+            // let podr2_chal = match podr2_pri::chal_gen::chal_gen(matrix.len() as i64, &proof_id) {
+            //     Ok(chal) => chal,
+            //     Err(e) => {
+            //         error!("{}", e.to_string());
+            //         podr2_data.status.status_msg = format!("{}", e.to_string());
+            //         podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize;
+            //         PoDR2Chal {
+            //             q_elements: Vec::new(),
+            //             time_out: 0,
+            //         }
+            //     }
+            // };
 
-            let gen_proof_result = podr2_pri::gen_proof::gen_proof(
-                sig_gen_result.0,
-                podr2_chal.q_elements.clone(),
-                matrix.clone(),
-            );
+            // let gen_proof_result = podr2_pri::gen_proof::gen_proof(
+            //     sig_gen_result.0,
+            //     podr2_chal.q_elements.clone(),
+            //     matrix.clone(),
+            // );
 
-            let ok = podr2_pri::verify_proof::verify_proof(
-                gen_proof_result.0,
-                gen_proof_result.1,
-                &sig_gen_result.1,
-                et.clone(),
-                &proof_id,
-            );
+            // let ok = podr2_pri::verify_proof::verify_proof(
+            //     gen_proof_result.0,
+            //     gen_proof_result.1,
+            //     &sig_gen_result.1,
+            //     et.clone(),
+            //     &proof_id,
+            // );
 
-            if !ok {
-                let mut chal_data = CHAL_DATA.lock().unwrap();
-                chal_data
-                    .failed_file_hashes
-                    .push(podr2_data.tag.t.file_hash.clone());
-                let hex = utils::convert::u8v_to_hexstr(&podr2_data.tag.t.file_hash);
+            // if !ok {
+            //     let mut chal_data = CHAL_DATA.lock().unwrap();
+            //     chal_data
+            //         .failed_file_hashes
+            //         .push(podr2_data.tag.t.file_hash.clone());
+            //     let hex = utils::convert::u8v_to_hexstr(&podr2_data.tag.t.file_hash);
+            //
+            //     let mut hash = [0u8; 64];
+            //     let bytes = hex.as_bytes();
+            //     for i in 0..bytes.len() {
+            //         hash[i] = bytes[i];
+            //     }
+            //
+            //     let bloom_hash = BloomHash(hash);
+            //     let binary = match bloom_hash.binary() {
+            //         Ok(b) => b,
+            //         Err(e) => {
+            //             warn!("Failed to compute bloom binary: {}", e);
+            //             [0u8; 256]
+            //         }
+            //     };
+            //     chal_data.bloom_filter.insert(binary);
+            // }
 
-                let mut hash = [0u8; 64];
-                let bytes = hex.as_bytes();
-                for i in 0..bytes.len() {
-                    hash[i] = bytes[i];
-                }
-
-                let bloom_hash = BloomHash(hash);
-                let binary = match bloom_hash.binary() {
-                    Ok(b) => b,
-                    Err(e) => {
-                        warn!("Failed to compute bloom binary: {}", e);
-                        [0u8; 256]
-                    }
-                };
-                chal_data.bloom_filter.insert(binary);
-            }
-
-            println!("verify result is {}", ok);
+            // println!("verify result is {}", ok);
             println!("-------------------PoDR2 TEST Pri-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {

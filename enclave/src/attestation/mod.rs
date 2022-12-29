@@ -585,7 +585,7 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
         "spk is {:?}",
         u8v_to_hexstr(&spk.serialize_compressed()[..])
     );
-    
+
     let message_arr = [5u8; 32];
     println!("message_arr is {:?}", u8v_to_hexstr(&message_arr));
     let ctx_message = Message::parse(&message_arr);
@@ -605,9 +605,6 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     println!("Verify secp256k1 result is {}", ok);
     println!("recid is {:?}", u8v_to_hexstr(&make_rec_sig));
 
-    // let ecc_handle = SgxEccHandle::new();
-    // let _result = ecc_handle.open();
-    // let (prv_k, pub_k) = ecc_handle.create_key_pair().unwrap();
 
     let (attn_report, sig, cert) = match create_attestation_report(&spk, sign_type) {
         Ok(r) => r,
@@ -617,8 +614,32 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
         }
     };
 
-    let payload = attn_report + "|" + &sig + "|" + &cert;
-    let mut res = crate::PAYLOAD.lock().unwrap();
+    let mut payload = attn_report.clone() + "|" + &sig.clone() + "|" + &cert.clone();
+    let s =attn_report.clone()+&sig.clone()+&cert.clone();
+    let mut payload_hash = match sgx_tcrypto::rsgx_sha256_slice(s.as_bytes()) {
+        Ok(hash) => hash,
+        Err(e) => {
+            return e
+        }
+    };
+    let payload_message = Message::parse(&payload_hash);
+    let (payload_sig,payload_recid)=secp256k1::sign(&payload_message,&ssk);
+    let mut payload_rec_sig=[0u8;65];
+    let mut n =0_usize;
+    for i in payload_sig.serialize() {
+        payload_rec_sig[n] = i;
+        n = n + 1;
+    }
+    if payload_recid.serialize() > 26 {
+        payload_rec_sig[64] = payload_recid.serialize() + 27;
+    } else {
+        payload_rec_sig[64] = payload_recid.serialize();
+    }
+    let payload_signature_hex=u8v_to_hexstr(&payload_rec_sig);
+
+    payload = payload +"|" + &payload_signature_hex;
+
+    let mut res=crate::PAYLOAD.lock().unwrap();
     res.clone_from(&payload);
     // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
     //     Ok(r) => r,
