@@ -6,6 +6,7 @@ use std::{
     untrusted::fs,
     io::{Read, Seek, Write},
 };
+use param::podr2_commit_data::PoDR2Error;
 pub fn write_untrusted_file(file_path: String, data_len: usize) -> bool {
     let mut data = vec![0u8; 1024];
     let mut os_rng = sgx_rand::SgxRng::new().unwrap();
@@ -39,19 +40,35 @@ pub fn write_untrusted_file(file_path: String, data_len: usize) -> bool {
     return true;
 }
 
-pub fn read_untrusted_file(file_path: String) -> (usize, Vec<u8>) {
+pub fn read_untrusted_file(file_path: String) -> Result<(usize, Vec<u8>),PoDR2Error> {
     let mut file_data = match fs::File::open(file_path) {
         Ok(data) => data,
         Err(e) => {
             error!("Get file error :{:?}",e.to_string());
-            return (0, vec![0u8; 0]);
+            return Err(PoDR2Error {
+                message: Some("Get file error :".to_string()+&e.to_string()),
+            })
         }
     };
+
+    let file_len=match file_data.stream_len(){
+        Ok(len) => {len}
+        Err(e) => {
+            return Err(PoDR2Error {
+                message: Some("Get file length error :".to_string()+&e.to_string()),
+            })
+        }
+    };
+    if !super::enclave_mem::has_enough_mem(file_len as usize){
+        return Err(PoDR2Error {
+            message: Some("There are not enough space in enclave ,Enclave busy!".to_string()),
+        })
+    }
 
     let mut file_vec: Vec<u8> = Vec::new();
     let file_size = file_data.read_to_end(&mut file_vec).expect("cannot read the file");
 
-    (file_size, file_vec)
+    Ok((file_size, file_vec))
 }
 
 pub fn split_file(file_data: &Vec<u8>, block_size: usize) -> Vec<Vec<u8>> {
@@ -74,4 +91,13 @@ pub fn split_file(file_data: &Vec<u8>, block_size: usize) -> Vec<Vec<u8>> {
         matrix.push(file_data.clone()[num * block_size..(num + 1) * block_size].to_vec())
     };
     matrix
+}
+
+pub fn count_file(file_data: &Vec<u8>, block_size: usize) -> usize{
+    let mut block_num = file_data.len() / block_size;
+    if file_data.len()%block_size!=0{
+        block_num+=1
+    };
+
+    block_num
 }
