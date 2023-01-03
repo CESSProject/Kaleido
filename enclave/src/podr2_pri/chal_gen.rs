@@ -46,8 +46,12 @@ pub struct PoDR2Chal {
 /// Contains {bloom_filter, failed_file_hashes, proof_id} to be send back to CESS chain
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChalData {
-    pub bloom_filter: BloomFilter,
-    pub failed_file_hashes: Vec<Vec<u8>>,
+    pub autonomous_bloom_filter: BloomFilter,
+    pub idle_bloom_filter: BloomFilter,
+    pub service_bloom_filter: BloomFilter,
+    pub autonomous_failed_file_hashes: Vec<Vec<u8>>,
+    pub idle_failed_file_hashes: Vec<Vec<u8>>,
+    pub service_failed_file_hashes: Vec<Vec<u8>>,
     pub chal_id: Vec<u8>,
     pub pkey: Vec<u8>,
     pub sig: Vec<u8>,
@@ -56,8 +60,12 @@ pub struct ChalData {
 impl ChalData {
     pub fn new() -> ChalData {
         ChalData {
-            bloom_filter: BloomFilter::zero(),
-            failed_file_hashes: Vec::new(),
+            autonomous_bloom_filter: BloomFilter::zero(),
+            idle_bloom_filter: BloomFilter::zero(),
+            service_bloom_filter: BloomFilter::zero(),
+            autonomous_failed_file_hashes: Vec::new(),
+            idle_failed_file_hashes: Vec::new(),
+            service_failed_file_hashes: Vec::new(),
             chal_id: Vec::new(),
             pkey: Vec::new(),
             sig: Vec::new(),
@@ -65,8 +73,12 @@ impl ChalData {
     }
 
     pub fn clear(&mut self) {
-        self.bloom_filter.clear();
-        self.failed_file_hashes.clear();
+        self.autonomous_bloom_filter.clear();
+        self.idle_bloom_filter.clear();
+        self.service_bloom_filter.clear();
+        self.autonomous_failed_file_hashes.clear();
+        self.idle_failed_file_hashes.clear();
+        self.service_failed_file_hashes.clear();
         self.chal_id.clear();
         self.sig.clear();
         self.pkey.clear();
@@ -116,7 +128,7 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
         let now = Time::now();
         info!("New Challenge ID Received At {}: {}!", now, now.timestamp());
 
-        let schedule_time = now + Duration::seconds(30);
+        let schedule_time = now + Duration::seconds(600);
         time_out = schedule_time.timestamp();
 
         let mut chal_data = CHAL_DATA.lock().unwrap();
@@ -196,11 +208,15 @@ fn post_chal_data() {
 
     let keys = KEYS.lock().unwrap();
 
-    let bf_json = serde_json::to_string(&chal_data.bloom_filter).unwrap();
-    let file_hashes_json = serde_json::to_string(&chal_data.failed_file_hashes).unwrap();
+    let abf_json = serde_json::to_string(&chal_data.autonomous_bloom_filter).unwrap();
+    let ibf_json = serde_json::to_string(&chal_data.idle_bloom_filter).unwrap();
+    let sbf_json = serde_json::to_string(&chal_data.service_bloom_filter).unwrap();
+    let autonomous_file_hashes_json = serde_json::to_string(&chal_data.autonomous_failed_file_hashes).unwrap();
+    let idle_file_hashes_json = serde_json::to_string(&chal_data.idle_failed_file_hashes).unwrap();
+    let service_file_hashes_json = serde_json::to_string(&chal_data.service_failed_file_hashes).unwrap();
     let chal_json = serde_json::to_string(&chal_data.chal_id).unwrap();
 
-    let message = bf_json + "|" + &file_hashes_json + "|" + &chal_json;
+    let message = abf_json + "|" + &ibf_json + "|" + &sbf_json + "|" + &autonomous_file_hashes_json + "|" + &idle_file_hashes_json + "|" + &service_file_hashes_json + "|" + &chal_json;
     debug!("MESSAGE: {}", message);
 
     let hash = rsgx_sha256_slice(&message.as_bytes()).unwrap();

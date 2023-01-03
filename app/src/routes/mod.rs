@@ -9,7 +9,7 @@ use crate::models::app_state::AppState;
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2Error, PoDR2VerifyRequest,
 };
-use crate::models::req::{ReqFillRandomFile, ReqReport};
+use crate::models::req::{ReqFillRandomFile, ReqReport,ReqMessageSignature};
 
 use std::ffi::CString;
 use std::time::Instant;
@@ -147,6 +147,7 @@ pub async fn r_verify_proof(
         enclave::ecalls::verify_proof(
             eid,
             &mut result1,
+            req.verify_type,
             proof_id.as_ptr() as *mut u8,
             proof_id.len(),
             c_proof_json_str.as_ptr(),
@@ -177,6 +178,27 @@ pub async fn r_fill_random_file(
     PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
 
+#[post("/message_signature")]
+pub async fn r_message_signature(
+    data: web::Data<AppState>,
+    req: web::Json<ReqMessageSignature>,
+) -> Result<impl Responder, PoDR2Error> {
+    let msg_ptr = CString::new(req.msg.as_str().as_bytes().to_vec()).unwrap();
+    let callback_ptr = CString::new(req.callback_url.as_str().as_bytes().to_vec()).unwrap();
+
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
+    let result2 = unsafe {
+        enclave::ecalls::message_signature(
+            data.eid,
+            &mut result1,
+            msg_ptr.as_ptr(),
+            callback_ptr.as_ptr(),
+        )
+    };
+
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
+}
+
 fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
     let callback_url = Url::parse(url_str);
     let callback_url = match callback_url {
@@ -188,16 +210,4 @@ fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
         }
     };
     Ok(CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap())
-}
-
-fn get_c_file_path_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
-    let c_file_path_str = match CString::new(url_str.as_bytes().to_vec()) {
-        Ok(p) => p,
-        Err(e) => {
-            return Err(PoDR2Error {
-                message: Some(e.to_string()),
-            })
-        }
-    };
-    Ok(c_file_path_str)
 }

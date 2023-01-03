@@ -15,6 +15,13 @@ pub struct ReqFillRandomFile {
     pub data_len: usize,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct ReqMessageSignature {
+    pub msg: String,
+    pub callback_url: String,
+}
+
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct PoDR2CommitErrorResponse {
