@@ -29,12 +29,12 @@ docker pull cesslab/sgx-rust
 ## Running with Intel SGX Driver
 
 By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
-To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. Similiary, for remote attestation and keys sharing Kaleido requires another port to be exposed. By default in docker container this port is set to `8088`. To map this port we can add `-p 8088:8088`.
+To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
 
 ### To run the container with OOT SGX driver, run
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device /dev/isgx -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/isgx -ti cesslab/sgx-rust
 ```
 
 ### To run the container with DCAP SGX driver
@@ -45,13 +45,13 @@ or
 and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
 ```
 
 for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
 
 ```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
+docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
 ```
 
 ### To run the container in simulation mode
@@ -59,7 +59,7 @@ docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 -
 For testing and development purpose
 
 ```bash
-docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -p 8088:8088 -ti cesslab/sgx-rust
+docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
 ```
 
 ## Build the Source Code
@@ -121,34 +121,37 @@ cd bin
 
 ### `process_data`
 
-**Description**: This function takes base64 encoded `data` for which **PoDR2** needs to be calculated. `block_size` and `segment_size` determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
+**Description**: This function need to pass `file_path` to be processed. `block_size`determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
 
 **Request**
+
 ```bash
-curl -H 'Content-Type: application/json' -X POST http://localhost/process_data -d '{"data":"aGk=", "block_size":10485, "segment_size":1, "callback_url":<REPLACE_WITH_CALLBACK_URL>}'
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_data -d '{"file_path":"<Path Of File To Be Processed>", "block_size":10, "callback_url":"<REPLACE_WITH_CALLBACK_URL>"}'
 ```
 
 **Response**: The data will be posted back to the `callback_url` provided above with the following sample content.
+
 ```json
 {
-  "t": {
-    "t0": {
-      "name": "70FB321WFqzc9w67hcNF81rh2/b4T9lJKjy9YL8r8sA=",
-      "n": 1,
-      "u": [
-        "QAK+f/glOhEIZfy16LX5K9n+pwE/sSg9+y/uNedJWq8B",
-        "Pz7f+BOiRIUaRA4o3aQ7pUR61OKl5m4zyMPnXJ2L9VcB",
-        "+5X5w9nbAWgkSj0zUE66aHVGSxDvKb/UPD/bwWmXFPQB"
-      ]
-    },
-    "signature": "xNvKLcODuNqkEyPYqMK/+acPOQ+70SaSJP/nVnuEjHIA"
-  },
   "sigmas": [
-    "CDmNieOMKub3+DiFzssvnzOyXuaSjLhC1kUypab8dpkB"
+    "36193ad3116bfd17e01ecb9ffcf0816d",
   ],
-  "pkey": "1IMbGs/VlFJ+x55igbsrPfWpONBAk+Dx4BqVnMMFL11WY2ROoraEESY2y9fHTrggvpHukH+wbSaTfbY+MinhRQA="
+  "tag": {
+    "t": {
+      "n": 5,
+      "enc": [],
+      "file_hash": []
+    },
+    "mac_t0": []
+  },
+  "status": {
+    "status_code": 10000,
+    "status_msg": "Sig gen successful!"
+  }
 }
 ```
+
+
 ## Code Walk Through
 
 ### Enclave initialization

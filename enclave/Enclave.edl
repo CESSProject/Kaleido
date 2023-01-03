@@ -45,6 +45,7 @@ enclave {
         );
 
         public sgx_status_t verify_proof(
+            size_t verify_type,
             [in, size=random_len] uint8_t* random,
             size_t random_len,
             [in, string] const char* proof_json,
@@ -57,6 +58,10 @@ enclave {
         public sgx_status_t fill_random_file(
             [in, string] const char* file_path,
             size_t data_len
+        );
+        public sgx_status_t message_signature(
+                    [in, string] const char* msg,
+                    [in, string] const char* callback_url
         );
         //mra about
         public sgx_status_t run_server(sgx_quote_sign_type_t quote_type);

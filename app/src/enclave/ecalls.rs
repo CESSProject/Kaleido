@@ -22,6 +22,7 @@ extern "C" {
     pub fn verify_proof(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
+        verify_type: usize,
         proof_id: *mut u8,
         proof_id_len: usize,
         proof_json: *const c_char,
@@ -38,5 +39,11 @@ extern "C" {
         retval: *mut sgx_status_t,
         file_path_ptr: *const c_char,
         data_len: usize,
+    ) -> sgx_status_t;
+    pub fn message_signature(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        msg: *const c_char,
+        callback_url: *const c_char,
     ) -> sgx_status_t;
 }

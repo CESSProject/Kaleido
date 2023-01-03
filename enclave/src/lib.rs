@@ -94,6 +94,9 @@ use param::{
 use podr2_pri::key_gen::{MacHash, Symmetric};
 use podr2_pri::{QElement, Tag};
 use utils::file;
+use secp256k1::*;
+use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
+use std::ffi::CString;
 
 use crate::attestation::hex;
 use crate::statics::*;
@@ -658,8 +661,15 @@ pub extern "C" fn gen_chal(
     };
 }
 
+/// Arguments:
+/// `verify_type` indicates the type of proof you need to verify (autonomous(1), idle(2), service(3)).
+/// `proof_id` is the global challenge random number announced by the chain.
+/// `proof_id_len` is the length of the global challenge nonce announced by the chain.
+/// `proof_json` is evidence submitted by miners and file preprocessing results, including σ, μ, tag.
+/// `callback_url` is the url of the callback result.
 #[no_mangle]
 pub extern "C" fn verify_proof(
+    verify_type: usize,
     proof_id: *mut u8,
     proof_id_len: usize,
     proof_json: *const c_char,
@@ -687,6 +697,7 @@ pub extern "C" fn verify_proof(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
+            let mut result =StatusInfo::new();
             let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
 
             let ok = podr2_pri::verify_proof::verify_proof(
@@ -700,7 +711,7 @@ pub extern "C" fn verify_proof(
 
             if !ok {
                 let mut chal_data = CHAL_DATA.lock().unwrap();
-                chal_data.failed_file_hashes.push(tag.t.file_hash.clone());
+
 
                 let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
                 let mut hash = [0u8; 64];
@@ -717,7 +728,30 @@ pub extern "C" fn verify_proof(
                         [0u8; 256]
                     }
                 };
-                chal_data.bloom_filter.insert(binary);
+                match verify_type {
+                    1 => {
+                        chal_data.autonomous_failed_file_hashes.push(tag.t.file_hash.clone());
+                        chal_data.autonomous_bloom_filter.insert(binary);
+                    }
+                    2 => {
+                        chal_data.idle_failed_file_hashes.push(tag.t.file_hash.clone());
+                        chal_data.idle_bloom_filter.insert(binary);
+                    }
+                    3 => {
+                        chal_data.service_failed_file_hashes.push(tag.t.file_hash.clone());
+                        chal_data.service_bloom_filter.insert(binary);
+                    }
+                    _ => {
+                        result.status_msg=format!("The 'verify_type' field value is: {} Please enter the correct value!",verify_type).to_string();
+                        result.status_code=Podr2Status::PoDr2ErrorInvalidParameter as usize;
+                        utils::post::post_data(call_back_url,&result);
+                        return
+                    }
+                }
+                result.status_msg=format!("File proof that the file hash is : {:?}, verification result is :{}",tag.t.file_hash.clone(),ok);
+                result.status_code=Podr2Status::PoDr2Success as usize;
+                utils::post::post_data(call_back_url,&result);
+                return
             }
         });
 
@@ -732,7 +766,51 @@ pub extern "C" fn fill_random_file(file_path: *const c_char, data_len: usize) ->
     };
     let ok = utils::file::write_untrusted_file(file_path, data_len);
     println!("create random file :{}", ok);
+    if !ok{
+        return sgx_status_t::SGX_ERROR_DEVICE_BUSY;
+    }
     return sgx_status_t::SGX_SUCCESS;
+}
+
+#[no_mangle]
+pub extern "C" fn message_signature(msg: *const c_char, callback_url: *const c_char) -> sgx_status_t {
+    let msg_string = match unsafe { CStr::from_ptr(msg).to_str() } {
+        Ok(path) => path.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    let mut msg_hash = match sgx_tcrypto::rsgx_sha256_slice(msg_string.as_bytes()) {
+        Ok(hash) => hash,
+        Err(e) => {
+            return e
+        }
+    };
+
+    let keys = KEYS.lock().unwrap();
+    let ssk = &keys.skey;
+    let message = Message::parse(&msg_hash);
+    let (msg_sig,msg_recid)=secp256k1::sign(&message,&ssk);
+    let mut msg_rec_sig=[0u8;65];
+    let mut n =0_usize;
+    for i in msg_sig.serialize() {
+        msg_rec_sig[n] = i;
+        n = n + 1;
+    }
+    if msg_recid.serialize() > 26 {
+        msg_rec_sig[64] = msg_recid.serialize() + 27;
+    } else {
+        msg_rec_sig[64] = msg_recid.serialize();
+    };
+    let msg_signature_hex=u8v_to_hexstr(&msg_rec_sig);
+    let callback_url_str = match unsafe { CStr::from_ptr(callback_url).to_str() } {
+        Ok(url) => url.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    if callback_url_str.is_empty() || msg_signature_hex.is_empty() {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
+    }
+    utils::post::post_data(callback_url_str,&msg_signature_hex);
+
+    return SGX_SUCCESS
 }
 
 fn get_chal_resp(chal: PoDR2Chal, chal_id: Vec<u8>) -> PoDR2ChalResponse {
@@ -743,20 +821,20 @@ fn get_chal_resp(chal: PoDR2Chal, chal_id: Vec<u8>) -> PoDR2ChalResponse {
     chal_res
 }
 
-#[allow(unused)]
-fn get_podr2_resp(
-    data: PoDR2SigGenData,
-    status_info: param::podr2_commit_response::StatusInfo,
-) -> PoDR2Response {
-    let mut podr2_res = PoDR2Response::new();
-
-    let mut phi_encoded: Vec<String> = Vec::new();
-    for sig in data.phi {
-        phi_encoded.push(base64::encode(sig))
-    }
-
-    podr2_res.mht_root_sig = base64::encode(data.mht_root_sig);
-    podr2_res.phi = phi_encoded;
-    podr2_res.status = status_info;
-    podr2_res
-}
+// #[allow(unused)]
+// fn get_podr2_resp(
+//     data: PoDR2SigGenData,
+//     status_info: param::podr2_commit_response::StatusInfo,
+// ) -> PoDR2Response {
+//     let mut podr2_res = PoDR2Response::new();
+//
+//     let mut phi_encoded: Vec<String> = Vec::new();
+//     for sig in data.phi {
+//         phi_encoded.push(base64::encode(sig))
+//     }
+//
+//     podr2_res.mht_root_sig = base64::encode(data.mht_root_sig);
+//     podr2_res.phi = phi_encoded;
+//     podr2_res.status = status_info;
+//     podr2_res
+// }
