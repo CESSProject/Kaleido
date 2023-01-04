@@ -62,6 +62,7 @@ impl PoDR2CommitResponse {
 pub struct PoDR2CommitRequest {
     pub file_path: String,
     pub block_size: usize,
+    pub segment_size: usize,
     pub callback_url: String,
 }
 
