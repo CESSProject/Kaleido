@@ -1,7 +1,11 @@
 extern crate base64;
 
-use actix_web::{post, web, HttpResponse, Responder};
+use std::ffi::CString;
+use std::time::Instant;
+
+use actix_web::{HttpResponse, post, Responder, web};
 use sgx_types::*;
+use url::Url;
 
 use crate::enclave;
 use crate::enclave::sgx_to_podr2_error::PoDR2SgxErrorResponder;
@@ -9,11 +13,7 @@ use crate::models::app_state::AppState;
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2Error, PoDR2VerifyRequest,
 };
-use crate::models::req::{ReqFillRandomFile, ReqReport,ReqMessageSignature};
-
-use std::ffi::CString;
-use std::time::Instant;
-use url::Url;
+use crate::models::req::{ReqFillRandomFile, ReqMessageSignature, ReqReport};
 
 // r_ is appended to identify routes
 #[post("/process_data")]
@@ -29,7 +29,7 @@ pub async fn r_process_data(
         Err(e) => {
             return Err(PoDR2Error {
                 message: Some(e.to_string()),
-            })
+            });
         }
     };
 
@@ -45,6 +45,11 @@ pub async fn r_process_data(
     //     }
     // };
     // debug!("File data decoded");
+    if req.segment_size > req.block_size || req.block_size % req.segment_size != 0 {
+        return Err(PoDR2Error {
+            message: Some("Error! block_size must be greater than segment_size, and block_size must be divisible by segment_size!".to_string()),
+        })
+    }
 
     let now = Instant::now();
     debug!("Processing file data");
@@ -56,6 +61,7 @@ pub async fn r_process_data(
             &mut result1,
             c_file_path_str.as_ptr(),
             req.block_size,
+            req.segment_size,
             c_callback_url_str.as_ptr(),
         )
     };
@@ -127,7 +133,7 @@ pub async fn r_verify_proof(
         Err(_) => {
             return Err(PoDR2Error {
                 message: Some("Invalid c_proof_json_str".to_string()),
-            })
+            });
         }
     };
 
@@ -139,7 +145,7 @@ pub async fn r_verify_proof(
         Err(e) => {
             return Err(PoDR2Error {
                 message: Some("Invalid proof_id".to_string()),
-            })
+            });
         }
     };
 
@@ -206,7 +212,7 @@ fn get_c_url_str_from_string(url_str: &String) -> Result<CString, PoDR2Error> {
         Err(_) => {
             return Err(PoDR2Error {
                 message: Some("Invalid url".to_string()),
-            })
+            });
         }
     };
     Ok(CString::new(callback_url.as_str().as_bytes().to_vec()).unwrap())

@@ -270,6 +270,7 @@ impl Keys {
     pub fn gen_keys() -> Keys {
         let mut rand_slice = [0u8; 32];
         let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
+        info!("rand slice for ssk is {:?}",rand_slice.clone());
         let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
         let mut pkey = PublicKey::from_secret_key(&skey);
         Keys { skey, pkey }
@@ -420,6 +421,7 @@ pub extern "C" fn get_report(callback_url: *const c_char) -> sgx_status_t {
 pub extern "C" fn process_data(
     file_path: *const c_char,
     block_size: usize,
+    segment_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
@@ -500,7 +502,7 @@ pub extern "C" fn process_data(
             // let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
             // println!("HMAC result is :{:?}", mac_hex);
 
-            let n = file::count_file(&file_info.1, block_size);
+            let (n,s) = file::count_file(&file_info.1, block_size,segment_size);
             // let mut matrix = file::split_file(&file_info.1, block_size);
             // println!("matrix is {:?}", matrix);
             let mut file_hash = match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
@@ -511,7 +513,7 @@ pub extern "C" fn process_data(
             };
 
             let sig_gen_result =
-                podr2_pri::sig_gen::sig_gen(&file_info.1,block_size,n, file_hash.to_vec(), et.clone());
+                podr2_pri::sig_gen::sig_gen(&file_info.1,block_size,n,s,segment_size, file_hash.to_vec(), et.clone());
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data

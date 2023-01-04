@@ -12,17 +12,16 @@ use sgx_rand::Rng;
 use sgx_types::uint8_t;
 use podr2_pri::{EncEncrypt, Tag, Tag0};
 
-pub fn sig_gen<T>(file_data: &Vec<u8>,block_size:usize ,n :usize,file_hash:Vec<u8>, ct: T) -> (Vec<Vec<u8>>, Tag)
+pub fn sig_gen<T>(file_data: &Vec<u8>,block_size:usize ,n :usize,s :usize,seg :usize,file_hash:Vec<u8>, ct: T) -> (Vec<Vec<u8>>, Tag)
     where T: Symmetric + MacHash
 {
 
     let mut alphas:Vec<i64> =vec![];
     let mut alpha_big :Vec<BigInt>=vec![];
-    for item in 0..block_size{
+    for item in 0..s{
         let mut rng_64 = sgx_rand::random::<i64>();
         alphas.push(rng_64);
         alpha_big.push(rng_64.to_bigint().unwrap());
-        rng_64+=1
     }
 
     let mut tag =Tag::new();
@@ -58,7 +57,7 @@ pub fn sig_gen<T>(file_data: &Vec<u8>,block_size:usize ,n :usize,file_hash:Vec<u
     for l in 0..n{
         let f_kprf=ct.symmetric_encrypt(&i.to_ne_bytes(),"prf").unwrap();
         let mut sum=0.to_bigint().unwrap();
-        let mut j=0_usize;
+        // let mut j=0_usize;
         if l == n - 1 {
             let mut last_chunk=file_data.clone()[l * block_size..].to_vec();
             let pad=block_size as i64 -last_chunk.len() as i64;
@@ -66,16 +65,18 @@ pub fn sig_gen<T>(file_data: &Vec<u8>,block_size:usize ,n :usize,file_hash:Vec<u
                 let pad_data =&mut vec![0u8; pad as usize];
                 last_chunk.append(pad_data);
             }
-            for per in last_chunk{
-                let tmp=(alpha_big[j].clone()) * ((per as i64).to_bigint().unwrap());
+            for j in 0..s{
+                // let tmp=(alpha_big[j].clone()) * ((per as i64).to_bigint().unwrap());
+                let tmp=(alpha_big[j].clone()) * num_bigint::BigInt::from_bytes_be(Sign::Plus,&last_chunk[j*seg..(j+1)*seg]);
                 sum+=tmp;
-                j+=1;
+                // j+=1;
             }
         }else {
-            for per in file_data[l * block_size..(l + 1) * block_size].to_vec(){
-                let tmp=(alpha_big[j].clone()) * ((per as i64).to_bigint().unwrap());
+            for j in 0..s{
+                // let tmp=(alpha_big[j].clone()) * ((per as i64).to_bigint().unwrap());
+                let tmp=(alpha_big[j].clone()) * num_bigint::BigInt::from_bytes_be(Sign::Plus,&file_data[l * block_size..(l + 1) * block_size].to_vec()[(j*seg)..(j+1)*seg]);
                 sum+=tmp;
-                j+=1;
+                // j+=1;
             }
         }
 
