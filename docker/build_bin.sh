@@ -21,6 +21,8 @@ MIRROR=0
 CACHEDIR=""
 REBUILD=0
 SGXDRIVER="dcap"
+IASAPIKEY=""
+IASSPID=""
 
 while getopts ":hmrc:s:" opt; do
   case ${opt} in
@@ -38,6 +40,14 @@ while getopts ":hmrc:s:" opt; do
     ;;
   s)
     SGXDRIVER=$OPTARG
+    ;;
+  k)
+    IASAPIKEY=$OPTARG
+    echo $IASAPIKEY
+    ;;
+  i)
+    IASSPID=$OPTARG
+    echo $IASSPID
     ;;
   \?)
     echo "Invalid options: -$OPTARG" 1>&2
