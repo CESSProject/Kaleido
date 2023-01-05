@@ -11,8 +11,10 @@ EOF
 
 PUBLISH=0
 BASE_SGX=0
+IAS_API_KEY=""
+IAS_SPID=""
 
-while getopts ":hpb" opt; do
+while getopts ":hpb:i:k:" opt; do
     case ${opt} in
         h)
             usage
@@ -22,6 +24,14 @@ while getopts ":hpb" opt; do
             ;;
         p)
             PUBLISH=1
+            ;;
+        i)
+            IAS_SPID=$OPTARG
+            echo $IAS_SPID
+            ;;
+        k)
+            IAS_API_KEY=$OPTARG
+            echo $IAS_API_KEY
             ;;
         ?)
             echo "Invalid Option: -$OPTARG" 1>&2
@@ -45,7 +55,7 @@ IMAGEID="cesslab/${dockerfile_prefix}:latest"
 
 echo "building $IMAGEID image"
 #docker build -f $DOCKER_FILE_DIR/env/${dockerfile_prefix}.Dockerfile -t $IMAGEID --build-arg https_proxy=172.16.2.137:7890 $DOCKER_FILE_DIR/env
-docker build -f $DOCKER_FILE_DIR/env/${dockerfile_prefix}.Dockerfile -t $IMAGEID $DOCKER_FILE_DIR/env
+docker build --build-arg IAS_API_KEY=$IAS_API_KEY --build-arg IAS_SPID=$IAS_SPID -f $DOCKER_FILE_DIR/env/${dockerfile_prefix}.Dockerfile -t $IMAGEID $DOCKER_FILE_DIR/env
 if [ "$?" -ne "0" ]; then
     echo "$IMAGEID build failed!"
     exit 1
