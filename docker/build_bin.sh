@@ -14,6 +14,8 @@ usage() {
   echo "     -c [dir] use cache directory"
   echo "     -r rebuild, will do clean and build"
   echo "     -m use Chinese cargo mirror"
+  echo "     -i use Chinese cargo mirror"
+  echo "     -k use Chinese cargo mirror"
   exit 1
 }
 
@@ -21,8 +23,8 @@ MIRROR=0
 CACHEDIR=""
 REBUILD=0
 SGXDRIVER="dcap"
-IASAPIKEY=""
-IASSPID=""
+IAS_API_KEY=""
+IAS_SPID=""
 
 while getopts ":hmrc:s:i:k:" opt; do
   case ${opt} in
@@ -42,12 +44,12 @@ while getopts ":hmrc:s:i:k:" opt; do
     SGXDRIVER=$OPTARG
     ;;
   i)
-    IASSPID=$OPTARG
-    echo $IASSPID
+    IAS_SPID=$OPTARG
+    echo $IAS_SPID
     ;;
   k)
-    IASAPIKEY=$OPTARG
-    echo $IASAPIKEY
+    IAS_API_KEY=$OPTARG
+    echo $IAS_API_KEY
     ;;
   \?)
     echo "Invalid options: -$OPTARG" 1>&2
