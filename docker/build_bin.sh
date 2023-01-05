@@ -24,7 +24,7 @@ SGXDRIVER="dcap"
 IASAPIKEY=""
 IASSPID=""
 
-while getopts ":hmrc:s:" opt; do
+while getopts ":hmrc:s:k:i" opt; do
   case ${opt} in
   h)
     usage
