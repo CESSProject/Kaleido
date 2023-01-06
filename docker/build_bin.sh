@@ -108,7 +108,7 @@ function build_bin {
   CMD="$CMD make"
 
   log_info "Building command: $CMD"
-  docker run --network host --workdir /opt/kaleido --cidfile $CIDFILE -it --env CARGO_HOME=/opt/cargo_cache $VOL_OPTS $SGX_OPTS $build_img /bin/bash -c "$CMD"
+  docker run --network host --workdir /opt/kaleido --cidfile $CIDFILE -e IAS_SPID=$IAS_SPID -e IAS_API_KEY=$IAS_API_KEY -it --env CARGO_HOME=/opt/cargo_cache $VOL_OPTS $SGX_OPTS $build_img /bin/bash -c "$CMD"
   CID=$(cat $CIDFILE)
   log_info "Cleanup temp container $CID"
   docker rm $CID
