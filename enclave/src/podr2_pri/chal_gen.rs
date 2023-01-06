@@ -222,9 +222,19 @@ fn post_chal_data() {
     let hash = rsgx_sha256_slice(&message.as_bytes()).unwrap();
     let msg_hash = Message::parse(&hash);
     let (sig, recid) = secp256k1::sign(&msg_hash, &keys.skey);
-
+    let mut make_rec_sig = [0u8; 65];
+    let mut index = 0_usize;
+    for i in sig.serialize() {
+        make_rec_sig[index] = i;
+        index = index + 1;
+    }
+    if recid.serialize() > 26 {
+        make_rec_sig[64] = recid.serialize() + 27;
+    } else {
+        make_rec_sig[64] = recid.serialize();
+    }
     chal_data.pkey = keys.pkey.serialize_compressed().to_vec();
-    chal_data.sig = sig.serialize().to_vec();
+    chal_data.sig = make_rec_sig.to_vec();
 
     // let result = secp256k1::verify(&ctx_message, &sig, &keys.pkey);
     // info!("SIGNATURE RESULT >>>>>>>>>>{}<<<<<<<<<< ", result);
