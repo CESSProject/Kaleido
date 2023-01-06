@@ -69,7 +69,7 @@ fi
 function build_bin {
   log_info "Using build dir: $BUILD_DIR"
 
-#  local -r build_img="cesslab/cess-sgxrust-pbc-env:latest"
+  local -r build_img="cesslab/cess-sgxrust-pbc-env:latest"
   log_success "Preparing docker build image, running docker pull ${build_img}"
 #  docker pull ${build_img}
 #  if [ $? -ne 0 ]; then
