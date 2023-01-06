@@ -14,7 +14,7 @@ BASE_SGX=0
 IAS_API_KEY=""
 IAS_SPID=""
 
-while getopts ":hpb:i:k:" opt; do
+while getopts ":hpb" opt; do
     case ${opt} in
         h)
             usage
@@ -24,14 +24,6 @@ while getopts ":hpb:i:k:" opt; do
             ;;
         p)
             PUBLISH=1
-            ;;
-        i)
-            IAS_SPID=$OPTARG
-            echo $IAS_SPID
-            ;;
-        k)
-            IAS_API_KEY=$OPTARG
-            echo $IAS_API_KEY
             ;;
         ?)
             echo "Invalid Option: -$OPTARG" 1>&2
