@@ -566,28 +566,11 @@ impl rustls::ServerCertVerifier for ServerAuth {
 
 #[no_mangle]
 pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
-    // let _ = backtrace::enable_backtrace("enclave.signed.so", PrintFormat::Short);
-
-    // // Generate Keypair
-    // let mut rand_slice = [0u8; 32];
-    // let mut os_rng = sgx_rand::SgxRng::new().unwrap();
-    // os_rng.fill_bytes(&mut rand_slice);
-    // println!("rand slice is {:?}", rand_slice);
-    // let mut ssk = SecretKey::parse_slice(&rand_slice).unwrap();
-    // let mut spk = PublicKey::from_secret_key(&ssk);
-
     let keys = KEYS.lock().unwrap();
     let ssk = &keys.skey;
     let spk = &keys.pkey;
 
-    println!("ssk is {:?}", u8v_to_hexstr(&ssk.serialize()[..]));
-    println!(
-        "spk is {:?}",
-        u8v_to_hexstr(&spk.serialize_compressed()[..])
-    );
-
     let message_arr = [5u8; 32];
-    println!("message_arr is {:?}", u8v_to_hexstr(&message_arr));
     let ctx_message = Message::parse(&message_arr);
     let (sig, recid) = secp256k1::sign(&ctx_message, &ssk);
     let mut make_rec_sig = [0u8; 65];
@@ -605,7 +588,6 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     println!("Verify secp256k1 result is {}", ok);
     println!("recid is {:?}", u8v_to_hexstr(&make_rec_sig));
 
-
     let (attn_report, sig, cert) = match create_attestation_report(&spk, sign_type) {
         Ok(r) => r,
         Err(e) => {
@@ -615,17 +597,15 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     };
 
     let mut payload = attn_report.clone() + "|" + &sig.clone() + "|" + &cert.clone();
-    let s =attn_report.clone()+&sig.clone()+&cert.clone();
+    let s = attn_report.clone() + &sig.clone() + &cert.clone();
     let mut payload_hash = match sgx_tcrypto::rsgx_sha256_slice(s.as_bytes()) {
         Ok(hash) => hash,
-        Err(e) => {
-            return e
-        }
+        Err(e) => return e,
     };
     let payload_message = Message::parse(&payload_hash);
-    let (payload_sig,payload_recid)=secp256k1::sign(&payload_message,&ssk);
-    let mut payload_rec_sig=[0u8;65];
-    let mut n =0_usize;
+    let (payload_sig, payload_recid) = secp256k1::sign(&payload_message, &ssk);
+    let mut payload_rec_sig = [0u8; 65];
+    let mut n = 0_usize;
     for i in payload_sig.serialize() {
         payload_rec_sig[n] = i;
         n = n + 1;
@@ -635,11 +615,11 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     } else {
         payload_rec_sig[64] = payload_recid.serialize();
     }
-    let payload_signature_hex=u8v_to_hexstr(&payload_rec_sig);
+    let payload_signature_hex = u8v_to_hexstr(&payload_rec_sig);
 
-    payload = payload +"|" + &payload_signature_hex;
+    payload = payload + "|" + &payload_signature_hex;
 
-    let mut res=crate::PAYLOAD.lock().unwrap();
+    let mut res = crate::PAYLOAD.lock().unwrap();
     res.clone_from(&payload);
     // let (key_der, cert_der) = match cert::gen_ecc_cert(payload, &prv_k, &pub_k, &ecc_handle) {
     //     Ok(r) => r,

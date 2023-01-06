@@ -32,7 +32,11 @@ impl Tag {
     pub fn new() -> Tag {
         use std::time::SystemTime;
         Tag {
-            t: Tag0 { n: 0, enc: vec![], file_hash: vec![] },
+            t: Tag0 {
+                n: 0,
+                enc: vec![],
+                file_hash: vec![],
+            },
             mac_t0: vec![],
         }
     }
@@ -44,12 +48,16 @@ impl Tag {
 pub struct Tag0 {
     pub n: i64,
     pub enc: Vec<u8>,
-    pub file_hash:Vec<u8>,
+    pub file_hash: Vec<u8>,
 }
 
 impl Tag0 {
     pub fn new() -> Tag0 {
-        Tag0 { n: 0, enc: vec![], file_hash: vec![] }
+        Tag0 {
+            n: 0,
+            enc: vec![],
+            file_hash: vec![],
+        }
     }
 }
 
@@ -134,29 +142,28 @@ pub struct DMinerTag {
 pub struct MinerTag0 {
     pub n: i64,
     pub enc: String,
-    pub file_hash :String,
+    pub file_hash: String,
 }
 
-pub fn convert_miner_proof(proof:&String) ->(Vec<u8>,Vec<Vec<u8>>,Tag) {
-    let proof_byte=base64::decode(proof.clone()).unwrap();
+pub fn convert_miner_proof(proof: &String) -> (Vec<u8>, Vec<Vec<u8>>, Tag) {
+    let proof_byte = base64::decode(proof.clone()).unwrap();
     let miner_proof: MinerProof = serde_json::from_slice(&proof_byte).unwrap();
 
     //convert sigma
-    let mut sigma=base64::decode(miner_proof.sigma.as_str()).unwrap();
+    let mut sigma = base64::decode(miner_proof.sigma.as_str()).unwrap();
 
     //convert miu
-    let mut miu=Vec::new();
-    for item in miner_proof.miu{
-        let mut i =base64::decode(item.as_str()).unwrap();
+    let mut miu = Vec::new();
+    for item in miner_proof.miu {
+        let mut i = base64::decode(item.as_str()).unwrap();
         miu.push(i);
     }
     //convert tag
     let mut tag = Tag::new();
-    tag.t.n=miner_proof.tag.t.n;
-    tag.t.enc=base64::decode(miner_proof.tag.t.enc.as_str()).unwrap();
-    tag.t.file_hash=base64::decode(miner_proof.tag.t.file_hash.as_str()).unwrap();
-    tag.mac_t0=base64::decode(miner_proof.tag.mac_t0.as_str()).unwrap();
+    tag.t.n = miner_proof.tag.t.n;
+    tag.t.enc = base64::decode(miner_proof.tag.t.enc.as_str()).unwrap();
+    tag.t.file_hash = base64::decode(miner_proof.tag.t.file_hash.as_str()).unwrap();
+    tag.mac_t0 = base64::decode(miner_proof.tag.mac_t0.as_str()).unwrap();
 
-    (sigma,miu,tag)
-
+    (sigma, miu, tag)
 }
