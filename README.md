@@ -64,6 +64,39 @@ docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8
 
 ## Build the Source Code
 
+We have two options to build and install dependencies 
+
+1. Using the scripts
+2. Installing manually
+
+## 1. Using the scripts
+The [/scripts](https://github.com/CESSProject/Kaleido/tree/main/scripts) contains all the scripts required to install the SGX driver and other dependencies. You can run the following command to see the functionality provided by the script
+
+```
+cd scripts
+./install help
+```
+
+### Install the SGX driver
+To install SGX driver navigate to the Kaleido/scripts directory and execute the following command
+
+```
+# For DCAP driver
+./install sgx dcap
+
+# For OOT driver
+./install sgx isgx
+```
+
+### Install build dependencies
+Kaleido requires SGX compatible PBC and the GMP library, to install those dependencies run the following command
+
+```
+./install build_dep
+```
+
+## 2. Installing manually
+
 ### Install GMP
 
 Follow the instructions at [SGX-enabled GMP library](https://github.com/intel/sgx-gmp) to install GMP library. We recommend you not to set the `--prefix` parameter while configuring the library. This will by default install the library uder `/usr/local/` which is the requirement of Kaleido.
