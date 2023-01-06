@@ -23,9 +23,8 @@ REBUILD=0
 SGXDRIVER="dcap"
 IAS_API_KEY=""
 IAS_SPID=""
-CESS_POST_CHAL_URL=""
 
-while getopts ":hmrc:s:i:k:u:" opt; do
+while getopts ":hmrc:s:i:k:" opt; do
   case ${opt} in
   h)
     usage
@@ -47,9 +46,6 @@ while getopts ":hmrc:s:i:k:u:" opt; do
     ;;
   k)
     IAS_API_KEY=$OPTARG
-    ;;
-  u)
-    CESS_POST_CHAL_URL=$CESS_POST_CHAL_URL
     ;;
   \?)
     echo "Invalid options: -$OPTARG" 1>&2
