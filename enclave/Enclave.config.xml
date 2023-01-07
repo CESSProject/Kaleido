@@ -11,7 +11,7 @@
   <StackMaxSize>0x400000</StackMaxSize>
   
   <!-- 128MB The heap size for the enclave (in bytes)-->
-  <HeapMaxSize>0x8000000</HeapMaxSize>
+  <HeapMaxSize>0x140000000</HeapMaxSize>
   
   <!-- The number of trusted threads -->
   <!-- Kaleido requires at least 14 threads -->

@@ -14,6 +14,8 @@ usage() {
   echo "     -c [dir] use cache directory"
   echo "     -r rebuild, will do clean and build"
   echo "     -m use Chinese cargo mirror"
+  echo "     -i IAS_SPID required at build time"
+  echo "     -k IAS_API_KEY required at build time"
   exit 1
 }
 
@@ -21,8 +23,10 @@ MIRROR=0
 CACHEDIR=""
 REBUILD=0
 SGXDRIVER="dcap"
+IAS_API_KEY=""
+IAS_SPID=""
 
-while getopts ":hmrc:s:" opt; do
+while getopts ":hmrc:s:i:k:" opt; do
   case ${opt} in
   h)
     usage
@@ -38,6 +42,12 @@ while getopts ":hmrc:s:" opt; do
     ;;
   s)
     SGXDRIVER=$OPTARG
+    ;;
+  i)
+    IAS_SPID=$OPTARG
+    ;;
+  k)
+    IAS_API_KEY=$OPTARG
     ;;
   \?)
     echo "Invalid options: -$OPTARG" 1>&2
@@ -63,11 +73,11 @@ function build_bin {
 
   local -r build_img="cesslab/cess-sgxrust-pbc-env:latest"
   log_success "Preparing docker build image, running docker pull ${build_img}"
-  docker pull ${build_img}
-  if [ $? -ne 0 ]; then
-    echo "Failed to pull docker image."
-    exit 1
-  fi
+#  docker pull ${build_img}
+#  if [ $? -ne 0 ]; then
+#    echo "Failed to pull docker image."
+#    exit 1
+#  fi
 
   if [ $MIRROR -eq "1" ]; then
     echo "Config mirror..."
@@ -98,7 +108,7 @@ function build_bin {
   CMD="$CMD make"
 
   log_info "Building command: $CMD"
-  docker run --network host --workdir /opt/kaleido --cidfile $CIDFILE -it --env CARGO_HOME=/opt/cargo_cache $VOL_OPTS $SGX_OPTS $build_img /bin/bash -c "$CMD"
+  docker run --network host --workdir /opt/kaleido --cidfile $CIDFILE -e IAS_SPID=$IAS_SPID -e IAS_API_KEY=$IAS_API_KEY -it --env CARGO_HOME=/opt/cargo_cache $VOL_OPTS $SGX_OPTS $build_img /bin/bash -c "$CMD"
   CID=$(cat $CIDFILE)
   log_info "Cleanup temp container $CID"
   docker rm $CID
