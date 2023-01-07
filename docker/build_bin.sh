@@ -14,6 +14,8 @@ usage() {
   echo "     -c [dir] use cache directory"
   echo "     -r rebuild, will do clean and build"
   echo "     -m use Chinese cargo mirror"
+  echo "     -i IAS_SPID required at build time"
+  echo "     -k IAS_API_KEY required at build time"
   exit 1
 }
 
