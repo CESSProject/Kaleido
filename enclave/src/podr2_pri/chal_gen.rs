@@ -49,9 +49,9 @@ pub struct ChalData {
     pub autonomous_bloom_filter: BloomFilter,
     pub idle_bloom_filter: BloomFilter,
     pub service_bloom_filter: BloomFilter,
-    pub autonomous_failed_file_hashes: Vec<Vec<u8>>,
-    pub idle_failed_file_hashes: Vec<Vec<u8>>,
-    pub service_failed_file_hashes: Vec<Vec<u8>>,
+    pub autonomous_failed_file_hashes: String,
+    pub idle_failed_file_hashes: String,
+    pub service_failed_file_hashes: String,
     pub chal_id: Vec<u8>,
     pub pkey: Vec<u8>,
     pub sig: Vec<u8>,
@@ -63,9 +63,9 @@ impl ChalData {
             autonomous_bloom_filter: BloomFilter::zero(),
             idle_bloom_filter: BloomFilter::zero(),
             service_bloom_filter: BloomFilter::zero(),
-            autonomous_failed_file_hashes: Vec::new(),
-            idle_failed_file_hashes: Vec::new(),
-            service_failed_file_hashes: Vec::new(),
+            autonomous_failed_file_hashes: String::new(),
+            idle_failed_file_hashes: String::new(),
+            service_failed_file_hashes: String::new(),
             chal_id: Vec::new(),
             pkey: Vec::new(),
             sig: Vec::new(),
@@ -211,12 +211,12 @@ fn post_chal_data() {
     let abf_json = serde_json::to_string(&chal_data.autonomous_bloom_filter).unwrap();
     let ibf_json = serde_json::to_string(&chal_data.idle_bloom_filter).unwrap();
     let sbf_json = serde_json::to_string(&chal_data.service_bloom_filter).unwrap();
-    let autonomous_file_hashes_json = serde_json::to_string(&chal_data.autonomous_failed_file_hashes).unwrap();
-    let idle_file_hashes_json = serde_json::to_string(&chal_data.idle_failed_file_hashes).unwrap();
-    let service_file_hashes_json = serde_json::to_string(&chal_data.service_failed_file_hashes).unwrap();
+    // let autonomous_file_hashes_json = serde_json::to_string(&chal_data.autonomous_failed_file_hashes).unwrap();
+    // let idle_file_hashes_json = serde_json::to_string(&chal_data.idle_failed_file_hashes).unwrap();
+    // let service_file_hashes_json = serde_json::to_string(&chal_data.service_failed_file_hashes).unwrap();
     let chal_json = serde_json::to_string(&chal_data.chal_id).unwrap();
 
-    let message = abf_json + "|" + &ibf_json + "|" + &sbf_json + "|" + &autonomous_file_hashes_json + "|" + &idle_file_hashes_json + "|" + &service_file_hashes_json + "|" + &chal_json;
+    let message = abf_json + "|" + &ibf_json + "|" + &sbf_json + "|" + &chal_data.autonomous_failed_file_hashes + "|" + &chal_data.idle_failed_file_hashes + "|" + &chal_data.service_failed_file_hashes + "|" + &chal_json;
     debug!("MESSAGE: {}", message);
 
     let hash = rsgx_sha256_slice(&message.as_bytes()).unwrap();

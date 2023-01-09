@@ -16,71 +16,26 @@
 
 NOTE: Please install sgx-gmp uder default directory i.e. `/usr/local/`
 
-## Pulling a Pre-Built Docker Container
+## Clone kaleido source code
 
-We assume that you have [correctly installed docker](https://docs.docker.com/get-docker/):
+Download the source code of kaleido, command:
 
-First, pull the docker container, the below command will download the `latest`:
-
-```bash
-docker pull cesslab/sgx-rust
+```shell
+git clone https://github.com/CESSProject/Kaleido.git
 ```
 
-## Running with Intel SGX Driver
+## Install the sgx driver
 
-By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
-To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
+The [Kaleido/scripts](https://github.com/CESSProject/Kaleido/tree/main/scripts) contains all the scripts required to install the SGX driver and other dependencies. You can run the following command to see the functionality provided by the script
 
-### To run the container with OOT SGX driver, run
-
-```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/isgx -ti cesslab/sgx-rust
-```
-
-### To run the container with DCAP SGX driver
-
-Check your `/dev/` directory for `/dev/sgx_enclave` and `/dev/sgx_provision`
-or
-`/dev/sgx/enclave` and `/dev/sgx/provision`
-and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
-
-```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
-```
-
-for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
-
-```bash
-docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
-```
-
-### To run the container in simulation mode
-
-For testing and development purpose
-
-```bash
-docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
-```
-
-## Build the Source Code
-
-We have two options to build and install dependencies 
-
-1. Using the scripts
-2. Installing manually
-
-## 1. Using the scripts
-The [/scripts](https://github.com/CESSProject/Kaleido/tree/main/scripts) contains all the scripts required to install the SGX driver and other dependencies. You can run the following command to see the functionality provided by the script
-
-```
+```shell
 cd scripts
 ./install help
 ```
 
-### Install the SGX driver
-To install SGX driver navigate to the Kaleido/scripts directory and execute the following command
+Please install the sgx driver on your instance first.To install SGX driver navigate to the Kaleido/scripts directory and execute the following command
 
-```
+```shell
 # For DCAP driver
 ./install sgx dcap
 
@@ -88,78 +43,133 @@ To install SGX driver navigate to the Kaleido/scripts directory and execute the 
 ./install sgx isgx
 ```
 
-### Install build dependencies
-Kaleido requires SGX compatible PBC and the GMP library, to install those dependencies run the following command
 
+
+## Way to run kaleido
+
+### Build from source code(Recommended ❌)(Join CESS network ❌)
+
+#### 1.Pulling a Pre-Built Docker Container
+
+We assume that you have [correctly installed docker](https://docs.docker.com/get-docker/):
+
+First, pull the docker container, the below command will download the `latest`:
+
+```shell
+docker pull cesslab/sgx-rust
 ```
-./install build_dep
-```
 
-## 2. Installing manually
 
-### Install GMP
 
-Follow the instructions at [SGX-enabled GMP library](https://github.com/intel/sgx-gmp) to install GMP library. We recommend you not to set the `--prefix` parameter while configuring the library. This will by default install the library uder `/usr/local/` which is the requirement of Kaleido.
+#### 2.Running image with Intel SGX Driver
 
-### Install SGX-enabled PBC Library
+By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
+To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
 
-Follow the instructions at [SGX-enabled PBC library](https://github.com/tehsunnliu/pbc-sgx) to install PBC library.
+* To run the container with OOT SGX driver, run
 
-### Build Kaleido
+  ```shell
+  docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/isgx  -v /:/sgx -ti cesslab/sgx-rust
+  ```
 
-Apply for Intel Remote Attestation API keys at [Intel IAS (EPID Attestation) Service](https://api.portal.trustedservices.intel.com/EPID-attestation). Make sure SPID is **linkable**
+* To run the container with DCAP SGX driver
 
-Set SPID and API key received from Intel
+  Check your `/dev/` directory for `/dev/sgx_enclave` and `/dev/sgx_provision`
+  or
+  `/dev/sgx/enclave` and `/dev/sgx/provision`
+  and replace `<YOUR_ENCLAVE_DIR>` and `<YOUR_PROVISION_DIR>` with the your directory respectively.
+
+  ```shell
+  docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device <YOUR_ENCLAVE_DIR> --device <YOUR_PROVISION_DIR> -ti cesslab/sgx-rust
+  ```
+
+  for example if the sgx driver is located in `/dev/sgx_enclave` and `/dev/sgx_provision` then run the following command
+
+  ```shell
+  docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
+  ```
+
+* (PS):To run the container in simulation mode, For testing and development purpose
 
 ```bash
-export IAS_SPID=<YOUR_SPID>
-export IAS_API_KEY=<YOUR_PRIMARY_KEY_OR_SECONDARY_KEY>
+docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
 ```
 
-First `cd` back to Kaleido root directory
+After executing the above image running command, you will enter the container, please enter the kaleido directory, and then please open the sgx daemon
 
-```bash
-cd ../..
-```
+```shell
+cd /root/Kaleido
 
-then run the following command to build Kaleido. By default `make` builds in Hardware Mode `SGX_MODE=HW` to build in Software Mode uncomment `SGX_MODE=SW`.
-
-```bash
-make #SGX_MODE=SW
-```
-
-### Run Kaleido
-
-Optionally, you can also set logging and debugging envrionment variable. To do so set the follwing
-
-```bash
-export RUST_LOG="debug"
-export RUST_BACKTRACE=1
-```
-
-If you are running Kaleido in SGX(Hardware) mode you will have to start `AESM`, execute those commands in your terminal.
-```bash
 LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
 /opt/intel/sgx-aesm-service/aesm/aesm_service
 ```
 
-Finally, To run Kaleido navigate to `/bin` and execute `app`
+Add environment variables.When compiling by yourself, you need to apply for an account on the Intel website and subscribe to Development/Production Access. The address for application and subscription is:https://api.portal.trustedservices.intel.com/ 
 
-```bash
-cd bin
-./app
+```shell
+##Log level
+export RUST_LOG="debug"
+export RUST_BACKTRACE=1
+##Please fill in Primary key that you registered and subscribed from Intel in quotation marks
+export IAS_API_KEY=""
+##Please fill in SPID that you registered and subscribed from Intel in quotation marks
+export IAS_SPID=""
+##After Kaleido accepts the challenge from the CESS chain, it will start a period of verification. After the end, Kaleido completes the verification and returns the url of the result. This url is determined by the miner program, Here is an example.
+export CESS_POST_CHAL_URL="http://127.0.0.1:10000/result"
 ```
+
+build binaries:
+
+```shell
+cd /root/Kaleido
+make
+```
+
+After waiting for the build to complete, run the binary in the background:
+
+```shell
+cd /root/Kaleido/bin
+nohup ./app &
+```
+
+You can check if it works successfully
+
+```shell
+ps -ef |grep app
+```
+
+
+
+### Build and run image using docker scripts(Join CESS network ❌)
+
+Please refer to the docker documentation for details:[Kaleido/docker/Docker Script Of Kaleido.md](https://github.com/CESSProject/Kaleido/tree/main/docker/Docker Script Of Kaleido.md)
+
+### Download official image and run it with one click(Recommend ✔)(Join CESS network ✔)
+
+Directly download the latest docker container pre-compiled by docker, you can easily start kaleido and join the CESS network
+
+```shell
+docker pull cesslab/sgx-rust:isgx
+```
+
+Run docker image
+
+```shell
+docker run -v /home/ubuntu/Kaleido/:/root/Kaleido -p 80:8080 --device /dev/isgx -v /:/sgx --name kaleido -tid cesslab/cess-kaleido:isgx
+```
+
+
 
 ## Kaleido API Calls.
 
 ### `process_data`
 
-**Description**: This function need to pass `file_path` to be processed. `block_size`determines the size of each chunk of the `data` while calculating PoDR2. And the `callback_url` is the url where the computed PoDR2 result will be posted. 
+**Description**: This function need to pass `file_path` to be processed. `block_size`determines the size of each chunk of the `data` while calculating PoDR2.increasing `segment_size` can reduce the size of file preprocessing results(`segment_size` must be able to divide block_size evenly). And the `callback_url` is the url where the computed PoDR2 result will be posted. 
 
 **Request**
 
 ```bash
-curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_data -d '{"file_path":"<Path Of File To Be Processed>", "block_size":10, "callback_url":"<REPLACE_WITH_CALLBACK_URL>"}'
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_data -d '{"file_path":"<Path Of File To Be Processed>", "block_size":10,"segment_size":1, "callback_url":"<REPLACE_WITH_CALLBACK_URL>"}'
 ```
 
 **Response**: The data will be posted back to the `callback_url` provided above with the following sample content.
@@ -167,7 +177,7 @@ curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_dat
 ```json
 {
   "sigmas": [
-    "36193ad3116bfd17e01ecb9ffcf0816d",
+    "36193ad3116bfd17e01ecb9ffcf0816d"
   ],
   "tag": {
     "t": {
@@ -185,36 +195,87 @@ curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_dat
 ```
 
 
-## Code Walk Through
 
-### Enclave initialization
+### `get_report`
 
-When the node starts, it needs to instantiate an enclave and obtain its id as the business enclave, [code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L49).
+**Description**: This method is used to obtain the remote attestation report obtained by the currently running Kaleido, and the result is called back to `callback_url`.
 
-### Enclave environment initialization
+**Request**
 
-PBC key initialization:
+```shell
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/get_report -d '{"callback_url":"<REPLACE_WITH_CALLBACK_URL>"}'
+```
 
-* The initialization of the PBC key occurs when the kaleido node starts. When kaleido starts, it first calls the [init_pairings function](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/pbc.rs#L6) under the pbc file in the enclave.
-* Secondly, the init_pairings function will use rust-ffi to call the C++ function [init_pairing method](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_pbc/src/pbc/pbc_intf.cpp#L92) which is located in the cess_pbc package. The PBC key pair is initialized.
-* The selected security parameters and initial generators are located under the cess_curve file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/cess_curve/src/config.rs#L8).
+**Response**: The data will be posted back to the `callback_url` provided above with the following sample content.
 
-Enclave memory initialization:
+```shell
+"{\"id\":\"87097164558170109416329144617262300075\",\"timestamp\":\"2023-01-09T01:36:31.684273\",\"version\":4,\"epidPseudonym\":\"9B7Ac4onoHExqmjOIg0ldoYTF1jtI7wUlotfHyOqRTX36eZElWcxfxlEIeZy5RRMEeyEjMzl5q6H7fMUyTpDi3FJ9pIkskiHmnaXxSxMiR1Cx9czGmT6I+X5mrdDsprhY18ZqHITQ1eL5AeT2qVU0r2JpmekHzxdwgnE68GTb2o=\",\"advisoryURL\":\"https://security-center.intel.com\",\"advisoryIDs\":[\"INTEL-SA-00161\",\"INTEL-SA-00220\",\"INTEL-SA-00270\",\"INTEL-SA-00293\",\"INTEL-SA-00320\",\"INTEL-SA-00329\",\"INTEL-SA-00334\",\"INTEL-SA-00381\",\"INTEL-SA-00389\",\"INTEL-SA-00477\",\"INTEL-SA-00614\",\"INTEL-SA-00615\",\"INTEL-SA-00617\"],\"isvEnclaveQuoteStatus\":\"GROUP_OUT_OF_DATE\",\"platformInfoBlob\":\"1502006504000F0000131302040101070000000000000000000D00000C000000020000000000000B605F6DDD3CEA7DFBB7E93E996F1F03037A960A29436B47ADE4D9493BA3E5390FD960DBC8B6E9172402F3CF6025076D2CD93DF7BCD4E374CC0E6310199A707C81F3\",\"isvEnclaveQuoteBody\":\"AgABAGALAAAMAAwAAAAAANmMYLGtWKhiobXgZ0023bgAAAAAAAAAAAAAAAAAAAAABhMC//8CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAKx8ZgJsS/SxVZ9oTuK+v1rjcGAE/VHnZ9fHpEzhQt87AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC9X3WOzjS60PChQQayLn72+ORCpfqAaLsPH0FLhvDT9kAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}|iuGIu8oJMDuwG+hGNDx3h/8zU1rg+X+KzRrR8bH02nZmqeImJXDeH2cPYYhrNp2nujyIjSQZRZRxzWwfzyM83vh+0LJiNwjyJlavzT8dxmc9oUGpKVDzIQBEoRcEy7edJG/diS+SJN/D884PrhnOk60JYJw3Wd/PLNhGkLURDQycy1yly5gff7vOufB/b0K5jmhgdsHMsBGtn14umV5XUSay0ZDbOg2Rryu1a7zsZAB914WM0KXgGpw+OXBlvbXD3Vkxm6xp6aYxR24RIK09si6QH+az3UbM5nmFpx6tJ2251rwCy+DulPuZPcD2bJ/S7yD1tw6v0u08+gML+0Jcrg==|MIIEoTCCAwmgAwIBAgIJANEHdl0yo7CWMA0GCSqGSIb3DQEBCwUAMH4xCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTEUMBIGA1UEBwwLU2FudGEgQ2xhcmExGjAYBgNVBAoMEUludGVsIENvcnBvcmF0aW9uMTAwLgYDVQQDDCdJbnRlbCBTR1ggQXR0ZXN0YXRpb24gUmVwb3J0IFNpZ25pbmcgQ0EwHhcNMTYxMTIyMDkzNjU4WhcNMjYxMTIwMDkzNjU4WjB7MQswCQYDVQQGEwJVUzELMAkGA1UECAwCQ0ExFDASBgNVBAcMC1NhbnRhIENsYXJhMRowGAYDVQQKDBFJbnRlbCBDb3Jwb3JhdGlvbjEtMCsGA1UEAwwkSW50ZWwgU0dYIEF0dGVzdGF0aW9uIFJlcG9ydCBTaWduaW5nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqXot4OZuphR8nudFrAFiaGxxkgma/Es/BA+tbeCTUR106AL1ENcWA4FX3K+E9BBL0/7X5rj5nIgX/R/1ubhkKWw9gfqPG3KeAtIdcv/uTO1yXv50vqaPvE1CRChvzdS/ZEBqQ5oVvLTPZ3VEicQjlytKgN9cLnxbwtuvLUK7eyRPfJW/ksddOzP8VBBniolYnRCD2jrMRZ8nBM2ZWYwnXnwYeOAHV+W9tOhAImwRwKF/95yAsVwd21ryHMJBcGH70qLagZ7Ttyt++qO/6+KAXJuKwZqjRlEtSEz8gZQeFfVYgcwSfo96oSMAzVr7V0L6HSDLRnpb6xxmbPdqNol4tQIDAQABo4GkMIGhMB8GA1UdIwQYMBaAFHhDe3amfrzQr35CN+s1fDuHAVE8MA4GA1UdDwEB/wQEAwIGwDAMBgNVHRMBAf8EAjAAMGAGA1UdHwRZMFcwVaBToFGGT2h0dHA6Ly90cnVzdGVkc2VydmljZXMuaW50ZWwuY29tL2NvbnRlbnQvQ1JML1NHWC9BdHRlc3RhdGlvblJlcG9ydFNpZ25pbmdDQS5jcmwwDQYJKoZIhvcNAQELBQADggGBAGcIthtcK9IVRz4rRq+ZKE+7k50/OxUsmW8aavOzKb0iCx07YQ9rzi5nU73tME2yGRLzhSViFs/LpFa9lpQL6JL1aQwmDR74TxYGBAIi5f4I5TJoCCEqRHz91kpG6Uvyn2tLmnIdJbPE4vYvWLrtXXfFBSSPD4Afn7+3/XUggAlc7oCTizOfbbtOFlYA4g5KcYgS1J2ZAeMQqbUdZseZCcaZZZn65tdqee8UXZlDvx0+NdO0LR+5pFy+juM0wWbu59MvzcmTXbjsi7HY6zd53Yq5K244fwFHRQ8eOB0IWB+4PfM7FeAApZvlfqlKOlLcZL2uyVmzRkyR5yW72uo9mehX44CiPJ2fse9Y6eQtcfEhMPkmHXI01sN+KwPbpA39+xOsStjhP9N1Y1a2tQAVo+yVgLgV2Hws73Fc0o3wC78qPEA+v2aRs/Be3ZFDgDyghc/1fgU+7C+P6kbqd4poyb6IW8KCJbxfMJvkordNOgOUUxndPHEi/tb/U7uLjLOgPA==|0bff8986e1d2168ab9f12c90adbc3221fbcb0c6a624d9ee732ad51194b57fb830bdb03b03aad4d161e876a72f412684a283a0dd5ef179fc841b503d96f0c994800"
+```
 
-* Convert the enclave memory max to decimal,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L206)
-* Add the maximum memory value to the memory global variable field in an atomic operation,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L209)
 
-### Keep the key consistent
 
-* Start the mutual attestation server port and wait for other nodes to obtain their PBC keys,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L149).
-* The server port passes the socket handle to the enclave for processing, and the enclave obtains the remote attestation report,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/secret_exchange/mod.rs#L567).
-* The server port adds the remote authentication report certificate to the TLS,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/secret_exchange/mod.rs#L652).
-* The node needs to judge whether it is the first node to start. Currently, it is judged whether it is the first node by reading the configuration file,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L191).
-* If it is not the first node, start the client port to request the PBC key from the configuration file address,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L232).
+### `get_chal`
 
-### File proof computing function
+**Description**: This method receives an array of random challenges from the chain and returns an array of block challenges in `callback_url`.
 
-* The initialization file proof the computation interface,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/app/src/main.rs#L126).
-* The entry of the file proof calculation method needs to pass in the block size and segment size of the PBC key pair,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L298).
-* The entry of the calculation method for the file signature when the file proof is calculated,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/podr2_proof_commit.rs#L118).
-* After the file proof the calculated result, send the file proof result to the callback address method entry,[code](https://github.com/CESSProject/Kaleido/blob/133caa3154aa0b79492fd1f5c8e59a4adc8723e9/enclave/src/lib.rs#L333).
+**Request**
+
+```shell
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/get_chal -d '{"n_blocks":512, "callback_url":"<REPLACE_WITH_CALLBACK_URL>", "proof_id":[1,3,0,255]}'
+```
+
+**Response**: The data will be posted back to the `callback_url` provided above with the following sample content.
+
+```shell
+{
+  "challenge": {
+    "chal_id": [
+      1,
+      3,
+      0,
+      255
+    ],
+    "time_out": 1673084189,
+    "q_elements": [
+      {
+        "i": 2,
+        "v": 310732984237164701
+      },
+      ...
+    ]
+  },
+  "status": {
+    "status_code": 100000,
+    "status_msg": "ok"
+  }
+}
+```
+
+### `fill_random_file`
+
+**Description**: This method is used to generate random files
+
+**Request**
+
+```shell
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/fill_random_file -d '{"file_path":"/sgx/root/sgx_test.txt","data_len":524288}'
+```
+
+**Response**: No result is returned, if the request is successful, the http status code is 200
+
+### `message_signature`
+
+**Description**: Sign the incoming result with the sgx authentication key and return it to `callback_url`.
+
+**Request**
+
+```shell
+curl -H 'Content-Type: application/json' -X POST http://localhost:80/message_signature -d '{"msg":"hello world","callback_url":"<REPLACE_WITH_CALLBACK_URL>"}'
+```
+
+**Response**:
+
+```shell
+"6ee8cf1ef4450254ba89fc2c1f690abc9c58a0d10c75cb5732fde292d71b5bc444ac31d5897259e6b5f2ab51cf6f482358da63a41644666d4c6f39ec9e28bc5e00"
+```
+
