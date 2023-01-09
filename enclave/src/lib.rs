@@ -65,12 +65,15 @@ use core::convert::TryInto;
 
 use cess_curve::*;
 use log::{info, warn};
-use secp256k1::{PublicKey, SecretKey};
 use secp256k1::*;
+use secp256k1::{PublicKey, SecretKey};
 use sgx_rand::Rng;
 use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
-use sgx_types::*;
 use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
+use sgx_types::*;
+use std::ffi::CString;
+use std::io::ErrorKind;
+use std::sync::atomic::Ordering;
 use std::{
     env,
     ffi::CStr,
@@ -81,9 +84,6 @@ use std::{
     sync::SgxMutex,
     thread,
 };
-use std::ffi::CString;
-use std::io::ErrorKind;
-use std::sync::atomic::Ordering;
 
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
@@ -92,9 +92,9 @@ use param::{
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::podr2_commit_data::PoDR2SigGenData;
 use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
-use podr2_pri::{QElement, Tag};
 use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
 use podr2_pri::key_gen::{MacHash, Symmetric};
+use podr2_pri::{QElement, Tag};
 use utils::bloom_filter::BloomHash;
 use utils::file;
 
@@ -111,7 +111,6 @@ mod podr2_proof_commit;
 mod podr2_pub;
 mod statics;
 mod utils;
-
 
 pub struct Keys {
     skey: secp256k1::SecretKey,
@@ -141,7 +140,6 @@ impl sgx_serialize::Serializable for Keys {
 
 impl sgx_serialize::DeSerializable for Keys {
     fn decode<D: sgx_serialize::Decoder>(d: &mut D) -> Result<Self, D::Error> {
-
         // TODO: Combine Secretkey and Privatekey extraction code to a single function - Code Duplication.
 
         let skey = match d.read_seq(|d, len| {
@@ -169,7 +167,7 @@ impl sgx_serialize::DeSerializable for Keys {
                             key_len,
                             v.len()
                         )
-                            .as_str(),
+                        .as_str(),
                     ));
                 }
             };
@@ -214,7 +212,7 @@ impl sgx_serialize::DeSerializable for Keys {
                             key_len,
                             v.len()
                         )
-                            .as_str(),
+                        .as_str(),
                     ));
                 }
             };
@@ -270,7 +268,7 @@ impl Keys {
     pub fn gen_keys() -> Keys {
         let mut rand_slice = [0u8; 32];
         let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
-        info!("rand slice for ssk is {:?}",rand_slice.clone());
+        info!("rand slice for ssk is {:?}", rand_slice.clone());
         let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
         let mut pkey = PublicKey::from_secret_key(&skey);
         Keys { skey, pkey }
@@ -463,14 +461,14 @@ pub extern "C" fn process_data(
             "Invalid block_size {:?} - per blocks can not be greater than data length {:?}",
             block_size, file_info.0
         )
-            .to_string();
+        .to_string();
         status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
         podr2_data.status = status;
         utils::post::post_data(callback_url_str.clone(), &podr2_data);
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-    thread::Builder::new()
+    match thread::Builder::new()
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
@@ -512,8 +510,15 @@ pub extern "C" fn process_data(
                 }
             };
 
-            let sig_gen_result =
-                podr2_pri::sig_gen::sig_gen(&file_info.1, block_size, n, s, segment_size, file_hash.to_vec(), et.clone());
+            let sig_gen_result = podr2_pri::sig_gen::sig_gen(
+                &file_info.1,
+                block_size,
+                n,
+                s,
+                segment_size,
+                file_hash.to_vec(),
+                et.clone(),
+            );
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data
@@ -601,8 +606,10 @@ pub extern "C" fn process_data(
 
                 warn!("Callback URL not provided.");
             }
-        })
-        .expect("Failed to launch process_data thread");
+        }) {
+        Ok(_) => return sgx_status_t::SGX_SUCCESS,
+        Err(_) => return sgx_status_t::SGX_ERROR_OUT_OF_TCS,
+    };
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -711,9 +718,7 @@ pub extern "C" fn verify_proof(
             );
             debug!("podr2_result is :{}", ok);
 
-
             let mut chal_data = CHAL_DATA.lock().unwrap();
-
 
             let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
             let mut hash = [0u8; 64];
@@ -766,13 +771,21 @@ pub extern "C" fn verify_proof(
                     chal_data.service_bloom_filter.insert(binary);
                 }
                 _ => {
-                    result.status_msg = format!("The 'verify_type' field value is: {} Please enter the correct value!", verify_type).to_string();
+                    result.status_msg = format!(
+                        "The 'verify_type' field value is: {} Please enter the correct value!",
+                        verify_type
+                    )
+                    .to_string();
                     result.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
                     utils::post::post_data(call_back_url, &result);
                     return;
                 }
             }
-            result.status_msg = format!("File proof that the file hash is : {:?}, verification result is :{}", tag.t.file_hash.clone(), ok);
+            result.status_msg = format!(
+                "File proof that the file hash is : {:?}, verification result is :{}",
+                tag.t.file_hash.clone(),
+                ok
+            );
             result.status_code = Podr2Status::PoDr2Success as usize;
             utils::post::post_data(call_back_url, &result);
             return;
@@ -796,7 +809,10 @@ pub extern "C" fn fill_random_file(file_path: *const c_char, data_len: usize) ->
 }
 
 #[no_mangle]
-pub extern "C" fn message_signature(msg: *const c_char, callback_url: *const c_char) -> sgx_status_t {
+pub extern "C" fn message_signature(
+    msg: *const c_char,
+    callback_url: *const c_char,
+) -> sgx_status_t {
     let msg_string = match unsafe { CStr::from_ptr(msg).to_str() } {
         Ok(path) => path.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
