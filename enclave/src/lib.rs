@@ -61,18 +61,16 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
-use secp256k1::{PublicKey, SecretKey};
-use sgx_rand::Rng;
-use utils::bloom_filter::BloomHash;
+use core::convert::TryInto;
 
 use cess_curve::*;
-use core::convert::TryInto;
 use log::{info, warn};
+use secp256k1::{PublicKey, SecretKey};
+use secp256k1::*;
+use sgx_rand::Rng;
 use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
 use sgx_types::*;
-use std::io::ErrorKind;
-use std::sync::atomic::Ordering;
+use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
 use std::{
     env,
     ffi::CStr,
@@ -83,20 +81,22 @@ use std::{
     sync::SgxMutex,
     thread,
 };
+use std::ffi::CString;
+use std::io::ErrorKind;
+use std::sync::atomic::Ordering;
 
-// use ocall_def::ocall_post_podr2_commit_data;
-use param::podr2_commit_data::PoDR2SigGenData;
-use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
     StatusInfo,
 };
-use podr2_pri::key_gen::{MacHash, Symmetric};
+// use ocall_def::ocall_post_podr2_commit_data;
+use param::podr2_commit_data::PoDR2SigGenData;
+use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
 use podr2_pri::{QElement, Tag};
+use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
+use podr2_pri::key_gen::{MacHash, Symmetric};
+use utils::bloom_filter::BloomHash;
 use utils::file;
-use secp256k1::*;
-use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
-use std::ffi::CString;
 
 use crate::attestation::hex;
 use crate::statics::*;
@@ -169,7 +169,7 @@ impl sgx_serialize::DeSerializable for Keys {
                             key_len,
                             v.len()
                         )
-                        .as_str(),
+                            .as_str(),
                     ));
                 }
             };
@@ -214,7 +214,7 @@ impl sgx_serialize::DeSerializable for Keys {
                             key_len,
                             v.len()
                         )
-                        .as_str(),
+                            .as_str(),
                     ));
                 }
             };
@@ -436,9 +436,9 @@ pub extern "C" fn process_data(
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    let file_info = match utils::file::read_untrusted_file(file_path_str){
-        Ok(f) =>f,
-        Err(e) =>{
+    let file_info = match utils::file::read_untrusted_file(file_path_str) {
+        Ok(f) => f,
+        Err(e) => {
             status.status_msg = e.to_string();
             status.status_code = Podr2Status::PoDr2ErrorNotexistFile as usize;
             podr2_data.status = status;
@@ -463,7 +463,7 @@ pub extern "C" fn process_data(
             "Invalid block_size {:?} - per blocks can not be greater than data length {:?}",
             block_size, file_info.0
         )
-        .to_string();
+            .to_string();
         status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
         podr2_data.status = status;
         utils::post::post_data(callback_url_str.clone(), &podr2_data);
@@ -502,7 +502,7 @@ pub extern "C" fn process_data(
             // let mac_hex = utils::convert::u8v_to_hexstr(&mac_hash_result);
             // println!("HMAC result is :{:?}", mac_hex);
 
-            let (n,s) = file::count_file(&file_info.1, block_size,segment_size);
+            let (n, s) = file::count_file(&file_info.1, block_size, segment_size);
             // let mut matrix = file::split_file(&file_info.1, block_size);
             // println!("matrix is {:?}", matrix);
             let mut file_hash = match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
@@ -513,7 +513,7 @@ pub extern "C" fn process_data(
             };
 
             let sig_gen_result =
-                podr2_pri::sig_gen::sig_gen(&file_info.1,block_size,n,s,segment_size, file_hash.to_vec(), et.clone());
+                podr2_pri::sig_gen::sig_gen(&file_info.1, block_size, n, s, segment_size, file_hash.to_vec(), et.clone());
             podr2_data.tag = sig_gen_result.1.clone();
             for sigma in sig_gen_result.0.clone() {
                 podr2_data
@@ -699,7 +699,7 @@ pub extern "C" fn verify_proof(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
             let proof_id = pid.clone();
-            let mut result =StatusInfo::new();
+            let mut result = StatusInfo::new();
             let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
 
             let ok = podr2_pri::verify_proof::verify_proof(
@@ -711,50 +711,71 @@ pub extern "C" fn verify_proof(
             );
             debug!("podr2_result is :{}", ok);
 
-            if !ok {
-                let mut chal_data = CHAL_DATA.lock().unwrap();
+
+            let mut chal_data = CHAL_DATA.lock().unwrap();
 
 
-                let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
-                let mut hash = [0u8; 64];
-                let bytes = hex.as_bytes();
-                for i in 0..bytes.len() {
-                    hash[i] = bytes[i];
-                }
-
-                let bloom_hash = BloomHash(hash);
-                let binary = match bloom_hash.binary() {
-                    Ok(b) => b,
-                    Err(e) => {
-                        warn!("Failed to compute bloom binary: {}", e);
-                        [0u8; 256]
-                    }
-                };
-                match verify_type {
-                    1 => {
-                        chal_data.autonomous_failed_file_hashes.push(tag.t.file_hash.clone());
-                        chal_data.autonomous_bloom_filter.insert(binary);
-                    }
-                    2 => {
-                        chal_data.idle_failed_file_hashes.push(tag.t.file_hash.clone());
-                        chal_data.idle_bloom_filter.insert(binary);
-                    }
-                    3 => {
-                        chal_data.service_failed_file_hashes.push(tag.t.file_hash.clone());
-                        chal_data.service_bloom_filter.insert(binary);
-                    }
-                    _ => {
-                        result.status_msg=format!("The 'verify_type' field value is: {} Please enter the correct value!",verify_type).to_string();
-                        result.status_code=Podr2Status::PoDr2ErrorInvalidParameter as usize;
-                        utils::post::post_data(call_back_url,&result);
-                        return
-                    }
-                }
-                result.status_msg=format!("File proof that the file hash is : {:?}, verification result is :{}",tag.t.file_hash.clone(),ok);
-                result.status_code=Podr2Status::PoDr2Success as usize;
-                utils::post::post_data(call_back_url,&result);
-                return
+            let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
+            let mut hash = [0u8; 64];
+            let bytes = hex.as_bytes();
+            for i in 0..bytes.len() {
+                hash[i] = bytes[i];
             }
+
+            let bloom_hash = BloomHash(hash);
+            let binary = match bloom_hash.binary() {
+                Ok(b) => b,
+                Err(e) => {
+                    warn!("Failed to compute bloom binary: {}", e);
+                    [0u8; 256]
+                }
+            };
+            let file_hash_str = String::from_utf8(tag.t.file_hash.clone()).unwrap();
+            match verify_type {
+                1 => {
+                    if !ok {
+                        if chal_data.autonomous_failed_file_hashes.is_empty() {
+                            chal_data.autonomous_failed_file_hashes += &file_hash_str;
+                        } else {
+                            let tmp = "|".to_string() + &file_hash_str;
+                            chal_data.autonomous_failed_file_hashes += &tmp
+                        }
+                    }
+                    chal_data.autonomous_bloom_filter.insert(binary);
+                }
+                2 => {
+                    if !ok {
+                        if chal_data.idle_failed_file_hashes.is_empty() {
+                            chal_data.idle_failed_file_hashes += &file_hash_str;
+                        } else {
+                            let tmp = "|".to_string() + &file_hash_str;
+                            chal_data.idle_failed_file_hashes += &tmp
+                        }
+                    }
+                    chal_data.idle_bloom_filter.insert(binary);
+                }
+                3 => {
+                    if !ok {
+                        if chal_data.service_failed_file_hashes.is_empty() {
+                            chal_data.service_failed_file_hashes += &file_hash_str;
+                        } else {
+                            let tmp = "|".to_string() + &file_hash_str;
+                            chal_data.service_failed_file_hashes += &tmp
+                        }
+                    }
+                    chal_data.service_bloom_filter.insert(binary);
+                }
+                _ => {
+                    result.status_msg = format!("The 'verify_type' field value is: {} Please enter the correct value!", verify_type).to_string();
+                    result.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
+                    utils::post::post_data(call_back_url, &result);
+                    return;
+                }
+            }
+            result.status_msg = format!("File proof that the file hash is : {:?}, verification result is :{}", tag.t.file_hash.clone(), ok);
+            result.status_code = Podr2Status::PoDr2Success as usize;
+            utils::post::post_data(call_back_url, &result);
+            return;
         });
 
     sgx_status_t::SGX_SUCCESS
@@ -768,7 +789,7 @@ pub extern "C" fn fill_random_file(file_path: *const c_char, data_len: usize) ->
     };
     let ok = utils::file::write_untrusted_file(file_path, data_len);
     println!("create random file :{}", ok);
-    if !ok{
+    if !ok {
         return sgx_status_t::SGX_ERROR_DEVICE_BUSY;
     }
     return sgx_status_t::SGX_SUCCESS;
@@ -783,16 +804,16 @@ pub extern "C" fn message_signature(msg: *const c_char, callback_url: *const c_c
     let mut msg_hash = match sgx_tcrypto::rsgx_sha256_slice(msg_string.as_bytes()) {
         Ok(hash) => hash,
         Err(e) => {
-            return e
+            return e;
         }
     };
 
     let keys = KEYS.lock().unwrap();
     let ssk = &keys.skey;
     let message = Message::parse(&msg_hash);
-    let (msg_sig,msg_recid)=secp256k1::sign(&message,&ssk);
-    let mut msg_rec_sig=[0u8;65];
-    let mut n =0_usize;
+    let (msg_sig, msg_recid) = secp256k1::sign(&message, &ssk);
+    let mut msg_rec_sig = [0u8; 65];
+    let mut n = 0_usize;
     for i in msg_sig.serialize() {
         msg_rec_sig[n] = i;
         n = n + 1;
@@ -802,7 +823,7 @@ pub extern "C" fn message_signature(msg: *const c_char, callback_url: *const c_c
     } else {
         msg_rec_sig[64] = msg_recid.serialize();
     };
-    let msg_signature_hex=u8v_to_hexstr(&msg_rec_sig);
+    let msg_signature_hex = u8v_to_hexstr(&msg_rec_sig);
     let callback_url_str = match unsafe { CStr::from_ptr(callback_url).to_str() } {
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
@@ -810,9 +831,9 @@ pub extern "C" fn message_signature(msg: *const c_char, callback_url: *const c_c
     if callback_url_str.is_empty() || msg_signature_hex.is_empty() {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    utils::post::post_data(callback_url_str,&msg_signature_hex);
+    utils::post::post_data(callback_url_str, &msg_signature_hex);
 
-    return SGX_SUCCESS
+    return SGX_SUCCESS;
 }
 
 fn get_chal_resp(chal: PoDR2Chal, chal_id: Vec<u8>) -> PoDR2ChalResponse {
