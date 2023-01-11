@@ -126,7 +126,6 @@ pub async fn r_verify_proof(
 ) -> Result<impl Responder, PoDR2Error> {
     let eid = data.eid;
 
-    let c_callback_url_str = get_c_url_str_from_string(&req.callback_url.clone())?;
     let c_proof_json_str = CString::new(req.proof_json.as_str().as_bytes().to_vec());
     let c_proof_json_str = match c_proof_json_str {
         Ok(s) => s,
@@ -157,7 +156,6 @@ pub async fn r_verify_proof(
             proof_id.as_ptr() as *mut u8,
             proof_id.len(),
             c_proof_json_str.as_ptr(),
-            c_callback_url_str.as_ptr(),
         )
     };
 

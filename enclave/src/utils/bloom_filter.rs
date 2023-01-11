@@ -30,7 +30,7 @@ impl fmt::Display for BloomError {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize,Clone)]
 pub struct BloomFilter(#[serde(with = "arrays")] pub [u64; BLOOM_FILTER_LENGTH]);
 
 impl BloomFilter {

@@ -23,7 +23,6 @@ pub fn verify_proof<T>(
     miu: Vec<Vec<u8>>,
     tag: &super::Tag,
     ct: T,
-    proof_id: &Vec<u8>,
 ) -> bool
 where
     T: Symmetric + MacHash,
@@ -77,5 +76,8 @@ where
     }
 
     let left =num_bigint::BigInt::from_bytes_be(Sign::Plus, sigma.as_slice());
-    left == first + second
+    let left_neg=num_bigint::BigInt::from_bytes_be(Sign::Minus, sigma.as_slice());
+    println!("left is :{}",left.clone());
+    println!("right is :{}",first.clone()+second.clone());
+    (left == first.clone() + second.clone()||left_neg==first.clone()+second.clone())
 }

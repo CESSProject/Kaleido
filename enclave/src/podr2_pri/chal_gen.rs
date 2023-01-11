@@ -57,6 +57,18 @@ pub struct ChalData {
     pub sig: Vec<u8>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChalDataSerialize{
+    pub autonomous_bloom_filter: BloomFilter,
+    pub idle_bloom_filter: BloomFilter,
+    pub service_bloom_filter: BloomFilter,
+    pub autonomous_failed_file_hashes: String,
+    pub idle_failed_file_hashes: String,
+    pub service_failed_file_hashes: String,
+    pub chal_id: String,
+    pub pkey: String,
+}
+
 impl ChalData {
     pub fn new() -> ChalData {
         ChalData {
@@ -128,7 +140,7 @@ pub fn chal_gen(n: i64, chal_id: &Vec<u8>) -> Result<PoDR2Chal, PoDR2Error> {
         let now = Time::now();
         info!("New Challenge ID Received At {}: {}!", now, now.timestamp());
 
-        let schedule_time = now + Duration::seconds(600);
+        let schedule_time = now + Duration::seconds(300);
         time_out = schedule_time.timestamp();
 
         let mut chal_data = CHAL_DATA.lock().unwrap();
@@ -207,17 +219,27 @@ fn post_chal_data() {
     };
 
     let keys = KEYS.lock().unwrap();
+    let mut tmp=ChalDataSerialize{
+        autonomous_bloom_filter: BloomFilter::zero(),
+        idle_bloom_filter: BloomFilter::zero(),
+        service_bloom_filter: BloomFilter::zero(),
+        autonomous_failed_file_hashes: "".to_string(),
+        idle_failed_file_hashes: "".to_string(),
+        service_failed_file_hashes: "".to_string(),
+        chal_id: "".to_string(),
+        pkey: "".to_string()
+    };
+    chal_data.pkey = keys.pkey.serialize_compressed().to_vec();
+    tmp.autonomous_bloom_filter=chal_data.autonomous_bloom_filter.clone();
+    tmp.idle_bloom_filter=chal_data.idle_bloom_filter.clone();
+    tmp.service_bloom_filter=chal_data.service_bloom_filter.clone();
+    tmp.autonomous_failed_file_hashes=chal_data.autonomous_failed_file_hashes.clone();
+    tmp.idle_failed_file_hashes=chal_data.idle_failed_file_hashes.clone();
+    tmp.service_failed_file_hashes=chal_data.service_failed_file_hashes.clone();
+    tmp.chal_id=utils::convert::u8v_to_hexstr(&chal_data.chal_id.clone());
+    tmp.pkey=utils::convert::u8v_to_hexstr(&chal_data.pkey.clone());
 
-    let abf_json = serde_json::to_string(&chal_data.autonomous_bloom_filter).unwrap();
-    let ibf_json = serde_json::to_string(&chal_data.idle_bloom_filter).unwrap();
-    let sbf_json = serde_json::to_string(&chal_data.service_bloom_filter).unwrap();
-    // let autonomous_file_hashes_json = serde_json::to_string(&chal_data.autonomous_failed_file_hashes).unwrap();
-    // let idle_file_hashes_json = serde_json::to_string(&chal_data.idle_failed_file_hashes).unwrap();
-    // let service_file_hashes_json = serde_json::to_string(&chal_data.service_failed_file_hashes).unwrap();
-    let chal_json = serde_json::to_string(&chal_data.chal_id).unwrap();
-
-    let message = abf_json + "|" + &ibf_json + "|" + &sbf_json + "|" + &chal_data.autonomous_failed_file_hashes + "|" + &chal_data.idle_failed_file_hashes + "|" + &chal_data.service_failed_file_hashes + "|" + &chal_json;
-    debug!("MESSAGE: {}", message);
+    let message=serde_json::to_string(&tmp).unwrap();
 
     let hash = rsgx_sha256_slice(&message.as_bytes()).unwrap();
     let msg_hash = Message::parse(&hash);
@@ -233,11 +255,7 @@ fn post_chal_data() {
     } else {
         make_rec_sig[64] = recid.serialize();
     }
-    chal_data.pkey = keys.pkey.serialize_compressed().to_vec();
     chal_data.sig = make_rec_sig.to_vec();
-
-    // let result = secp256k1::verify(&ctx_message, &sig, &keys.pkey);
-    // info!("SIGNATURE RESULT >>>>>>>>>>{}<<<<<<<<<< ", result);
 
     post_data::<ChalData>(url, &chal_data);
 
