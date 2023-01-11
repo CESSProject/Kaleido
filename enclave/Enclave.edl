@@ -49,8 +49,7 @@ enclave {
             size_t verify_type,
             [in, size=random_len] uint8_t* random,
             size_t random_len,
-            [in, string] const char* proof_json,
-            [in, string] const char* callback_url
+            [in, string] const char* proof_json
         );
 
         public sgx_status_t get_report(

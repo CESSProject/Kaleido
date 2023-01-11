@@ -79,7 +79,6 @@ pub struct PoDR2ChalRequest {
 pub struct PoDR2VerifyRequest {
     pub proof_id: String,
     pub proof_json: String,
-    pub callback_url: String,
     pub verify_type: usize,
 }
 

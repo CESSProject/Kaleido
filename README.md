@@ -2,6 +2,12 @@
 
 ## Prerequisites
 
+### `Hardware`
+
+​	Please refer to Kaleido/docs/sgx configuration.md for hardware requirements
+
+### `Software`
+
 * **Docker**
 
 * **Intel SGX OOT 2.11.0 Driver or DCAP 1.36.2 Driver**
@@ -155,7 +161,14 @@ docker pull cesslab/sgx-rust:isgx
 Run docker image
 
 ```shell
-docker run -v /home/ubuntu/Kaleido/:/root/Kaleido -p 80:8080 --device /dev/isgx -v /:/sgx --name kaleido -tid cesslab/cess-kaleido:isgx
+##After Kaleido accepts the challenge from the CESS chain, it will start a period of verification. After the end, Kaleido completes the verification and returns the result to the 'CESS_POST_CHAL_URL'. This url is determined by the miner program, Here is an example.Do not modify other parameters.
+docker run -v /home/ubuntu/Kaleido/:/root/Kaleido -p 80:8080 --device /dev/isgx -e CESS_POST_CHAL_URL="http://127.0.0.1:10000/result" -v /:/sgx --name kaleido -tid cesslab/cess-kaleido:isgx
+```
+
+After running successfully, use this command to view the running log
+
+```shell
+docker logs -f kaleido
 ```
 
 

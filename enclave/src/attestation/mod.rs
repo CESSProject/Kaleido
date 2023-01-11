@@ -306,14 +306,6 @@ pub fn create_attestation_report(
     // (2) Generate the report
     // Fill ecc256 public key into report_data
     let mut report_data: sgx_report_data_t = sgx_report_data_t::default();
-    // let mut pub_k_gx = pub_k.gx.clone();
-    // pub_k_gx.reverse();
-    //
-    // let mut pub_k_gy = pub_k.gy.clone();
-    // pub_k_gy.reverse();
-    //
-    // report_data.d[..32].clone_from_slice(&pub_k_gx);
-    // report_data.d[32..].clone_from_slice(&pub_k_gy);
 
     report_data.d[..33].clone_from_slice(&pub_k.serialize_compressed());
 
@@ -451,11 +443,6 @@ pub fn create_attestation_report(
     }
 
     let (attn_report, sig, cert) = get_report_from_intel(ias_sock, quote_vec);
-    debug!("-------------------------------------------------------------------------------------------");
-    debug!("{:?}", attn_report);
-    debug!("{:?}", sig);
-    debug!("{:?}", cert);
-    debug!("-------------------------------------------------------------------------------------------");
     Ok((attn_report, sig, cert))
 }
 

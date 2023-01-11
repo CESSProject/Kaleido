@@ -15,7 +15,7 @@
   
   <!-- The number of trusted threads -->
   <!-- Kaleido requires at least 14 threads -->
-  <TCSNum>14</TCSNum>  
+  <TCSNum>16</TCSNum>
 
   <!-- TCS management policy -->
   <TCSPolicy>0</TCSPolicy>  
