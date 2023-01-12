@@ -39,7 +39,7 @@ cd scripts
 ./install help
 ```
 
-Please install the sgx driver on your instance first.To install SGX driver navigate to the Kaleido/scripts directory and execute the following command
+To install SGX driver navigate to `Kaleido/scripts` and execute the following command
 
 ```shell
 # For DCAP driver
@@ -49,13 +49,11 @@ Please install the sgx driver on your instance first.To install SGX driver navig
 ./install sgx isgx
 ```
 
+## Ways to run Kaleido
 
+### 1. Build from source code (Recommended ❌) (Join CESS network ❌)
 
-## Way to run kaleido
-
-### Build from source code(Recommended ❌)(Join CESS network ❌)
-
-#### 1.Pulling a Pre-Built Docker Container
+#### I. Pulling a Pre-Built Docker Container
 
 We assume that you have [correctly installed docker](https://docs.docker.com/get-docker/):
 
@@ -65,9 +63,7 @@ First, pull the docker container, the below command will download the `latest`:
 docker pull cesslab/sgx-rust
 ```
 
-
-
-#### 2.Running image with Intel SGX Driver
+#### II. Running image with Intel SGX Driver
 
 By default Kaleido runs on port 8080, you can set the port to whatever you want by setting `KALEIDO_PORT` environment variable.
 To map this TCP port in the container to the port on Docker host you can set `-p <DOCKER_HOST_PORT>:<KALEIDO_PORT>`. For example, if we want to map Container's port `8080` to our Docker host port `80` we can add `-p 80:8080`. 
@@ -95,13 +91,13 @@ To map this TCP port in the container to the port on Docker host you can set `-p
   docker run -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 --device /dev/sgx_enclave --device /dev/sgx_provision -ti cesslab/sgx-rust
   ```
 
-* (PS):To run the container in simulation mode, For testing and development purpose
+* (PS): To run the container in simulation mode, For testing and development purpose
 
 ```bash
 docker run --env SGX_MODE=SW -v <PATH_TO_KALEIDO_ROOT_DIR>:/root/Kaleido -p 80:8080 -ti cesslab/sgx-rust
 ```
 
-After executing the above image running command, you will enter the container, please enter the kaleido directory, and then please open the sgx daemon
+After executing the above command, you will enter the shell. Enter `/root/Kaleido` and start the sgx aesm daemon
 
 ```shell
 cd /root/Kaleido
@@ -110,17 +106,21 @@ LD_LIBRARY_PATH=/opt/intel/sgx-aesm-service/aesm/
 /opt/intel/sgx-aesm-service/aesm/aesm_service
 ```
 
-Add environment variables.When compiling by yourself, you need to apply for an account on the Intel website and subscribe to Development/Production Access. The address for application and subscription is:https://api.portal.trustedservices.intel.com/ 
+If you are compiling Kaleido yourself, you will need to creat an account on the [Intel Website](https://api.portal.trustedservices.intel.com/) and obtain the subscription keys.
+
 
 ```shell
-##Log level
+## Log level
 export RUST_LOG="debug"
 export RUST_BACKTRACE=1
-##Please fill in Primary key that you registered and subscribed from Intel in quotation marks
+
+## Enter your Primary/Secondary key that you received from Intel
 export IAS_API_KEY=""
-##Please fill in SPID that you registered and subscribed from Intel in quotation marks
+
+## Enter your SP ID key that you received from Intel
 export IAS_SPID=""
-##After Kaleido accepts the challenge from the CESS chain, it will start a period of verification. After the end, Kaleido completes the verification and returns the url of the result. This url is determined by the miner program, Here is an example.
+
+## The CESS_POST_CHAL_URL is the CESS Chain API end-point that accepts the verification result posted by Kaleido.
 export CESS_POST_CHAL_URL="http://127.0.0.1:10000/result"
 ```
 
@@ -146,13 +146,13 @@ ps -ef |grep app
 
 
 
-### Build and run image using docker scripts(Join CESS network ❌)
+### 2. Build and run image using docker scripts (Join CESS network ❌)
 
 Please refer to the docker documentation for details:[Kaleido/docker/Docker Script Of Kaleido.md](https://github.com/CESSProject/Kaleido/tree/main/docker/Docker Script Of Kaleido.md)
 
-### Download official image and run it with one click(Recommend ✔)(Join CESS network ✔)
+### 3. Download official image and run it with one click(Recommend ✔)(Join CESS network ✔)
 
-Directly download the latest docker container pre-compiled by docker, you can easily start kaleido and join the CESS network
+You can directly download the latest docker container pre-compiled by CESS, and start kaleido to join the CESS network.
 
 ```shell
 docker pull cesslab/sgx-rust:isgx
@@ -161,11 +161,11 @@ docker pull cesslab/sgx-rust:isgx
 Run docker image
 
 ```shell
-##After Kaleido accepts the challenge from the CESS chain, it will start a period of verification. After the end, Kaleido completes the verification and returns the result to the 'CESS_POST_CHAL_URL'. This url is determined by the miner program, Here is an example.Do not modify other parameters.
+## After Kaleido receives a challenge from the CESS chain, it will start accepting proofs from the miners for a time window. When the time window is expired, Kaleido completes the proofs verification and returns the result to the 'CESS_POST_CHAL_URL'. This url is determined by the miner program, Here is an example.
 docker run -v /home/ubuntu/Kaleido/:/root/Kaleido -p 80:8080 --device /dev/isgx -e CESS_POST_CHAL_URL="http://127.0.0.1:10000/result" -v /:/sgx --name kaleido -tid cesslab/cess-kaleido:isgx
 ```
 
-After running successfully, use this command to view the running log
+To view the logs execute the following command.
 
 ```shell
 docker logs -f kaleido
@@ -177,7 +177,13 @@ docker logs -f kaleido
 
 ### `process_data`
 
-**Description**: This function need to pass `file_path` to be processed. `block_size`determines the size of each chunk of the `data` while calculating PoDR2.increasing `segment_size` can reduce the size of file preprocessing results(`segment_size` must be able to divide block_size evenly). And the `callback_url` is the url where the computed PoDR2 result will be posted. 
+| Parameter | Description | 
+|---|---|
+| `file_path` | The file path that needs to be processed |
+| `block_size` | Determines the size of each slice of the data while computing PoDR2 |
+| `segment_size` | This can reduce the size of the file preprocessing results and must be able to divide the `block_size` evenly |
+| `callback_url` | Where the PoDR2 results will be posted |
+
 
 **Request**
 
@@ -211,7 +217,11 @@ curl -H 'Content-Type: application/json' -X POST http://localhost:80/process_dat
 
 ### `get_report`
 
-**Description**: This method is used to obtain the remote attestation report obtained by the currently running Kaleido, and the result is called back to `callback_url`.
+This method is used to obtain the remote attestation report obtained from Intel by current instance of Kaleido
+
+| Parameter | Description | 
+|---|---|
+| `callback_url` | Remote attestation report is posted to this url |
 
 **Request**
 
@@ -229,7 +239,11 @@ curl -H 'Content-Type: application/json' -X POST http://localhost:80/get_report 
 
 ### `get_chal`
 
-**Description**: This method receives an array of random challenges from the chain and returns an array of block challenges in `callback_url`.
+This method generates an array of random challenges and returns an array of challenged blocks.
+
+| Parameter | Description | 
+|---|---|
+| `callback_url` | The challenge data is posted to this url |
 
 **Request**
 
@@ -277,8 +291,11 @@ curl -H 'Content-Type: application/json' -X POST http://localhost:80/fill_random
 **Response**: No result is returned, if the request is successful, the http status code is 200
 
 ### `message_signature`
+Signs the incoming message with the sgx authentication key
 
-**Description**: Sign the incoming result with the sgx authentication key and return it to `callback_url`.
+| Parameter | Description | 
+|---|---|
+| `callback_url` | The signature is returned to the given url |
 
 **Request**
 
