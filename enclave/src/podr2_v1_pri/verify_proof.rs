@@ -7,12 +7,12 @@ use num::ToPrimitive;
 use num::traits::{One, Zero};
 use num_bigint::{BigInt, Sign, ToBigInt};
 use param::podr2_commit_data::PoDR2Error;
-use podr2_pri::key_gen::{MacHash, Symmetric};
-use podr2_pri::EncEncrypt;
+use podr2_v1_pri::key_gen::{MacHash, Symmetric};
+use podr2_v1_pri::EncEncrypt;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
-use crate::podr2_pri::chal_gen::Challenge;
+use crate::podr2_v1_pri::chal_gen::Challenge;
 use crate::utils::post::post_data;
 use sgx_types::*;
 

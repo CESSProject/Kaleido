@@ -93,9 +93,9 @@ use param::{
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::podr2_commit_data::PoDR2SigGenData;
 use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
-use podr2_pri::{QElement, Tag};
-use podr2_pri::chal_gen::{ChalData, PoDR2Chal};
-use podr2_pri::key_gen::{MacHash, Symmetric};
+use podr2_v1_pri::{QElement, Tag};
+use podr2_v1_pri::chal_gen::{ChalData, PoDR2Chal};
+use podr2_v1_pri::key_gen::{MacHash, Symmetric};
 use utils::bloom_filter::BloomHash;
 use utils::file;
 
@@ -107,9 +107,9 @@ mod merkletree_generator;
 mod ocall_def;
 mod param;
 mod pbc;
-mod podr2_pri;
-mod podr2_proof_commit;
-mod podr2_pub;
+mod podr2_v1_pri;
+mod podr2_v1_pub_pbc;
+mod podr2_v2_pub_pbc;
 mod statics;
 mod utils;
 
@@ -334,12 +334,12 @@ pub extern "C" fn init() -> sgx_status_t {
 }
 
 fn init_keys() -> bool {
-    let mut file = match SgxFile::open(podr2_pri::key_gen::EncryptionType::FILE_NAME) {
+    let mut file = match SgxFile::open(podr2_v1_pri::key_gen::EncryptionType::FILE_NAME) {
         Ok(f) => f,
         Err(_) => {
             info!(
                 "{} file not found, creating new file.",
-                podr2_pri::key_gen::EncryptionType::FILE_NAME
+                podr2_v1_pri::key_gen::EncryptionType::FILE_NAME
             );
 
             let saved = ENCRYPTIONTYPE.lock().unwrap().save();
@@ -484,7 +484,7 @@ pub extern "C" fn process_data(
                 }
             };
 
-            let sig_gen_result = podr2_pri::sig_gen::sig_gen(
+            let sig_gen_result = podr2_v1_pri::sig_gen::sig_gen(
                 &file_info.1,
                 block_size,
                 n,
@@ -559,7 +559,7 @@ pub extern "C" fn gen_chal(
 
             let mut status_code: usize;
             let mut status_msg: String;
-            let podr2_chal = match podr2_pri::chal_gen::chal_gen(n_blocks as i64, &proof_id) {
+            let podr2_chal = match podr2_v1_pri::chal_gen::chal_gen(n_blocks as i64, &proof_id) {
                 Ok(chal) => {
                     status_code = Podr2Status::PoDr2Success as usize;
                     status_msg = "ok".to_string();
@@ -619,9 +619,9 @@ pub extern "C" fn verify_proof(
 
 
 
-    let (sigma, miu, tag) = podr2_pri::convert_miner_proof(&proof_json_hex_str);
+    let (sigma, miu, tag) = podr2_v1_pri::convert_miner_proof(&proof_json_hex_str);
 
-    let ok = podr2_pri::verify_proof::verify_proof(
+    let ok = podr2_v1_pri::verify_proof::verify_proof(
         sigma,
         miu,
         &tag,

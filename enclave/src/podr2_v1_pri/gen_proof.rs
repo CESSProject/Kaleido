@@ -4,7 +4,7 @@ use num::bigint::BigUint;
 use num::ToPrimitive;
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
-use podr2_pri::QElement;
+use podr2_v1_pri::QElement;
 
 pub fn gen_proof(sigmas:Vec<Vec<u8>>,q_slice:Vec<super::QElement>,matrix:Vec<Vec<u8>>)
     ->(Vec<u8>,Vec<Vec<u8>>)
