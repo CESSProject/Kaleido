@@ -1,6 +1,6 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use podr2_pri::{Tag, Tag0};
+use podr2_v1_pri::{Tag, Tag0};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

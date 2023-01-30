@@ -14,7 +14,7 @@ use crate::{
     merkletree_generator::Sha256Algorithm,
     param::podr2_commit_data::{MHTProof, PoDR2Chal, PoDR2SigGenData, PoDR2Error, PoDR2Proof},
     pbc,
-    podr2_pub::get_mht,
+    podr2_v2_pub_pbc::get_mht,
     attestation::hex::bytes_to_bigint,
 };
 
@@ -49,7 +49,7 @@ pub fn gen_chal(phi_len: usize) -> PoDR2Chal {
 // 4. sig_sk(H(R)) received during PoDR2 sig_gen()
 pub fn gen_proof(
     chal: &PoDR2Chal,
-    podr2_pub: &PoDR2SigGenData,
+    podr2_v2_pub_pbc: &PoDR2SigGenData,
     data: &mut Vec<u8>,
 ) -> Result<PoDR2Proof, PoDR2Error> {
     if chal.i.len() != chal.vi.len() {
@@ -59,14 +59,14 @@ pub fn gen_proof(
         });
     }
 
-    let phi_len = podr2_pub.phi.len();
+    let phi_len = podr2_v2_pub_pbc.phi.len();
     let block_size = (data.len() as f32 / phi_len as f32) as usize;
 
     let mu: Zr = Zr::zero();
     let mut sigma: G1 = G1::zero();
     let mut podr2_proof = PoDR2Proof::new();
 
-    let mht = get_mht(data, podr2_pub.phi.len())?;
+    let mht = get_mht(data, podr2_v2_pub_pbc.phi.len())?;
 
     // Compute μ and σ
     for n in 0..chal.i.len() {
@@ -87,7 +87,7 @@ pub fn gen_proof(
         // μ = ν0.m0 + ν1.m1 ... νi.mi
         pbc::add_zr(&mu, &vi_mi);
 
-        let sig_i = pbc::get_g1_from_bytes(&podr2_pub.phi[i]);
+        let sig_i = pbc::get_g1_from_bytes(&podr2_v2_pub_pbc.phi[i]);
 
         // σi^νi
         let sig_i_pow_vi = sig_i;
@@ -115,7 +115,7 @@ pub fn gen_proof(
 
     podr2_proof.mu = mu.base_vector().to_vec();
     podr2_proof.sigma = sigma.base_vector().to_vec();
-    podr2_proof.mht_root_sig = podr2_pub.mht_root_sig.clone();
+    podr2_proof.mht_root_sig = podr2_v2_pub_pbc.mht_root_sig.clone();
 
     Ok(podr2_proof)
 }

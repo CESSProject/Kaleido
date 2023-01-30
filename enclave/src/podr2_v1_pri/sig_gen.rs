@@ -3,14 +3,14 @@ use alloc::vec::Vec;
 use core::any::Any;
 use core::ops::{Add, Mul};
 // use libc::rand;
-use podr2_pri::key_gen::{MacHash, Symmetric};
+use podr2_v1_pri::key_gen::{MacHash, Symmetric};
 use num::bigint::BigUint;
 use num::ToPrimitive;
 use num::traits::{Zero, One};
 use num_bigint::{BigInt,ToBigInt,Sign};
 use sgx_rand::Rng;
 use sgx_types::uint8_t;
-use podr2_pri::{EncEncrypt, Tag, Tag0};
+use podr2_v1_pri::{EncEncrypt, Tag, Tag0};
 
 pub fn sig_gen<T>(file_data: &Vec<u8>,block_size:usize ,n :usize,s :usize,seg :usize,file_hash:Vec<u8>, ct: T) -> (Vec<Vec<u8>>, Tag)
     where T: Symmetric + MacHash

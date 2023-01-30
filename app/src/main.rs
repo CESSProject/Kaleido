@@ -67,12 +67,6 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or("8080".to_string())
         .parse()
         .unwrap();
-    
-    // let cfg = fs::read_to_string("./config.toml");
-    // let cfg: Config = match cfg {
-    //     Ok(cfg_str) => toml::from_str(&cfg_str).expect("Invalid configuration file."),
-    //     Err(_) => Config::default(),
-    // };
 
     let heap_max_size = env::var("HEAP_MAX_SIZE").expect("HEAP_MAX_SIZE is not set.");
     let heap_max_size = i64::from_str_radix(heap_max_size.trim_start_matches("0x"), 16).unwrap();

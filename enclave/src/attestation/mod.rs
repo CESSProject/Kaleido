@@ -50,11 +50,11 @@ pub const IAS_REPORT_SUFFIX: &'static str = env!("IAS_REPORT_SUFFIX");
 pub const CERTEXPIRYDAYS: i64 = 90i64;
 
 fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
-    println!("parse_response_attn_report");
+    // println!("parse_response_attn_report");
     let mut headers = [httparse::EMPTY_HEADER; 16];
     let mut respp = httparse::Response::new(&mut headers);
     let result = respp.parse(resp);
-    println!("parse result {:?}", result);
+    // println!("parse result {:?}", result);
 
     let msg: &'static str;
 
@@ -75,7 +75,7 @@ fn parse_response_attn_report(resp: &[u8]) -> (String, String, String) {
         }
     }
 
-    println!("{}", msg);
+    // println!("{}", msg);
     let mut len_num: u32 = 0;
 
     let mut sig = String::new();
@@ -230,13 +230,13 @@ pub fn get_report_from_intel(fd: c_int, quote: Vec<u8>) -> (String, String, Stri
     let _result = tls.write(req.as_bytes());
     let mut plaintext = Vec::new();
 
-    println!("write complete");
+    // println!("write complete");
 
     tls.read_to_end(&mut plaintext).unwrap();
-    println!("read_to_end complete");
+    // println!("read_to_end complete");
     let resp_string = String::from_utf8(plaintext.clone()).unwrap();
 
-    println!("resp_string = {}", resp_string);
+    // println!("resp_string = {}", resp_string);
 
     let (attn_report, sig, cert) = parse_response_attn_report(&plaintext);
 
@@ -556,24 +556,6 @@ pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
     let keys = KEYS.lock().unwrap();
     let ssk = &keys.skey;
     let spk = &keys.pkey;
-
-    let message_arr = [5u8; 32];
-    let ctx_message = Message::parse(&message_arr);
-    let (sig, recid) = secp256k1::sign(&ctx_message, &ssk);
-    let mut make_rec_sig = [0u8; 65];
-    let mut index = 0_usize;
-    for i in sig.serialize() {
-        make_rec_sig[index] = i;
-        index = index + 1;
-    }
-    if recid.serialize() > 26 {
-        make_rec_sig[64] = recid.serialize() + 27;
-    } else {
-        make_rec_sig[64] = recid.serialize();
-    }
-    let ok = secp256k1::verify(&ctx_message, &sig, &spk);
-    println!("Verify secp256k1 result is {}", ok);
-    println!("recid is {:?}", u8v_to_hexstr(&make_rec_sig));
 
     let (attn_report, sig, cert) = match create_attestation_report(&spk, sign_type) {
         Ok(r) => r,

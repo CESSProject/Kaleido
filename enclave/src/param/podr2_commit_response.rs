@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::podr2_pri::{QElement, chal_gen::Challenge};
+use crate::podr2_v1_pri::{QElement, chal_gen::Challenge};
 
 use super::Podr2Status;
 
