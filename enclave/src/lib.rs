@@ -110,6 +110,7 @@ mod pbc;
 mod podr2_v1_pri;
 mod podr2_v1_pub_pbc;
 mod podr2_v2_pub_pbc;
+mod podr2_v2_pub_rsa;
 mod statics;
 mod utils;
 
@@ -743,6 +744,18 @@ pub extern "C" fn message_signature(
     }
     utils::post::post_data(callback_url_str, &msg_signature_hex);
 
+    return SGX_SUCCESS;
+}
+
+#[no_mangle]
+pub extern "C" fn test_func(
+    msg: *const c_char,
+) -> sgx_status_t{
+    let msg_string = match unsafe { CStr::from_ptr(msg).to_str() } {
+        Ok(path) => path.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
     return SGX_SUCCESS;
 }
 
