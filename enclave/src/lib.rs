@@ -44,6 +44,8 @@ extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate rsa;
+extern crate rand;
 extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
@@ -61,12 +63,13 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use rand::rngs::OsRng;
+use rsa::{PublicKey, PaddingScheme};
 use core::convert::TryInto;
 
 use cess_curve::*;
 use log::{info, warn};
 use secp256k1::*;
-use secp256k1::{PublicKey, SecretKey};
 use sgx_rand::Rng;
 use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
 use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
@@ -98,7 +101,6 @@ use podr2_v1_pri::key_gen::{MacHash, Symmetric};
 use podr2_v1_pri::{QElement, Tag};
 use utils::bloom_filter::BloomHash;
 use utils::file;
-
 use crate::attestation::hex;
 use crate::statics::*;
 
@@ -545,7 +547,14 @@ pub extern "C" fn test_func(msg: *const c_char) -> sgx_status_t {
         Ok(path) => path.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
+    // podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
+    let rsa_keys = KEYS.lock().unwrap().rsa_keys.clone();
+    
+    let mut rng = OsRng;
+    let enc_data = rsa_keys.skey.encrypt(&mut rng, PaddingScheme::PKCS1v15, msg_string.as_bytes()).expect("failed to encrypt");
+    let dec_data = rsa_keys.skey.decrypt(PaddingScheme::PKCS1v15, &enc_data).expect("failed to decrypt");
+    assert_eq!(msg_string.as_bytes(), &dec_data[..]);
+
     return SGX_SUCCESS;
 }
 

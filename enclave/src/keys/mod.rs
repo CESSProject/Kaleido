@@ -1,6 +1,7 @@
 mod aes_keys;
+mod rsa_keys;
 
-use alloc::vec::Vec;
+use alloc::{vec::Vec, sync::Arc};
 use core::convert::TryInto;
 use secp256k1::{PublicKey, SecretKey};
 use sgx_rand::Rng;
@@ -10,11 +11,12 @@ use std::{
     sgxfs::SgxFile,
 };
 
-use self::aes_keys::AesKeys;
+use self::{aes_keys::AesKeys, rsa_keys::RsaKeys};
 
 #[derive(Serializable, DeSerializable)]
 pub struct Keys {
-    pub aes_keys: AesKeys,
+    pub aes_keys: Arc<AesKeys>,
+    pub rsa_keys: Arc<RsaKeys>,
 }
 
 impl Keys {
@@ -40,20 +42,14 @@ impl Keys {
             }
         };
 
-        info!("Keys Loaded!");
         Keys::load(&mut file)
     }
 
     pub fn gen_keys() -> Keys {
-        let mut rand_slice = [0u8; 32];
-        let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
-        let mut aes_skey = SecretKey::parse_slice(&rand_slice).unwrap();
-        let mut aes_pkey = PublicKey::from_secret_key(&aes_skey);
+        info!("Generating Keys");
         Keys {
-            aes_keys: AesKeys {
-                skey: aes_skey,
-                pkey: aes_pkey,
-            },
+            aes_keys: Arc::new(AesKeys::new()),
+            rsa_keys: Arc::new(RsaKeys::new()),
         }
     }
 
@@ -92,7 +88,10 @@ impl Keys {
         let helper = DeSerializeHelper::<Keys>::new(data);
 
         match helper.decode() {
-            Some(d) => d,
+            Some(d) => {
+                info!("Keys Loaded!");
+                d
+            }
             None => {
                 panic!("Failed to decode file {}.", Keys::FILE_NAME);
             }

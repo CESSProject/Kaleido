@@ -1,16 +1,16 @@
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use sgx_tcrypto::rsgx_sha256_slice;
-use timer::Time;
 use core::ops::Index;
-use num::ToPrimitive;
 use num::traits::{One, Zero};
+use num::ToPrimitive;
 use num_bigint::{BigInt, Sign, ToBigInt};
 use param::podr2_commit_data::PoDR2Error;
 use podr2_v1_pri::key_gen::{MacHash, Symmetric};
 use podr2_v1_pri::EncEncrypt;
 use serde::{Deserialize, Serialize};
+use sgx_tcrypto::rsgx_sha256_slice;
 use std::time::SystemTime;
+use timer::Time;
 
 use crate::podr2_v1_pri::chal_gen::Challenge;
 use crate::utils::post::post_data;
@@ -18,12 +18,7 @@ use sgx_types::*;
 
 use super::CHALLENGE;
 
-pub fn verify_proof<T>(
-    sigma: Vec<u8>,
-    miu: Vec<Vec<u8>>,
-    tag: &super::Tag,
-    ct: T,
-) -> bool
+pub fn verify_proof<T>(sigma: Vec<u8>, miu: Vec<Vec<u8>>, tag: &super::Tag, ct: T) -> bool
 where
     T: Symmetric + MacHash,
 {
@@ -75,9 +70,9 @@ where
         j += 1;
     }
 
-    let left =num_bigint::BigInt::from_bytes_be(Sign::Plus, sigma.as_slice());
-    let left_neg=num_bigint::BigInt::from_bytes_be(Sign::Minus, sigma.as_slice());
-    println!("left is :{}",left.clone());
-    println!("right is :{}",first.clone()+second.clone());
-    (left == first.clone() + second.clone()||left_neg==first.clone()+second.clone())
+    let left = num_bigint::BigInt::from_bytes_be(Sign::Plus, sigma.as_slice());
+    let left_neg = num_bigint::BigInt::from_bytes_be(Sign::Minus, sigma.as_slice());
+    println!("left is :{}", left.clone());
+    println!("right is :{}", first.clone() + second.clone());
+    left == first.clone() + second.clone() || left_neg == first.clone() + second.clone()
 }

@@ -2,12 +2,26 @@ use core::convert::TryInto;
 
 use alloc::vec::Vec;
 use secp256k1::{PublicKey, SecretKey};
+use sgx_rand::{Rng, SgxRng};
 use sgx_serialize::DeSerializable;
 
 #[derive(Clone)]
 pub struct AesKeys {
     pub skey: secp256k1::SecretKey,
     pub pkey: secp256k1::PublicKey,
+}
+
+impl AesKeys {
+    pub fn new() -> AesKeys {
+        let mut rand_slice = [0u8; 32];
+
+        let mut rng = sgx_rand::SgxRng::new().unwrap();
+        rng.fill_bytes(&mut rand_slice);
+
+        let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
+        let mut pkey = PublicKey::from_secret_key(&skey);
+        AesKeys { skey, pkey }
+    }
 }
 
 impl sgx_serialize::Serializable for AesKeys {
