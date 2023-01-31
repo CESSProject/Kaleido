@@ -46,4 +46,9 @@ extern "C" {
         msg: *const c_char,
         callback_url: *const c_char,
     ) -> sgx_status_t;
+    pub fn test_func(
+        eid: sgx_enclave_id_t,
+        retval: *mut sgx_status_t,
+        msg: *const c_char,
+    ) -> sgx_status_t;
 }

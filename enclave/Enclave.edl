@@ -63,6 +63,9 @@ enclave {
                     [in, string] const char* msg,
                     [in, string] const char* callback_url
         );
+        public sgx_status_t test_func(
+                    [in, string] const char* msg
+        );
         //mra about
         public sgx_status_t run_server(sgx_quote_sign_type_t quote_type);
     };
