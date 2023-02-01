@@ -218,7 +218,7 @@ fn post_chal_data() {
         }
     };
 
-    let keys = KEYS.lock().unwrap();
+    let keys = KEYS.lock().unwrap().aes_keys.clone();
     let mut tmp=ChalDataSerialize{
         autonomous_bloom_filter: BloomFilter::zero(),
         idle_bloom_filter: BloomFilter::zero(),
