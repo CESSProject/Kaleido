@@ -45,11 +45,6 @@ pub async fn r_process_data(
     //     }
     // };
     // debug!("File data decoded");
-    if req.segment_size > req.block_size || req.block_size % req.segment_size != 0 {
-        return Err(PoDR2Error {
-            message: Some("Error! block_size must be greater than segment_size, and block_size must be divisible by segment_size!".to_string()),
-        })
-    }
 
     let now = Instant::now();
     debug!("Processing file data");
@@ -61,7 +56,6 @@ pub async fn r_process_data(
             &mut result1,
             c_file_path_str.as_ptr(),
             req.block_size,
-            req.segment_size,
             c_callback_url_str.as_ptr(),
         )
     };

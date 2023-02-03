@@ -8,7 +8,6 @@ extern "C" {
         retval: *mut sgx_status_t,
         file_path: *const c_char,
         block_size: usize,
-        segment_size: usize,
         callback_url: *const c_char,
     ) -> sgx_status_t;
     pub fn gen_chal(

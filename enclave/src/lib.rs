@@ -90,7 +90,7 @@ use std::{
 };
 
 use param::{
-    podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
+    podr2_commit_data::PoDR2CommitData, podr2_pub_commit_data::PoDR2PubData, Podr2Status,
     StatusInfo,
 };
 // use ocall_def::ocall_post_podr2_commit_data;
@@ -99,6 +99,7 @@ use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
 use podr2_v1_pri::chal_gen::{ChalData, PoDR2Chal};
 use podr2_v1_pri::key_gen::{MacHash, Symmetric};
 use podr2_v1_pri::{QElement, Tag};
+use podr2_v2_pub_rsa::SigGenResponse;
 use utils::bloom_filter::BloomHash;
 use utils::file;
 use crate::attestation::hex;
@@ -219,12 +220,11 @@ pub extern "C" fn get_report(callback_url: *const c_char) -> sgx_status_t {
 pub extern "C" fn process_data(
     file_path: *const c_char,
     block_size: usize,
-    segment_size: usize,
     callback_url: *const c_char,
 ) -> sgx_status_t {
     // Check for enough memory before proceeding
     let mut status = StatusInfo::new();
-    let mut podr2_data = PoDR2PriData::new();
+    let mut podr2_data = PoDR2PubData::new();
     let callback_url_str = match unsafe { CStr::from_ptr(callback_url).to_str() } {
         Ok(url) => url.to_string(),
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
@@ -234,7 +234,7 @@ pub extern "C" fn process_data(
         Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
 
-    let file_info = match utils::file::read_untrusted_file(file_path_str) {
+    let mut file_info = match utils::file::read_untrusted_file(file_path_str) {
         Ok(f) => f,
         Err(e) => {
             status.status_msg = e.to_string();
@@ -243,7 +243,7 @@ pub extern "C" fn process_data(
             utils::post::post_data(callback_url_str.clone(), &podr2_data);
             let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(0, Ordering::SeqCst);
             info!("The enclave space is released to :{} (b)", mem);
-            return sgx_status_t::SGX_ERROR_BUSY;
+            return sgx_status_t::SGX_ERROR_FILE_BAD_STATUS;
         }
     };
 
@@ -273,37 +273,22 @@ pub extern "C" fn process_data(
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
 
-            println!("-------------------PoDR2 Pri-------------------");
-            let et = ENCRYPTIONTYPE.lock().unwrap();
-
-            let (n, s) = file::count_file(&file_info.1, block_size, segment_size);
-            let mut file_hash = match sgx_tcrypto::rsgx_sha256_slice(&file_info.1) {
-                Ok(hash) => hash,
-                Err(e) => {
-                    panic!(e);
-                }
+            info!("-------------------PoDR2 Pub RSA-------------------");
+            let (n, s) = file::count_file(&file_info.1, block_size, 1);
+            match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n){
+                Ok(result) =>(
+                    podr2_data.result=result,
+                    podr2_data.status.status_msg = "Sig gen successful!".to_string(),
+                    podr2_data.status.status_code = Podr2Status::PoDr2Success as usize
+                ),
+                Err(e)=>(
+                    podr2_data.result=SigGenResponse::new(),
+                    podr2_data.status.status_msg=e.message.unwrap(),
+                    podr2_data.status.status_code=Podr2Status::PoDr2Unexpected as usize
+                    )
             };
 
-            let sig_gen_result = podr2_v1_pri::sig_gen::sig_gen(
-                &file_info.1,
-                block_size,
-                n,
-                s,
-                segment_size,
-                file_hash.to_vec(),
-                et.clone(),
-            );
-            podr2_data.tag = sig_gen_result.1.clone();
-            for sigma in sig_gen_result.0.clone() {
-                podr2_data
-                    .sigmas
-                    .push(utils::convert::u8v_to_hexstr(&sigma))
-            }
-
-            podr2_data.status.status_msg = "Sig gen successful!".to_string();
-            podr2_data.status.status_code = Podr2Status::PoDr2Success as usize;
-
-            println!("-------------------PoDR2 Pri-------------------");
+            info!("-------------------PoDR2 Pub RSA-------------------");
             // Post PoDR2Data to callback url.
             if !call_back_url.is_empty() {
                 utils::post::post_data(call_back_url, &podr2_data);
@@ -549,11 +534,20 @@ pub extern "C" fn test_func(msg: *const c_char) -> sgx_status_t {
     };
     // podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
     let rsa_keys = KEYS.lock().unwrap().rsa_keys.clone();
-    
-    let mut rng = OsRng;
-    let enc_data = rsa_keys.skey.encrypt(&mut rng, PaddingScheme::PKCS1v15, msg_string.as_bytes()).expect("failed to encrypt");
-    let dec_data = rsa_keys.skey.decrypt(PaddingScheme::PKCS1v15, &enc_data).expect("failed to decrypt");
-    assert_eq!(msg_string.as_bytes(), &dec_data[..]);
+    let e =utils::convert::u8v_to_hexstr(&rsa_keys.pkey.e().to_bytes_be());
+    let n =utils::convert::u8v_to_hexstr(&rsa_keys.pkey.n().to_bytes_be());
+    dbg!(e,n);
+    println!("e is :{:?}",&rsa_keys.pkey.e().to_string());
+    println!("n is :{:?}",&rsa_keys.pkey.n().to_string());
+
+    let msg_vec=hex::decode_hex(&msg_string);
+
+    // let enc_data = rsa_keys.pkey.encrypt(&mut rng, PaddingScheme::PKCS1v15, msg_string.as_bytes()).expect("failed to encrypt");
+    let dec_data = rsa_keys.skey.decrypt(PaddingScheme::PKCS1v15, &msg_vec).expect("failed to decrypt");
+    let res=String::from_utf8(dec_data).unwrap();
+    dbg!(res);
+
+    // assert_eq!(msg_string.as_bytes(), &dec_data[..]);
 
     return SGX_SUCCESS;
 }
