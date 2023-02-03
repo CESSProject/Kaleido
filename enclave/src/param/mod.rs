@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub mod podr2_commit_response;
 pub mod podr2_commit_data;
 pub mod podr2_pri_commit_data;
+pub mod podr2_pub_commit_data;
 
 pub enum Podr2Status {
     PoDr2Success                        =       100000,

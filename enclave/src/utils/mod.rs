@@ -3,6 +3,7 @@ pub mod enclave_mem;
 pub mod convert;
 pub mod file;
 pub mod bloom_filter;
+pub mod mht;
 
 pub mod arrays {
     use std::{convert::TryInto, marker::PhantomData};
