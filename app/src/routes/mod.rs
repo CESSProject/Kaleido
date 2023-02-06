@@ -13,7 +13,7 @@ use crate::models::app_state::AppState;
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2Error, PoDR2VerifyRequest,
 };
-use crate::models::req::{ReqFillRandomFile, ReqMessageSignature, ReqReport};
+use crate::models::req::{ReqFillRandomFile, ReqMessageSignature,ReqTestFunc, ReqReport};
 
 // r_ is appended to identify routes
 #[post("/process_data")]
@@ -197,6 +197,25 @@ pub async fn r_message_signature(
             &mut result1,
             msg_ptr.as_ptr(),
             callback_ptr.as_ptr(),
+        )
+    };
+
+    PoDR2SgxErrorResponder::parse_error(result1, result2)
+}
+
+#[post("/test_func")]
+pub async fn test_func(
+    data: web::Data<AppState>,
+    req: web::Json<ReqTestFunc>,
+) -> Result<impl Responder, PoDR2Error> {
+    let msg_ptr = CString::new(req.msg.as_str().as_bytes().to_vec()).unwrap();
+
+    let mut result1 = sgx_status_t::SGX_SUCCESS;
+    let result2 = unsafe {
+        enclave::ecalls::test_func(
+            data.eid,
+            &mut result1,
+            msg_ptr.as_ptr()
         )
     };
 

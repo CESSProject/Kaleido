@@ -110,6 +110,7 @@ async fn main() -> std::io::Result<()> {
                     .service(routes::r_get_report)
                     .service(routes::r_fill_random_file)
                     .service(routes::r_message_signature)
+                    .service(routes::test_func)
             })
             .bind(("0.0.0.0", port))?
             .run()

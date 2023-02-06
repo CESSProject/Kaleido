@@ -44,6 +44,8 @@ extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate rsa;
+extern crate rand;
 extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
@@ -61,16 +63,21 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use rand::rngs::OsRng;
+use rsa::{PublicKey, PaddingScheme};
 use core::convert::TryInto;
 
 use cess_curve::*;
 use log::{info, warn};
 use secp256k1::*;
-use secp256k1::{PublicKey, SecretKey};
 use sgx_rand::Rng;
 use sgx_serialize::{DeSerializable, DeSerializeHelper, Serializable, SerializeHelper};
-use sgx_types::*;
 use sgx_types::sgx_status_t::{SGX_ERROR_UNEXPECTED, SGX_SUCCESS};
+use sgx_types::*;
+use statics::CHAL_DATA;
+use std::ffi::CString;
+use std::io::ErrorKind;
+use std::sync::atomic::Ordering;
 use std::{
     env,
     ffi::CStr,
@@ -81,10 +88,6 @@ use std::{
     sync::SgxMutex,
     thread,
 };
-use std::ffi::CString;
-use std::io::ErrorKind;
-use std::sync::atomic::Ordering;
-use statics::CHAL_DATA;
 
 use param::{
     podr2_commit_data::PoDR2CommitData, podr2_pri_commit_data::PoDR2PriData, Podr2Status,
@@ -93,16 +96,16 @@ use param::{
 // use ocall_def::ocall_post_podr2_commit_data;
 use param::podr2_commit_data::PoDR2SigGenData;
 use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
-use podr2_v1_pri::{QElement, Tag};
 use podr2_v1_pri::chal_gen::{ChalData, PoDR2Chal};
 use podr2_v1_pri::key_gen::{MacHash, Symmetric};
+use podr2_v1_pri::{QElement, Tag};
 use utils::bloom_filter::BloomHash;
 use utils::file;
-
 use crate::attestation::hex;
 use crate::statics::*;
 
 mod attestation;
+mod keys;
 mod merkletree_generator;
 mod ocall_def;
 mod param;
@@ -110,212 +113,9 @@ mod pbc;
 mod podr2_v1_pri;
 mod podr2_v1_pub_pbc;
 mod podr2_v2_pub_pbc;
+mod podr2_v2_pub_rsa;
 mod statics;
 mod utils;
-
-pub struct Keys {
-    skey: secp256k1::SecretKey,
-    pkey: secp256k1::PublicKey,
-}
-
-impl sgx_serialize::Serializable for Keys {
-    fn encode<S: sgx_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        let skey = self.skey.serialize();
-        s.emit_seq(skey.len(), |s| {
-            for (i, e) in skey.iter().enumerate() {
-                s.emit_seq_elt(i, |s| e.encode(s))?
-            }
-            Ok(())
-        });
-
-        let pkey = self.pkey.serialize();
-        s.emit_seq(pkey.len(), |s| {
-            for (i, e) in pkey.iter().enumerate() {
-                s.emit_seq_elt(i, |s| e.encode(s))?
-            }
-            Ok(())
-        });
-        Ok(())
-    }
-}
-
-impl sgx_serialize::DeSerializable for Keys {
-    fn decode<D: sgx_serialize::Decoder>(d: &mut D) -> Result<Self, D::Error> {
-        // TODO: Combine Secretkey and Privatekey extraction code to a single function - Code Duplication.
-
-        let skey = match d.read_seq(|d, len| {
-            let key_len = secp256k1::util::SECRET_KEY_SIZE;
-
-            // Retrieve Secret Key
-            let mut ssk = Vec::with_capacity(key_len);
-
-            for i in 0..key_len {
-                ssk.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
-            }
-
-            let skey_res = ssk.try_into();
-            let skey_arr: [u8; secp256k1::util::SECRET_KEY_SIZE] = match skey_res {
-                Ok(arr) => arr,
-                Err(v) => {
-                    error!(
-                        "Expected a SecretKey of length {} but it was {}",
-                        key_len,
-                        v.len()
-                    );
-                    return Err(d.error(
-                        format!(
-                            "Expected a SecretKey of length {} but it was {}",
-                            key_len,
-                            v.len()
-                        )
-                            .as_str(),
-                    ));
-                }
-            };
-
-            let skey = match SecretKey::parse(&skey_arr) {
-                Ok(k) => k,
-                Err(e) => {
-                    error!("Failed to parse SecretKey");
-                    return Err(d.error("Failed to parse SecretKey"));
-                }
-            };
-
-            Ok(skey)
-        }) {
-            Ok(k) => k,
-            Err(e) => {
-                error!("Failed to Decode SecretKey");
-                return Err(d.error("Failed to Decode SecretKey"));
-            }
-        };
-
-        let pkey = match d.read_seq(|d, len| {
-            let key_len = secp256k1::util::FULL_PUBLIC_KEY_SIZE;
-            let mut spk = Vec::with_capacity(key_len);
-
-            for i in 0..key_len {
-                spk.push(d.read_seq_elt(i, |d| DeSerializable::decode(d))?);
-            }
-
-            let pkey_res = spk.try_into();
-            let pkey_arr: [u8; secp256k1::util::FULL_PUBLIC_KEY_SIZE] = match pkey_res {
-                Ok(arr) => arr,
-                Err(v) => {
-                    error!(
-                        "Expected a PublicKey of length {} but it was {}",
-                        key_len,
-                        v.len()
-                    );
-                    return Err(d.error(
-                        format!(
-                            "Expected a PublicKey of length {} but it was {}",
-                            key_len,
-                            v.len()
-                        )
-                            .as_str(),
-                    ));
-                }
-            };
-
-            let pkey = match PublicKey::parse(&pkey_arr) {
-                Ok(k) => k,
-                Err(e) => {
-                    error!("Failed to parse PublicKey");
-                    return Err(d.error("Failed to parse PublicKey"));
-                }
-            };
-
-            Ok(pkey)
-        }) {
-            Ok(k) => k,
-            Err(e) => {
-                error!("Failed to Decode PublicKey");
-                return Err(d.error("Failed to Decode PublicKey"));
-            }
-        };
-
-        Ok(Keys { skey, pkey })
-    }
-}
-
-impl Keys {
-    const FILE_NAME: &'static str = "rakeys";
-
-    // Try to Load from the file 1st
-    // If not generate new.
-    pub fn get_instance() -> Keys {
-        let mut file = match SgxFile::open(Keys::FILE_NAME) {
-            Ok(f) => f,
-            Err(_) => {
-                info!("{} file not found, creating new file.", Keys::FILE_NAME);
-
-                // Generate Keys
-                let keys = Keys::gen_keys();
-                let saved = keys.save();
-                if !saved {
-                    error!("Failed to save keys");
-                }
-
-                info!("Signing keys generated!");
-                return keys;
-            }
-        };
-
-        info!("Keys Loaded!");
-        Keys::load(&mut file)
-    }
-
-    pub fn gen_keys() -> Keys {
-        let mut rand_slice = [0u8; 32];
-        let mut os_rng = sgx_rand::SgxRng::new().unwrap().fill_bytes(&mut rand_slice);
-        let mut skey = SecretKey::parse_slice(&rand_slice).unwrap();
-        let mut pkey = PublicKey::from_secret_key(&skey);
-        Keys { skey, pkey }
-    }
-
-    fn save(&self) -> bool {
-        let helper = SerializeHelper::new();
-        let data = match helper.encode(self) {
-            Some(d) => d,
-            None => {
-                warn!("Key encoding failed");
-                return false;
-            }
-        };
-
-        let mut file = match SgxFile::create(Keys::FILE_NAME) {
-            Ok(f) => f,
-            Err(e) => {
-                warn!("Failed to create file {}", Keys::FILE_NAME);
-                return false;
-            }
-        };
-
-        let _write_size = match file.write(data.as_slice()) {
-            Ok(len) => len,
-            Err(_) => {
-                warn!("Failed to write file {}", Keys::FILE_NAME);
-                return false;
-            }
-        };
-        return true;
-    }
-
-    fn load(file: &mut SgxFile) -> Keys {
-        let mut data = Vec::new();
-        let _ = file.read_to_end(&mut data);
-
-        let helper = DeSerializeHelper::<Keys>::new(data);
-
-        match helper.decode() {
-            Some(d) => d,
-            None => {
-                panic!("Failed to decode file {}.", Keys::FILE_NAME);
-            }
-        }
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn init() -> sgx_status_t {
@@ -461,7 +261,7 @@ pub extern "C" fn process_data(
             "Invalid block_size {:?} - per blocks can not be greater than data length {:?}",
             block_size, file_info.0
         )
-            .to_string();
+        .to_string();
         status.status_code = Podr2Status::PoDr2ErrorInvalidParameter as usize;
         podr2_data.status = status;
         utils::post::post_data(callback_url_str.clone(), &podr2_data);
@@ -604,8 +404,8 @@ pub extern "C" fn verify_proof(
 ) -> sgx_status_t {
     let mut pid = unsafe { slice::from_raw_parts(proof_id, proof_id_len).to_vec() };
     let mut chal_data = CHAL_DATA.lock().unwrap();
-    if !chal_data.chal_id.eq(&pid){
-        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER
+    if !chal_data.chal_id.eq(&pid) {
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
     let proof_json_hex_str = match unsafe { CStr::from_ptr(proof_json).to_str() } {
@@ -617,8 +417,6 @@ pub extern "C" fn verify_proof(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
 
-
-
     let (sigma, miu, tag) = podr2_v1_pri::convert_miner_proof(&proof_json_hex_str);
 
     let ok = podr2_v1_pri::verify_proof::verify_proof(
@@ -628,7 +426,6 @@ pub extern "C" fn verify_proof(
         ENCRYPTIONTYPE.lock().unwrap().clone(),
     );
     debug!("podr2_result is :{}", ok);
-
 
     let hex = utils::convert::u8v_to_hexstr(&tag.t.file_hash);
     let mut hash = [0u8; 64];
@@ -681,11 +478,9 @@ pub extern "C" fn verify_proof(
             }
             chal_data.service_bloom_filter.insert(binary);
         }
-        _ => {
-            return sgx_status_t::SGX_ERROR_INVALID_PARAMETER
-        }
+        _ => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
     };
-    return sgx_status_t::SGX_SUCCESS
+    return sgx_status_t::SGX_SUCCESS;
 }
 
 #[no_mangle]
@@ -718,7 +513,7 @@ pub extern "C" fn message_signature(
         }
     };
 
-    let keys = KEYS.lock().unwrap();
+    let keys = KEYS.lock().unwrap().aes_keys.clone();
     let ssk = &keys.skey;
     let message = Message::parse(&msg_hash);
     let (msg_sig, msg_recid) = secp256k1::sign(&message, &ssk);
@@ -742,6 +537,23 @@ pub extern "C" fn message_signature(
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
     utils::post::post_data(callback_url_str, &msg_signature_hex);
+
+    return SGX_SUCCESS;
+}
+
+#[no_mangle]
+pub extern "C" fn test_func(msg: *const c_char) -> sgx_status_t {
+    let msg_string = match unsafe { CStr::from_ptr(msg).to_str() } {
+        Ok(path) => path.to_string(),
+        Err(_) => return sgx_status_t::SGX_ERROR_INVALID_PARAMETER,
+    };
+    // podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
+    let rsa_keys = KEYS.lock().unwrap().rsa_keys.clone();
+    
+    let mut rng = OsRng;
+    let enc_data = rsa_keys.skey.encrypt(&mut rng, PaddingScheme::PKCS1v15, msg_string.as_bytes()).expect("failed to encrypt");
+    let dec_data = rsa_keys.skey.decrypt(PaddingScheme::PKCS1v15, &enc_data).expect("failed to decrypt");
+    assert_eq!(msg_string.as_bytes(), &dec_data[..]);
 
     return SGX_SUCCESS;
 }

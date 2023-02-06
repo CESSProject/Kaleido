@@ -2,7 +2,7 @@ use std::sync::SgxMutex;
 
 use alloc::string::String;
 
-use crate::{Keys, podr2_v1_pri::{self, chal_gen::ChalData}};
+use crate::{podr2_v1_pri::{self, chal_gen::ChalData}, keys::Keys};
 
 lazy_static! (
     pub static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::get_instance());

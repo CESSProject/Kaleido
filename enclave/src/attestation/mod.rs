@@ -20,7 +20,8 @@
 pub mod cert;
 pub mod hex;
 
-use crate::{Keys, KEYS};
+use crate::keys::Keys;
+use crate::statics::KEYS;
 use libc::rand;
 use ocall_def::*;
 use secp256k1::*;
@@ -553,7 +554,7 @@ impl rustls::ServerCertVerifier for ServerAuth {
 
 #[no_mangle]
 pub extern "C" fn run_server(sign_type: sgx_quote_sign_type_t) -> sgx_status_t {
-    let keys = KEYS.lock().unwrap();
+    let keys = KEYS.lock().unwrap().aes_keys.clone();
     let ssk = &keys.skey;
     let spk = &keys.pkey;
 
