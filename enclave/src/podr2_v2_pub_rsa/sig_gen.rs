@@ -10,6 +10,7 @@ use rsa::{PublicKey,RSAPrivateKey, PaddingScheme};
 use hex;
 use utils;
 use rand;
+use rsa::hash::Hashes;
 
 use super::Tag;
 use crate::{
@@ -51,8 +52,7 @@ pub fn sig_gen(data: &mut Vec<u8>,
             })
         }
     };
-    let mut rng = OsRng;
-    let enc_data = match rsa_keys.skey.encrypt(&mut rng, PaddingScheme::PKCS1v15, &t_hash){
+    let enc_data = match rsa_keys.skey.sign(PaddingScheme::PKCS1v15,Some(&Hashes::SHA2_256), &t_hash){
         Ok(data) =>data,
         Err(e)=>{
             return Err(PoDR2Error {
@@ -61,7 +61,16 @@ pub fn sig_gen(data: &mut Vec<u8>,
         }
     };
     t.tag=tag;
-    t.sig_above=hex::encode_hex(&enc_data);
+    t.sig_above=utils::convert::u8v_to_hexstr(&enc_data);
+
+    match rsa_keys.pkey.verify(PaddingScheme::PKCS1v15,Some(&Hashes::SHA2_256),&t_hash,&enc_data){
+        Ok(..)=>(
+            info!("verify ok!")
+            ),
+        Err(..)=>(
+            info!("verify fail!")
+            )
+    };
 
 
     //Generate MHT root
@@ -72,8 +81,10 @@ pub fn sig_gen(data: &mut Vec<u8>,
                 message: Some(format!("{}", e.message.unwrap())),
             })
     };
-    result.sig_root_hash=hex::encode_hex(&root_hash);
+    result.sig_root_hash=utils::convert::u8v_to_hexstr(&root_hash);
     result.t=t;
+    result.spk.N=rsa_keys.pkey.n().to_string();
+    result.spk.E=rsa_keys.pkey.e().to_string();
 
     for i in 0..n_blocks{
         if i==n_blocks-1{
@@ -101,10 +112,7 @@ pub fn generate_sigma(
     let mut data_hash_bigint=num_bigint::BigInt::from_bytes_be(Sign::Plus,&data_hash);
 
     //(H(mi) · u^mi )^α
-    println!("{}",data_bigint);
-    println!("{}",u_bigint);
     let umi=u_bigint.modpow(&data_bigint, &n.clone());
-    println!("{}",umi);
 
     let summary=data_hash_bigint * umi;
     let mut productory=summary.modpow(&d,&n);

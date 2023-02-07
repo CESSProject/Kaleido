@@ -93,10 +93,13 @@ pub fn split_file(file_data: &Vec<u8>, block_size: usize) -> Vec<Vec<u8>> {
     matrix
 }
 
-pub fn count_file(file_data: &Vec<u8>, block_size: usize,segment_size: usize) -> (usize,usize){
+pub fn count_file(file_data: &mut Vec<u8>, block_size: usize,segment_size: usize) -> (usize,usize){
     let mut block_num = file_data.len() / block_size;
-    if file_data.len()%block_size!=0{
-        block_num+=1
+    let pad=file_data.len()%block_size;
+    if pad!=0{
+        block_num+=1;
+        let append_zero_data =&mut vec![0u8; (block_size-pad) as usize];
+        file_data.append(append_zero_data);
     };
 
     let s =block_size/segment_size;
