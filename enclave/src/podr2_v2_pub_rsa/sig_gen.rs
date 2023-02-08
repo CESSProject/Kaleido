@@ -63,15 +63,6 @@ pub fn sig_gen(data: &mut Vec<u8>,
     t.tag=tag;
     t.sig_above=utils::convert::u8v_to_hexstr(&enc_data);
 
-    match rsa_keys.pkey.verify(PaddingScheme::PKCS1v15,Some(&Hashes::SHA2_256),&t_hash,&enc_data){
-        Ok(..)=>(
-            info!("verify ok!")
-            ),
-        Err(..)=>(
-            info!("verify fail!")
-            )
-    };
-
 
     //Generate MHT root
     let root_hash=match utils::mht::get_mht_root(data, n_blocks){
