@@ -46,10 +46,28 @@ impl Tag {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(Clone)]
+pub struct Spk{
+    pub E :String,
+    pub N :String
+}
+
+impl Spk {
+    pub fn new() -> Spk {
+        Spk {
+            E: "".to_string(),
+            N: "".to_string()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[derive(Clone)]
 pub struct SigGenResponse {
     pub t:T,
     pub phi:Vec<String>,
-    pub sig_root_hash:String
+    pub sig_root_hash:String,
+    pub spk:Spk
 }
 
 impl SigGenResponse {
@@ -57,7 +75,8 @@ impl SigGenResponse {
         SigGenResponse {
             t: T::new(),
             phi: vec![],
-            sig_root_hash: "".to_string()
+            sig_root_hash: "".to_string(),
+            spk: Spk::new()
         }
     }
 }

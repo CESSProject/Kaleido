@@ -1,8 +1,12 @@
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use crypto::digest::Digest;
+use crypto::sha2;
 use merkletree::merkle::MerkleTree;
 use sgx_tcrypto::rsgx_sha256_slice;
 use merkletree_generator::Sha256Algorithm;
+use utils::convert::u8v_to_hexstr;
+use crypto::sha2::Sha256;
 
 #[derive(Debug)]
 pub struct MhtError {
@@ -46,6 +50,16 @@ pub fn get_mht(
         Err(e)=>
             return Err(e)
     };
+    // let mut test_root_data=vec![];
+    // for l in &leaves_hashes{
+    //    info!("{:?}",u8v_to_hexstr(l));
+    //     test_root_data.append(&mut l.clone());
+    // }
+    // let mut eng =sha2::Sha256::new();
+    // eng.input(&test_root_data);
+    // let mut h = [0u8; 32];
+    // eng.result(&mut h);
+    // info!("I use sha2:s0.ha256 to calculate the root hash with two block :{:?}",u8v_to_hexstr(&h));
 
     Ok(MerkleTree::from_data(leaves_hashes))
 }

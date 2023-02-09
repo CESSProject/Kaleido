@@ -1,6 +1,6 @@
 [package]
 name = "cess_enclave"
-version = "0.0.2"
+version = "0.5.4"
 authors = ["CESS Labs"]
 
 # edition = "2021"

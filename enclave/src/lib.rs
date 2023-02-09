@@ -274,7 +274,7 @@ pub extern "C" fn process_data(
             let call_back_url = callback_url_str.clone();
 
             info!("-------------------PoDR2 Pub RSA-------------------");
-            let (n, s) = file::count_file(&file_info.1, block_size, 1);
+            let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n){
                 Ok(result) =>(
                     podr2_data.result=result,
