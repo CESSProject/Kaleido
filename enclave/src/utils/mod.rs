@@ -4,6 +4,7 @@ pub mod convert;
 pub mod file;
 pub mod bloom_filter;
 pub mod mht;
+pub mod thread_controller;
 
 pub mod arrays {
     use std::{convert::TryInto, marker::PhantomData};

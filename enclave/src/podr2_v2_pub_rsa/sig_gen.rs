@@ -11,6 +11,7 @@ use hex;
 use utils;
 use rand;
 use rsa::hash::Hashes;
+use std::thread;
 
 use super::Tag;
 use crate::{
@@ -77,13 +78,56 @@ pub fn sig_gen(data: &mut Vec<u8>,
     result.spk.N=rsa_keys.pkey.n().to_string();
     result.spk.E=rsa_keys.pkey.e().to_string();
 
+    result.phi=vec![String::new();n_blocks];
+    let mut cond_buffer=utils::thread_controller::gen_cond_buffer();
+    utils::thread_controller::init_cond_buffer(&mut cond_buffer);
+    let &(ref mutex, ref more, ref less) = utils::thread_controller::get_ref_cond_buffer(cond_buffer).unwrap();
+
     for i in 0..n_blocks{
-        if i==n_blocks-1{
-            result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..].to_vec(),u.clone()))
-        }else {
-            result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..(i+1)*block_size].to_vec(),u.clone()))
+        let mut guard = mutex.lock().unwrap();
+        while guard.occupied >= utils::thread_controller::MAX_THREAD as i32 {
+            guard = less.wait(guard).unwrap();
         }
+        guard.occupied += 1;
+
+        //get piece duplicate
+        let mut piece=vec![];
+        if i==n_blocks-1{
+            piece=data[i*block_size..].to_vec().clone();
+        }else {
+            piece=data[i*block_size..(i+1)*block_size].to_vec();
+        }
+
+        //get ssk
+        let skey=rsa_keys.skey.clone();
+
+        //get u duplicate
+        let u_copy=u.clone();
+        match thread::Builder::new()
+            .name(format!("process_block_{}", i))
+            .spawn(move || {
+                if i==n_blocks-1{
+                    result.phi.push(generate_sigma(skey,piece,u_copy))
+                }else {
+                    result.phi.push(generate_sigma(skey,piece,u_copy))
+                }
+            }){
+            Ok(_) =>  (
+                guard.occupied -= 1
+                ),
+            Err(e) => return Err(PoDR2Error {
+                message: Some(format!("A thread error occurred when calculating phi,error:{:?}", e)),
+            })
+        };
+        more.signal();
     }
+    // for i in 0..n_blocks{
+    //     if i==n_blocks-1{
+    //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..].to_vec(),u.clone()))
+    //     }else {
+    //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..(i+1)*block_size].to_vec(),u.clone()))
+    //     }
+    // }
 
     Ok(result)
 }
