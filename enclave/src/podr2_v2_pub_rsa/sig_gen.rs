@@ -14,6 +14,7 @@ use rsa::{PaddingScheme, PublicKey, RSAPrivateKey};
 use sgx_rand::Rng;
 use std::thread;
 use utils;
+use std::sync::SgxMutex;
 
 use super::Tag;
 use crate::{keys::Keys, param::podr2_commit_data::PoDR2Error};
@@ -74,25 +75,31 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
             })
         }
     };
-
-    let mut result = Arc::new(SigGenResponse::new());
-    result.sig_root_hash = utils::convert::u8v_to_hexstr(&root_hash);
-    result.t = t;
-    result.spk.N = rsa_keys.pkey.n().to_string();
-    result.spk.E = rsa_keys.pkey.e().to_string();
-
-    result.phi = vec![String::new(); n_blocks];
-    let mut cond_buffer = utils::thread_controller::gen_cond_buffer();
-    utils::thread_controller::init_cond_buffer(&mut cond_buffer);
-    let &(ref mutex, ref more, ref less) =
-        utils::thread_controller::get_ref_cond_buffer(cond_buffer).unwrap();
+    let N =rsa_keys.clone().pkey.n().to_string();
+    let E=rsa_keys.clone().pkey.e().to_string();
 
     let mut handles: Vec<thread::JoinHandle<()>> = Vec::new();
+    let response = Arc::new(SgxMutex::new(SigGenResponse::new()));
+    let result_tmp =Arc::clone(&response);
+    let handle_tmp = thread::spawn(move || {
+        let mut result=result_tmp.lock().unwrap();
+        result.sig_root_hash = utils::convert::u8v_to_hexstr(&root_hash);
+        result.t = t;
+        result.spk.N = N;
+        result.spk.E = E;
+        result.phi = vec![String::new(); n_blocks];
+    });
+    handles.push(handle_tmp);
+
+    let mut cond_buffer = utils::thread_controller::gen_cond_buffer();
+    utils::thread_controller::init_cond_buffer(&mut cond_buffer);
+    let &(ref mutex, ref cvar) =
+        utils::thread_controller::get_ref_cond_buffer(&cond_buffer).unwrap();
 
     for i in 0..n_blocks {
         let mut guard = mutex.lock().unwrap();
         while guard.occupied >= utils::thread_controller::MAX_THREAD as i32 {
-            guard = less.wait(guard).unwrap();
+            guard = cvar.wait(guard).unwrap();
         }
         guard.occupied += 1;
 
@@ -110,19 +117,22 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         //get u duplicate
         let u_copy = u.clone();
 
-        let mut res = result.clone();
+        let result_tmp = Arc::clone(&response);
         let handle = match thread::Builder::new()
             .name(format!("process_block_{}", i))
             .spawn(move || {
-                
+                dbg!(i);
+                let mut result =result_tmp.lock().unwrap();
                 if i == n_blocks - 1 {
-                    res.phi.push(generate_sigma(skey, piece, u_copy))
+                    result.phi[i]=generate_sigma(skey, piece, u_copy)
                 } else {
-                    res.phi.push(generate_sigma(skey, piece, u_copy))
+                    result.phi[i]=generate_sigma(skey, piece, u_copy)
                 }
+
             }) {
             Ok(handle) => {
                 guard.occupied -= 1;
+                cvar.signal();
                 handle
             }
             Err(e) => {
@@ -135,13 +145,12 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
             }
         };
         handles.push(handle);
-        more.signal();
     }
 
     for thread in handles.into_iter() {
         thread.join().unwrap();
     }
-
+    println!("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeend");
     // for i in 0..n_blocks{
     //     if i==n_blocks-1{
     //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..].to_vec(),u.clone()))
@@ -149,8 +158,9 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..(i+1)*block_size].to_vec(),u.clone()))
     //     }
     // }
-
-    Ok(*result)
+    let res =Arc::clone(&response);
+    let result=res.lock().unwrap();
+    Ok(result.clone())
 }
 
 pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: BigInt) -> String {

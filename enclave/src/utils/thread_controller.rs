@@ -2,10 +2,10 @@ use std::sync::atomic::{AtomicUsize,AtomicPtr, Ordering};
 use std::sync::{SgxMutex, SgxCondvar};
 use std::boxed::Box;
 
-pub const MAX_THREAD:usize=10;
-//记录正在投入使用的线程的数目
+pub const MAX_THREAD:usize=2;
+
 pub static THREAD_POOL: AtomicUsize = AtomicUsize::new(0);
-struct CondBuffer{
+pub struct CondBuffer{
     pub occupied: i32,
 }
 
@@ -25,15 +25,14 @@ pub fn init_cond_buffer(cond_buffer:&mut AtomicPtr<()>){
     let lock = Box::new((
         SgxMutex::<CondBuffer>::new(CondBuffer::default()),
         SgxCondvar::new(),
-        SgxCondvar::new(),
     ));
     let ptr = Box::into_raw(lock);
     cond_buffer.store(ptr as *mut (), Ordering::SeqCst);
 }
 
-pub fn get_ref_cond_buffer(global_cond_buffer:AtomicPtr<()>) -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar)> {
+pub fn get_ref_cond_buffer(global_cond_buffer:&AtomicPtr<()>) -> Option<&'static (SgxMutex<CondBuffer>, SgxCondvar)> {
     let ptr = global_cond_buffer.load(Ordering::SeqCst)
-        as *mut (SgxMutex<CondBuffer>, SgxCondvar, SgxCondvar);
+        as *mut (SgxMutex<CondBuffer>, SgxCondvar);
     if ptr.is_null() {
         None
     } else {
