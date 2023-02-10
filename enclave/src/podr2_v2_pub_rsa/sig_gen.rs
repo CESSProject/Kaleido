@@ -2,7 +2,7 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::convert::TryInto;
-use core::ops::Mul;
+use core::ops::{Deref, Mul};
 use hex;
 use num::{One, Zero};
 use num_bigint::{BigInt, Sign, ToBigInt};
@@ -15,6 +15,8 @@ use sgx_rand::Rng;
 use std::thread;
 use utils;
 use std::sync::SgxMutex;
+use threadpool::ThreadPool;
+use std::sync::mpsc::channel;
 
 use super::Tag;
 use crate::{keys::Keys, param::podr2_commit_data::PoDR2Error};
@@ -90,18 +92,13 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         result.phi = vec![String::new(); n_blocks];
     });
     handles.push(handle_tmp);
+    for thread in handles.into_iter() {
+        thread.join().unwrap();
+    }
 
-    let mut cond_buffer = utils::thread_controller::gen_cond_buffer();
-    utils::thread_controller::init_cond_buffer(&mut cond_buffer);
-    let &(ref mutex, ref cvar) =
-        utils::thread_controller::get_ref_cond_buffer(&cond_buffer).unwrap();
-
+    let pool = ThreadPool::new(utils::thread_controller::MAX_THREAD);
+    let (tx, rx) = channel();
     for i in 0..n_blocks {
-        let mut guard = mutex.lock().unwrap();
-        while guard.occupied >= utils::thread_controller::MAX_THREAD as i32 {
-            guard = cvar.wait(guard).unwrap();
-        }
-        guard.occupied += 1;
 
         //get piece duplicate
         let mut piece = vec![];
@@ -117,47 +114,26 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         //get u duplicate
         let u_copy = u.clone();
 
+        let tx = tx.clone();
         let result_tmp = Arc::clone(&response);
-        let handle = match thread::Builder::new()
-            .name(format!("process_block_{}", i))
-            .spawn(move || {
-                dbg!(i);
-                let mut result =result_tmp.lock().unwrap();
-                if i == n_blocks - 1 {
-                    result.phi[i]=generate_sigma(skey, piece, u_copy)
-                } else {
-                    result.phi[i]=generate_sigma(skey, piece, u_copy)
-                }
-
-            }) {
-            Ok(handle) => {
-                guard.occupied -= 1;
-                cvar.signal();
-                handle
+        pool.execute(move|| {
+            dbg!(i);
+            let mut data="".to_string();
+            if i == n_blocks - 1 {
+                data=generate_sigma(skey, piece, u_copy)
+            } else {
+                data=generate_sigma(skey, piece, u_copy)
             }
-            Err(e) => {
-                return Err(PoDR2Error {
-                    message: Some(format!(
-                        "A thread error occurred when calculating phi,error:{:?}",
-                        e
-                    )),
-                })
-            }
-        };
-        handles.push(handle);
+            let mut result = match result_tmp.lock(){
+                Ok(r)=>r,
+                Err(e)=>panic!("{:?}",e.to_string())
+            };
+            result.phi[i]=data;
+            tx.send(1).unwrap();
+        });
     }
+    pool.join();
 
-    for thread in handles.into_iter() {
-        thread.join().unwrap();
-    }
-    println!("eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeend");
-    // for i in 0..n_blocks{
-    //     if i==n_blocks-1{
-    //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..].to_vec(),u.clone()))
-    //     }else {
-    //         result.phi.push(generate_sigma(rsa_keys.skey.clone(),data[i*block_size..(i+1)*block_size].to_vec(),u.clone()))
-    //     }
-    // }
     let res =Arc::clone(&response);
     let result=res.lock().unwrap();
     Ok(result.clone())

@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicUsize,AtomicPtr, Ordering};
 use std::sync::{SgxMutex, SgxCondvar};
 use std::boxed::Box;
 
-pub const MAX_THREAD:usize=2;
+pub const MAX_THREAD:usize=8;
 
 pub static THREAD_POOL: AtomicUsize = AtomicUsize::new(0);
 pub struct CondBuffer{
