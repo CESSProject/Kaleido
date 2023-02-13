@@ -117,7 +117,6 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         let tx = tx.clone();
         let result_tmp = Arc::clone(&response);
         pool.execute(move|| {
-            dbg!(i);
             let mut data="".to_string();
             if i == n_blocks - 1 {
                 data=generate_sigma(skey, piece, u_copy)
