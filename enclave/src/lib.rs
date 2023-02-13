@@ -60,6 +60,7 @@ extern crate timer;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
+extern crate threadpool;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
@@ -131,6 +132,8 @@ pub extern "C" fn init() -> sgx_status_t {
     let max_file_size = (heap_max_size as f32 * 0.65) as usize;
     utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
+    let available_cpu=thread::available_parallelism().unwrap();
+    info!("The program is initialized successfully! and the number of available threads is:{}",available_cpu.get());
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -275,6 +278,7 @@ pub extern "C" fn process_data(
 
             info!("-------------------PoDR2 Pub RSA-------------------");
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
+            info!("Currently available threads are:{}",thread::available_parallelism().unwrap().get());
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n){
                 Ok(result) =>(
                     podr2_data.result=result,
