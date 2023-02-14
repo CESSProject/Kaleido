@@ -1,12 +1,17 @@
 use alloc::vec::Vec;
+use crypto::digest::Digest;
+use crypto::sha2::{self, Sha256};
+use crypto::sha3::{Sha3, Sha3Mode};
 use merkletree::hash::{Algorithm, Hashable};
 use sgx_tcrypto::SgxShaHandle;
 use sgx_types::sgx_sha256_hash_t;
 use std::hash::Hasher;
+
 // use crypto::sha3::{Sha3, Sha3Mode};
 use crypto::sha2::Sha256;
 use crypto::digest::Digest;
 use crypto::sha2;
+
 
 pub struct Sha256Algorithm(Sha256);
 
@@ -18,7 +23,7 @@ impl Sha256Algorithm {
 
 impl Default for Sha256Algorithm {
     fn default() -> Sha256Algorithm {
-      Sha256Algorithm::new()
+        Sha256Algorithm::new()
     }
 }
 

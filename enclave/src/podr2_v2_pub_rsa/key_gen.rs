@@ -3,7 +3,6 @@ use alloc::vec::Vec;
 use sgx_tcrypto::*;
 use utils;
 
-
 // pub fn key_gen(cipherhex:String){
 //     let mod_size: i32 = 256;
 //     let exp_size: i32 = 4;

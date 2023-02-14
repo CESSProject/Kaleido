@@ -46,6 +46,8 @@ extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate rsa;
+extern crate rand;
 extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
@@ -64,6 +66,8 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use rand::rngs::OsRng;
+use rsa::{PublicKey, PaddingScheme};
 use core::convert::TryInto;
 use rand::rngs::OsRng;
 use rsa::{PaddingScheme, PublicKey};
@@ -545,6 +549,7 @@ pub extern "C" fn test_func(msg: *const c_char) -> sgx_status_t {
     };
     // podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
     let rsa_keys = KEYS.lock().unwrap().rsa_keys.clone();
+
     let e = utils::convert::u8v_to_hexstr(&rsa_keys.pkey.e().to_bytes_be());
     let n = utils::convert::u8v_to_hexstr(&rsa_keys.pkey.n().to_bytes_be());
     dbg!(e, n);
