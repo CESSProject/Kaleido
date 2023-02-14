@@ -1,9 +1,12 @@
 use std::sync::SgxMutex;
 
 use alloc::string::String;
-use threadpool::ThreadPool;
 
-use crate::{podr2_v1_pri::{self, chal_gen::ChalData}, keys::Keys, utils};
+use crate::{
+    keys::Keys,
+    podr2_v1_pri::{self, chal_gen::ChalData},
+    utils,
+};
 
 lazy_static! (
     pub static ref KEYS: SgxMutex<Keys> = SgxMutex::new(Keys::get_instance());
@@ -11,5 +14,4 @@ lazy_static! (
         SgxMutex::new(podr2_v1_pri::key_gen::key_gen());
     pub static ref PAYLOAD: SgxMutex<String> = SgxMutex::new(String::new());
     pub static ref CHAL_DATA: SgxMutex<ChalData> = SgxMutex::new(ChalData::new());
-    pub static ref THREAD_POOL: SgxMutex<ThreadPool> = SgxMutex::new(ThreadPool::new(utils::thread_controller::MAX_THREAD));
 );

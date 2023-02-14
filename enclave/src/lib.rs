@@ -56,7 +56,6 @@ extern crate sgx_tse;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
-extern crate threadpool;
 extern crate timer;
 extern crate webpki;
 extern crate webpki_roots;
