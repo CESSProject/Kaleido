@@ -15,11 +15,10 @@ use sgx_rand::Rng;
 use std::sync::mpsc::channel;
 use std::sync::SgxMutex;
 use std::thread;
-use threadpool::ThreadPool;
 use utils;
 
 use super::Tag;
-use crate::statics::THREAD_POOL;
+use crate::utils::thread_controller::MAX_THREAD;
 use crate::{keys::Keys, param::podr2_commit_data::PoDR2Error};
 
 pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, PoDR2Error> {
@@ -53,19 +52,28 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         }
     };
 
-    let rsa_keys = crate::KEYS.lock().unwrap().rsa_keys.clone();
-    let enc_data =
-        match rsa_keys
-            .skey
-            .sign(PaddingScheme::PKCS1v15, Some(&Hashes::SHA2_256), &t_hash)
-        {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(PoDR2Error {
-                    message: Some(format!("{:?}", e)),
-                })
-            }
-        };
+    let (enc_data, n, e, skey) = {
+        let rsa_keys = crate::KEYS.lock().unwrap().rsa_keys.clone();
+        let enc_data =
+            match rsa_keys
+                .skey
+                .sign(PaddingScheme::PKCS1v15, Some(&Hashes::SHA2_256), &t_hash)
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    return Err(PoDR2Error {
+                        message: Some(format!("{:?}", e)),
+                    })
+                }
+            };
+        (
+            enc_data,
+            rsa_keys.clone().pkey.n().to_string(),
+            rsa_keys.clone().pkey.e().to_string(),
+            rsa_keys.skey.clone(),
+        )
+    };
+
     t.sig_above = utils::convert::u8v_to_hexstr(&enc_data);
 
     //Generate MHT root
@@ -81,44 +89,63 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     let mut response = SigGenResponse::new();
     response.t = t;
     response.sig_root_hash = utils::convert::u8v_to_hexstr(&root_hash);
-    response.spk.N = rsa_keys.clone().pkey.n().to_string();
-    response.spk.E = rsa_keys.clone().pkey.e().to_string();
+    response.spk.N = n;
+    response.spk.E = e;
     response.phi = vec![String::new(); n_blocks];
 
-    let (tx, rx) = channel();
-    let pool = THREAD_POOL.lock().unwrap();
-    for i in 0..n_blocks {
-        //get piece duplicate
-        let mut piece = vec![];
-        if i == n_blocks - 1 {
-            piece = data[i * block_size..].to_vec().clone();
+    // Spawn Threads in batches
+    println!("--N_BLOCKS {}", n_blocks);
+    for i in (0..n_blocks).step_by(MAX_THREAD) {
+        println!("----FROM---- {}", i);
+        let max = if i + MAX_THREAD > n_blocks {
+            n_blocks
         } else {
-            piece = data[i * block_size..(i + 1) * block_size].to_vec();
-        }
+            i + MAX_THREAD
+        };
 
-        //get u duplicate
-        let u_copy = u.clone();
-
-        //get ssk
-        let skey = rsa_keys.skey.clone();
-
-        let tx = tx.clone();
-        pool.execute(move || {
-            let mut data = "".to_string();
-            if i == n_blocks - 1 {
-                data = generate_sigma(skey, piece, u_copy)
+        let (tx, rx) = channel();
+        for j in i..max {
+            print!("{},", j);
+            //get piece duplicate
+            let mut piece = vec![];
+            if j == n_blocks - 1 {
+                piece = data[j * block_size..].to_vec().clone();
             } else {
-                data = generate_sigma(skey, piece, u_copy)
+                piece = data[j * block_size..(j + 1) * block_size].to_vec();
             }
-            tx.send((data, i)).unwrap();
-        });
+
+            //get u duplicate
+            let u_copy = u.clone();
+
+            //get ssk
+            let skey = skey.clone();
+
+            let tx = tx.clone();
+            thread::Builder::new()
+                .name("generate_sigma".to_string())
+                .spawn(move || {
+                    let mut data = "".to_string();
+                    if j == n_blocks - 1 {
+                        data = generate_sigma(skey, piece, u_copy)
+                    } else {
+                        data = generate_sigma(skey, piece, u_copy)
+                    }
+                    tx.send((data, j)).unwrap();
+                })
+                .unwrap();
+        }
+        println!();
+        let iter = rx.iter().take(max - i);
+        println!("----RECEIVED {}----", max - i);
+        for k in iter {
+            print!("{},", k.1);
+            response.phi[k.1] = k.0;
+        }
+        println!();
+        println!("------------------");
     }
 
-    let iter = rx.iter().take(n_blocks);
-    for i in iter {
-        response.phi[i.1] = i.0;
-    }
-
+    println!("COMPLETED");
     Ok(response)
 }
 
