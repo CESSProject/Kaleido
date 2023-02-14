@@ -12,13 +12,14 @@ use rand::rngs::OsRng;
 use rsa::hash::Hashes;
 use rsa::{PaddingScheme, PublicKey, RSAPrivateKey};
 use sgx_rand::Rng;
-use std::thread;
-use utils;
-use std::sync::SgxMutex;
-use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
+use std::sync::SgxMutex;
+use std::thread;
+use threadpool::ThreadPool;
+use utils;
 
 use super::Tag;
+use crate::statics::THREAD_POOL;
 use crate::{keys::Keys, param::podr2_commit_data::PoDR2Error};
 
 pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, PoDR2Error> {
@@ -39,9 +40,9 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     tag.n = n_blocks as i64;
     tag.u = base64::encode(u.clone().to_bytes_be().1);
     tag.name = base64::encode(name);
-
     let tag_serialized = serde_json::to_string(&tag).unwrap();
     let t_serialized_bytes = tag_serialized.clone().into_bytes();
+    t.tag = tag;
 
     let mut t_hash = match sgx_tcrypto::rsgx_sha256_slice(&t_serialized_bytes) {
         Ok(hash) => hash,
@@ -65,7 +66,6 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
                 })
             }
         };
-    t.tag = tag;
     t.sig_above = utils::convert::u8v_to_hexstr(&enc_data);
 
     //Generate MHT root
@@ -77,29 +77,17 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
             })
         }
     };
-    let N =rsa_keys.clone().pkey.n().to_string();
-    let E=rsa_keys.clone().pkey.e().to_string();
 
-    let mut handles: Vec<thread::JoinHandle<()>> = Vec::new();
-    let response = Arc::new(SgxMutex::new(SigGenResponse::new()));
-    let result_tmp =Arc::clone(&response);
-    let handle_tmp = thread::spawn(move || {
-        let mut result=result_tmp.lock().unwrap();
-        result.sig_root_hash = utils::convert::u8v_to_hexstr(&root_hash);
-        result.t = t;
-        result.spk.N = N;
-        result.spk.E = E;
-        result.phi = vec![String::new(); n_blocks];
-    });
-    handles.push(handle_tmp);
-    for thread in handles.into_iter() {
-        thread.join().unwrap();
-    }
+    let mut response = SigGenResponse::new();
+    response.t = t;
+    response.sig_root_hash = utils::convert::u8v_to_hexstr(&root_hash);
+    response.spk.N = rsa_keys.clone().pkey.n().to_string();
+    response.spk.E = rsa_keys.clone().pkey.e().to_string();
+    response.phi = vec![String::new(); n_blocks];
 
-    let pool = ThreadPool::new(utils::thread_controller::MAX_THREAD);
     let (tx, rx) = channel();
+    let pool = THREAD_POOL.lock().unwrap();
     for i in 0..n_blocks {
-
         //get piece duplicate
         let mut piece = vec![];
         if i == n_blocks - 1 {
@@ -108,34 +96,30 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
             piece = data[i * block_size..(i + 1) * block_size].to_vec();
         }
 
-        //get ssk
-        let skey = rsa_keys.skey.clone();
-
         //get u duplicate
         let u_copy = u.clone();
 
+        //get ssk
+        let skey = rsa_keys.skey.clone();
+
         let tx = tx.clone();
-        let result_tmp = Arc::clone(&response);
-        pool.execute(move|| {
-            let mut data="".to_string();
+        pool.execute(move || {
+            let mut data = "".to_string();
             if i == n_blocks - 1 {
-                data=generate_sigma(skey, piece, u_copy)
+                data = generate_sigma(skey, piece, u_copy)
             } else {
-                data=generate_sigma(skey, piece, u_copy)
+                data = generate_sigma(skey, piece, u_copy)
             }
-            let mut result = match result_tmp.lock(){
-                Ok(r)=>r,
-                Err(e)=>panic!("{:?}",e.to_string())
-            };
-            result.phi[i]=data;
-            tx.send(1).unwrap();
+            tx.send((data, i)).unwrap();
         });
     }
-    pool.join();
 
-    let res =Arc::clone(&response);
-    let result=res.lock().unwrap();
-    Ok(result.clone())
+    let iter = rx.iter().take(n_blocks);
+    for i in iter {
+        response.phi[i.1] = i.0;
+    }
+
+    Ok(response)
 }
 
 pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: BigInt) -> String {

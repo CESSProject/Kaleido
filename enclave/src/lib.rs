@@ -39,13 +39,13 @@ extern crate log;
 extern crate merkletree;
 extern crate num;
 extern crate num_bigint;
+extern crate rand;
+extern crate rsa;
 extern crate rustls;
 extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
-extern crate rsa;
-extern crate rand;
 extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
@@ -56,17 +56,17 @@ extern crate sgx_tse;
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
+extern crate threadpool;
 extern crate timer;
 extern crate webpki;
 extern crate webpki_roots;
 extern crate yasna;
-extern crate threadpool;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use rand::rngs::OsRng;
-use rsa::{PublicKey, PaddingScheme};
 use core::convert::TryInto;
+use rand::rngs::OsRng;
+use rsa::{PaddingScheme, PublicKey};
 
 use cess_curve::*;
 use log::{info, warn};
@@ -95,6 +95,8 @@ use param::{
     StatusInfo,
 };
 // use ocall_def::ocall_post_podr2_commit_data;
+use crate::attestation::hex;
+use crate::statics::*;
 use param::podr2_commit_data::PoDR2SigGenData;
 use param::podr2_commit_response::{PoDR2ChalResponse, PoDR2Response};
 use podr2_v1_pri::chal_gen::{ChalData, PoDR2Chal};
@@ -103,8 +105,6 @@ use podr2_v1_pri::{QElement, Tag};
 use podr2_v2_pub_rsa::SigGenResponse;
 use utils::bloom_filter::BloomHash;
 use utils::file;
-use crate::attestation::hex;
-use crate::statics::*;
 
 mod attestation;
 mod keys;
@@ -132,8 +132,11 @@ pub extern "C" fn init() -> sgx_status_t {
     let max_file_size = (heap_max_size as f32 * 0.65) as usize;
     utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(max_file_size, Ordering::SeqCst);
     info!("Max supported File size: {} bytes", max_file_size);
-    let available_cpu=thread::available_parallelism().unwrap();
-    info!("The program is initialized successfully! and the number of available threads is:{}",available_cpu.get());
+    let available_cpu = thread::available_parallelism().unwrap();
+    info!(
+        "The program is initialized successfully! and the number of available threads is:{}",
+        available_cpu.get()
+    );
     sgx_status_t::SGX_SUCCESS
 }
 
@@ -270,6 +273,10 @@ pub extern "C" fn process_data(
         utils::post::post_data(callback_url_str.clone(), &podr2_data);
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
+    info!(
+        "Currently available threads are:{}",
+        thread::available_parallelism().unwrap().get()
+    );
 
     match thread::Builder::new()
         .name("process_data".to_string())
@@ -277,19 +284,19 @@ pub extern "C" fn process_data(
             let call_back_url = callback_url_str.clone();
 
             info!("-------------------PoDR2 Pub RSA-------------------");
+
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
-            info!("Currently available threads are:{}",thread::available_parallelism().unwrap().get());
-            match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n){
-                Ok(result) =>(
-                    podr2_data.result=result,
+            match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n) {
+                Ok(result) => (
+                    podr2_data.result = result,
                     podr2_data.status.status_msg = "Sig gen successful!".to_string(),
-                    podr2_data.status.status_code = Podr2Status::PoDr2Success as usize
+                    podr2_data.status.status_code = Podr2Status::PoDr2Success as usize,
                 ),
-                Err(e)=>(
-                    podr2_data.result=SigGenResponse::new(),
-                    podr2_data.status.status_msg=e.message.unwrap(),
-                    podr2_data.status.status_code=Podr2Status::PoDr2Unexpected as usize
-                    )
+                Err(e) => (
+                    podr2_data.result = SigGenResponse::new(),
+                    podr2_data.status.status_msg = e.message.unwrap(),
+                    podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize,
+                ),
             };
 
             info!("-------------------PoDR2 Pub RSA-------------------");
@@ -538,17 +545,20 @@ pub extern "C" fn test_func(msg: *const c_char) -> sgx_status_t {
     };
     // podr2_v2_pub_rsa::key_gen::key_gen(msg_string);
     let rsa_keys = KEYS.lock().unwrap().rsa_keys.clone();
-    let e =utils::convert::u8v_to_hexstr(&rsa_keys.pkey.e().to_bytes_be());
-    let n =utils::convert::u8v_to_hexstr(&rsa_keys.pkey.n().to_bytes_be());
-    dbg!(e,n);
-    println!("e is :{:?}",&rsa_keys.pkey.e().to_string());
-    println!("n is :{:?}",&rsa_keys.pkey.n().to_string());
+    let e = utils::convert::u8v_to_hexstr(&rsa_keys.pkey.e().to_bytes_be());
+    let n = utils::convert::u8v_to_hexstr(&rsa_keys.pkey.n().to_bytes_be());
+    dbg!(e, n);
+    println!("e is :{:?}", &rsa_keys.pkey.e().to_string());
+    println!("n is :{:?}", &rsa_keys.pkey.n().to_string());
 
-    let msg_vec=hex::decode_hex(&msg_string);
+    let msg_vec = hex::decode_hex(&msg_string);
 
     // let enc_data = rsa_keys.pkey.encrypt(&mut rng, PaddingScheme::PKCS1v15, msg_string.as_bytes()).expect("failed to encrypt");
-    let dec_data = rsa_keys.skey.decrypt(PaddingScheme::PKCS1v15, &msg_vec).expect("failed to decrypt");
-    let res=String::from_utf8(dec_data).unwrap();
+    let dec_data = rsa_keys
+        .skey
+        .decrypt(PaddingScheme::PKCS1v15, &msg_vec)
+        .expect("failed to decrypt");
+    let res = String::from_utf8(dec_data).unwrap();
     dbg!(res);
 
     // assert_eq!(msg_string.as_bytes(), &dec_data[..]);
