@@ -112,6 +112,7 @@ async fn main() -> std::io::Result<()> {
                     .service(routes::r_message_signature)
                     .service(routes::test_func)
             })
+            .workers(2)
             .bind(("0.0.0.0", port))?
             .run()
             .await?;
