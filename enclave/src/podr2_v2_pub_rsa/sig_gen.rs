@@ -94,9 +94,7 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     response.phi = vec![String::new(); n_blocks];
 
     // Spawn Threads in batches
-    println!("--N_BLOCKS {}", n_blocks);
     for i in (0..n_blocks).step_by(MAX_THREAD) {
-        println!("----FROM---- {}", i);
         let max = if i + MAX_THREAD > n_blocks {
             n_blocks
         } else {
@@ -105,7 +103,6 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
 
         let (tx, rx) = channel();
         for j in i..max {
-            print!("{},", j);
             //get piece duplicate
             let mut piece = vec![];
             if j == n_blocks - 1 {
@@ -134,18 +131,11 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
                 })
                 .unwrap();
         }
-        println!();
         let iter = rx.iter().take(max - i);
-        println!("----RECEIVED {}----", max - i);
         for k in iter {
-            print!("{},", k.1);
             response.phi[k.1] = k.0;
         }
-        println!();
-        println!("------------------");
     }
-
-    println!("COMPLETED");
     Ok(response)
 }
 
