@@ -272,10 +272,6 @@ pub extern "C" fn process_data(
         utils::post::post_data(callback_url_str.clone(), &podr2_data);
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER;
     }
-    info!(
-        "Currently available threads are:{}",
-        thread::available_parallelism().unwrap().get()
-    );
 
     match thread::Builder::new()
         .name("process_data".to_string())
@@ -283,7 +279,6 @@ pub extern "C" fn process_data(
             let call_back_url = callback_url_str.clone();
 
             info!("-------------------PoDR2 Pub RSA-------------------");
-
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n) {
                 Ok(result) => (
@@ -297,30 +292,15 @@ pub extern "C" fn process_data(
                     podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize,
                 ),
             };
-
             info!("-------------------PoDR2 Pub RSA-------------------");
+            
             // Post PoDR2Data to callback url.
-            if !call_back_url.is_empty() {
-                utils::post::post_data(call_back_url, &podr2_data);
-                let mem =
-                    utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);
-                info!(
-                    "The enclave space is released to :{} (b)",
-                    mem + file_info.0
-                );
-            } else {
-                let json_data = serde_json::to_string(&podr2_data);
-                let json_data = match json_data {
-                    Ok(data) => data,
-                    Err(_) => {
-                        warn!("Failed to seralize PoDR2Response");
-                        "".to_string()
-                    }
-                };
-                debug!("PoDR2 Data: {}", json_data);
-
-                warn!("Callback URL not provided.");
-            }
+            utils::post::post_data(call_back_url, &podr2_data);
+            let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);
+            info!(
+                "The enclave space is released to :{} (b)",
+                mem + file_info.0
+            );
         }) {
         Ok(_) => return sgx_status_t::SGX_SUCCESS,
         Err(_) => return sgx_status_t::SGX_ERROR_OUT_OF_TCS,
