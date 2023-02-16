@@ -4,18 +4,18 @@ use core::convert::TryInto;
 use std::io::{Error, Read};
 use std::string::ToString;
 
+use crate::merkletree_generator::Sha256Algorithm;
+use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2SigGenData};
+use crate::{
+    attestation::hex,
+    param::podr2_commit_data::{PoDR2CommitData, PoDR2Error},
+    pbc,
+};
 use alloc::vec::Vec;
 use cess_curve::{hash, sign_hash, Hash, Zr, G1};
 use merkletree::merkle::MerkleTree;
 use sgx_tcrypto::rsgx_sha256_slice;
 use sgx_trts::c_str::CString;
-use crate::merkletree_generator::Sha256Algorithm;
-use crate::param::podr2_commit_data::{PoDR2Chal, PoDR2SigGenData};
-use crate::{
-    param::podr2_commit_data::{PoDR2CommitData, PoDR2Error},
-    pbc,
-    attestation::hex,
-};
 
 pub fn sig_gen(
     skey: cess_curve::SecretKey,
@@ -78,34 +78,23 @@ pub fn get_mht(
     data: &mut Vec<u8>,
     n_blocks: usize,
 ) -> Result<MerkleTree<[u8; 32], Sha256Algorithm>, PoDR2Error> {
-    let leaves_hashes = get_mht_leaves_hashes(data, n_blocks)?;
-    Ok(MerkleTree::from_data(leaves_hashes))
+    let leaves = get_leaves(data, n_blocks)?;
+    Ok(MerkleTree::from_data(leaves))
 }
 
-fn get_mht_leaves_hashes(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<u8>>, PoDR2Error> {
+fn get_leaves(data: &mut Vec<u8>, n_blocks: usize) -> Result<Vec<Vec<u8>>, PoDR2Error> {
     let block_size = (data.len() as f32 / n_blocks as f32) as usize;
-    let mut leaves_hashes = vec![vec![0u8; 32]; n_blocks];
+    let mut leaves = vec![vec![0u8; 32]; n_blocks];
 
     for i in 0..n_blocks {
-        let mi: Vec<u8> = if i == n_blocks - 1 {
+        leaves[i] = if i == n_blocks - 1 {
             data[i * block_size..].to_vec()
         } else {
             data[i * block_size..(i + 1) * block_size].to_vec()
         };
-        
-        let hash = rsgx_sha256_slice(&mi);
-        let hash = match hash {
-            Ok(h) => h,
-            Err(e) => {
-                return Err(PoDR2Error {
-                    message: Some("Sha256 hash failed while generating MTH leaves".to_string()),
-                })
-            }
-        };
-        leaves_hashes[i] = hash.to_vec();
     }
 
-    Ok(leaves_hashes)
+    Ok(leaves)
 }
 
 // Generates phi Φ = {σi}, 1 < i < n and u <-- G

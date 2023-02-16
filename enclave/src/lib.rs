@@ -39,13 +39,13 @@ extern crate log;
 extern crate merkletree;
 extern crate num;
 extern crate num_bigint;
-extern crate rand;
 extern crate rsa;
 extern crate rustls;
 extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate rand;
 extern crate sgx_serialize;
 #[macro_use]
 extern crate sgx_serialize_derive;
@@ -63,8 +63,8 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use core::convert::TryInto;
 use rand::rngs::OsRng;
+use core::convert::TryInto;
 use rsa::{PaddingScheme, PublicKey};
 
 use cess_curve::*;
