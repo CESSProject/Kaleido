@@ -64,6 +64,7 @@ extern crate yasna;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::convert::TryInto;
+use std::time::Instant;
 use rand::rngs::OsRng;
 use rsa::{PaddingScheme, PublicKey};
 
@@ -280,6 +281,8 @@ pub extern "C" fn process_data(
 
             info!("-------------------PoDR2 Pub RSA-------------------");
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
+
+            let now = Instant::now();
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n) {
                 Ok(result) => (
                     podr2_data.result = result,
@@ -292,8 +295,10 @@ pub extern "C" fn process_data(
                     podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize,
                 ),
             };
+            let elapsed = now.elapsed();
+            debug!("Signatures generated in {:.2?}!", elapsed);
             info!("-------------------PoDR2 Pub RSA-------------------");
-            
+
             // Post PoDR2Data to callback url.
             utils::post::post_data(call_back_url, &podr2_data);
             let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);

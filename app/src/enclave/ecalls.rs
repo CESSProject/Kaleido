@@ -2,7 +2,7 @@ use sgx_types::*;
 
 extern "C" {
     pub fn init(eid: sgx_enclave_id_t, retval: *mut sgx_status_t) -> sgx_status_t;
-    pub fn gen_keys(eid: sgx_enclave_id_t, retval: *mut sgx_status_t);
+    // pub fn gen_keys(eid: sgx_enclave_id_t, retval: *mut sgx_status_t);
     pub fn process_data(
         eid: sgx_enclave_id_t,
         retval: *mut sgx_status_t,
