@@ -87,6 +87,7 @@ use std::{
     string::String,
     sync::SgxMutex,
     thread,
+    time::Instant
 };
 
 use param::{
@@ -277,8 +278,8 @@ pub extern "C" fn process_data(
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-
-            info!("-------------------PoDR2 Pub RSA-------------------");
+            let now = Instant::now();
+            info!("-------------------PoDR2 Pub RSA Begin-------------------");
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n) {
                 Ok(result) => (
@@ -292,7 +293,8 @@ pub extern "C" fn process_data(
                     podr2_data.status.status_code = Podr2Status::PoDr2Unexpected as usize,
                 ),
             };
-            info!("-------------------PoDR2 Pub RSA-------------------");
+            let elapsed = now.elapsed();
+            info!("-------------------PoDR2 Pub RSA Finish in  {:.2?}!-------------------",elapsed);
             
             // Post PoDR2Data to callback url.
             utils::post::post_data(call_back_url, &podr2_data);
