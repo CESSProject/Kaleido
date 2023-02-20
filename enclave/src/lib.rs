@@ -47,6 +47,7 @@ extern crate serde_json;
 extern crate sgx_rand;
 extern crate rand;
 extern crate sgx_serialize;
+extern crate threadpool;
 #[macro_use]
 extern crate sgx_serialize_derive;
 extern crate sgx_tcrypto;
@@ -281,6 +282,8 @@ pub extern "C" fn process_data(
             let now = Instant::now();
             info!("-------------------PoDR2 Pub RSA Begin-------------------");
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
+
+            let now = Instant::now();
             match podr2_v2_pub_rsa::sig_gen::sig_gen(&mut file_info.1, n) {
                 Ok(result) => (
                     podr2_data.result = result,

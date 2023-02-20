@@ -48,6 +48,7 @@ pub struct PoDR2CommitResponse {
 }
 
 impl PoDR2CommitResponse {
+    #[allow(unused)]
     pub fn new() -> PoDR2CommitResponse {
         PoDR2CommitResponse {
             t: FileTagT::new(),
@@ -80,7 +81,6 @@ pub struct PoDR2VerifyRequest {
     pub proof_json: String,
     pub verify_type: usize,
 }
-
 
 #[derive(Debug)]
 pub struct PoDR2Error {

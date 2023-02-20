@@ -1,9 +1,8 @@
 extern crate base64;
 
 use std::ffi::CString;
-use std::time::Instant;
 
-use actix_web::{HttpResponse, post, Responder, web};
+use actix_web::{post, web, Responder};
 use sgx_types::*;
 use url::Url;
 
@@ -13,7 +12,7 @@ use crate::models::app_state::AppState;
 use crate::models::podr2_commit_response::{
     PoDR2ChalRequest, PoDR2CommitRequest, PoDR2Error, PoDR2VerifyRequest,
 };
-use crate::models::req::{ReqFillRandomFile, ReqMessageSignature,ReqTestFunc, ReqReport};
+use crate::models::req::{ReqFillRandomFile, ReqMessageSignature, ReqReport, ReqTestFunc};
 
 // r_ is appended to identify routes
 #[post("/process_data")]
@@ -46,7 +45,6 @@ pub async fn r_process_data(
     // };
     // debug!("File data decoded");
 
-    let now = Instant::now();
     debug!("Processing file data");
 
     let mut result1 = sgx_status_t::SGX_SUCCESS;
@@ -59,8 +57,6 @@ pub async fn r_process_data(
             c_callback_url_str.as_ptr(),
         )
     };
-    let elapsed = now.elapsed();
-    debug!("Signatures generated in {:.2?}!", elapsed);
 
     PoDR2SgxErrorResponder::parse_error(result1, result2)
 }
@@ -135,7 +131,7 @@ pub async fn r_verify_proof(
     let proof_id = base64::decode(req.proof_id.clone());
     let proof_id = match proof_id {
         Ok(id) => id,
-        Err(e) => {
+        Err(_) => {
             return Err(PoDR2Error {
                 message: Some("Invalid proof_id".to_string()),
             });
@@ -205,13 +201,7 @@ pub async fn test_func(
     let msg_ptr = CString::new(req.msg.as_str().as_bytes().to_vec()).unwrap();
 
     let mut result1 = sgx_status_t::SGX_SUCCESS;
-    let result2 = unsafe {
-        enclave::ecalls::test_func(
-            data.eid,
-            &mut result1,
-            msg_ptr.as_ptr()
-        )
-    };
+    let result2 = unsafe { enclave::ecalls::test_func(data.eid, &mut result1, msg_ptr.as_ptr()) };
 
     PoDR2SgxErrorResponder::parse_error(result1, result2)
 }

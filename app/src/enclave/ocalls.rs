@@ -54,10 +54,8 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 use sgx_types::*;
-use sgx_urts::SgxEnclave;
-use std::env;
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::os::unix::io::{AsRawFd, IntoRawFd};
+use std::net::{SocketAddr, TcpStream};
+use std::os::unix::io::IntoRawFd;
 use std::str;
 
 #[no_mangle]
