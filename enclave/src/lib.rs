@@ -39,13 +39,13 @@ extern crate log;
 extern crate merkletree;
 extern crate num;
 extern crate num_bigint;
-extern crate rand;
 extern crate rsa;
 extern crate rustls;
 extern crate secp256k1;
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
+extern crate rand;
 extern crate sgx_serialize;
 extern crate threadpool;
 #[macro_use]
@@ -64,9 +64,8 @@ extern crate yasna;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use core::convert::TryInto;
-use std::time::Instant;
 use rand::rngs::OsRng;
+use core::convert::TryInto;
 use rsa::{PaddingScheme, PublicKey};
 
 use cess_curve::*;
@@ -89,6 +88,7 @@ use std::{
     string::String,
     sync::SgxMutex,
     thread,
+    time::Instant
 };
 
 use param::{
@@ -279,8 +279,8 @@ pub extern "C" fn process_data(
         .name("process_data".to_string())
         .spawn(move || {
             let call_back_url = callback_url_str.clone();
-
-            info!("-------------------PoDR2 Pub RSA-------------------");
+            let now = Instant::now();
+            info!("-------------------PoDR2 Pub RSA Begin-------------------");
             let (n, s) = file::count_file(&mut file_info.1, block_size, 1);
 
             let now = Instant::now();
@@ -297,9 +297,8 @@ pub extern "C" fn process_data(
                 ),
             };
             let elapsed = now.elapsed();
-            debug!("Signatures generated in {:.2?}!", elapsed);
-            info!("-------------------PoDR2 Pub RSA-------------------");
-
+            info!("-------------------PoDR2 Pub RSA Finish in  {:.2?}!-------------------",elapsed);
+            
             // Post PoDR2Data to callback url.
             utils::post::post_data(call_back_url, &podr2_data);
             let mem = utils::enclave_mem::ENCLAVE_MEM_CAP.fetch_add(file_info.0, Ordering::SeqCst);
