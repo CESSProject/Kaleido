@@ -1,0 +1,19 @@
+[package]
+name = "threadpool"
+version = "0.0.1"
+edition = "2021"
+authors = ["CESS Labs"]
+
+[lib]
+name = "threadpool"
+crate-type = ["rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git" }
+
+[patch.'https://github.com/apache/teaclave-sgx-sdk.git']
+sgx_tstd = { path = "../teaclave-sgx-sdk/sgx_tstd" }

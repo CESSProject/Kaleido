@@ -47,6 +47,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_serialize;
+extern crate threadpool;
 #[macro_use]
 extern crate sgx_serialize_derive;
 extern crate sgx_tcrypto;
