@@ -5,8 +5,8 @@ use threadpool::ThreadPool;
 use core::convert::TryInto;
 use core::ops::{Deref, Mul};
 use hex;
-use num::{One, Zero};
-use num_bigint::{BigInt, Sign, ToBigInt};
+use num::{One, Signed, Zero};
+use num_bigint::{BigUint, Sign, ToBigInt, ToBigUint};
 use podr2_v2_pub_rsa::{SigGenResponse, T};
 use rand;
 use rand::rngs::OsRng;
@@ -33,12 +33,12 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
         data.len()
     );
 
-    let mut u = Arc::new(sgx_rand::random::<i64>().to_bigint().unwrap());
+    let mut u = sgx_rand::random::<u64>().to_biguint().unwrap();
     let mut name = vec![0u8; 512];
     let mut os_rng = sgx_rand::SgxRng::new().unwrap();
     os_rng.fill_bytes(&mut name);
     tag.n = n_blocks as i64;
-    tag.u = base64::encode(u.clone().to_bytes_be().1);
+    tag.u = base64::encode(u.clone().to_bytes_be());
     tag.name = base64::encode(name);
     let tag_serialized = serde_json::to_string(&tag).unwrap();
     let t_serialized_bytes = tag_serialized.clone().into_bytes();
@@ -176,18 +176,18 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     Ok(response)
 }
 
-pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: Arc<BigInt>) -> String {
+pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: Arc<BigUint>) -> String {
     let d_bytes = ssk.clone().d().to_bytes_be();
     let n_bytes = ssk.clone().n().to_bytes_be();
-    let d = num_bigint::BigInt::from_bytes_be(Sign::Plus, &d_bytes);
-    let n = num_bigint::BigInt::from_bytes_be(Sign::Plus, &n_bytes);
+    let d = num_bigint::BigUint::from_bytes_be(&d_bytes);
+    let n = num_bigint::BigUint::from_bytes_be(&n_bytes);
 
     let data_hash = sgx_tcrypto::rsgx_sha256_slice(&data).unwrap();
-    let mut data_bigint = num_bigint::BigInt::from_bytes_be(Sign::Plus, &data);
-    let mut data_hash_bigint = num_bigint::BigInt::from_bytes_be(Sign::Plus, &data_hash);
+    let mut data_bigint = num_bigint::BigUint::from_bytes_be( &data);
+    let mut data_hash_bigint = num_bigint::BigUint::from_bytes_be( &data_hash);
 
     //(H(mi) · u^mi )^α
-    let umi = u_bigint.modpow(&data_bigint, &n.clone());
+    let umi = u_bigint.modpow(&data_bigint, &n);
 
     let summary = data_hash_bigint * umi;
     let mut productory = summary.modpow(&d, &n);
