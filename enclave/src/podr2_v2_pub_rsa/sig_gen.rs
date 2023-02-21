@@ -1,6 +1,7 @@
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use threadpool::ThreadPool;
 use core::convert::TryInto;
 use core::ops::{Deref, Mul};
 use hex;
@@ -93,53 +94,89 @@ pub fn sig_gen(data: &mut Vec<u8>, n_blocks: usize) -> Result<SigGenResponse, Po
     response.spk.E = e;
     response.phi = vec![String::new(); n_blocks];
 
-    // Spawn Threads in batches
-    for i in (0..n_blocks).step_by(MAX_THREAD) {
-        let max = if i + MAX_THREAD > n_blocks {
-            n_blocks
+    debug!("Starting ThreadPool with {} Threads", MAX_THREAD);
+    let pool = ThreadPool::new(MAX_THREAD);
+
+    let (tx, rx) = channel();
+    for i in 0..n_blocks {
+        //get piece duplicate
+        let mut slice = vec![];
+        if i == n_blocks - 1 {
+            slice = data[i * block_size..].to_vec().clone();
         } else {
-            i + MAX_THREAD
-        };
+            slice = data[i * block_size..(i + 1) * block_size].to_vec();
+        }
 
-        let (tx, rx) = channel();
-        for j in i..max {
-            //get piece duplicate
-            let mut piece = vec![];
-            if j == n_blocks - 1 {
-                piece = data[j * block_size..].to_vec().clone();
+        //get ssk
+        let skey = skey.clone();
+        let tx = tx.clone();
+
+        // Clone reference instead of cloning the object itself.
+        let u = u.clone();
+
+        pool.execute(move || {
+            let mut data = "".to_string();
+            if i == n_blocks - 1 {
+                data = generate_sigma(skey, slice, u)
             } else {
-                piece = data[j * block_size..(j + 1) * block_size].to_vec();
+                data = generate_sigma(skey, slice, u)
             }
-
-            //get u duplicate
-            let u_copy = u.clone();
-
-            //get ssk
-            let skey = skey.clone();
-
-            let tx = tx.clone();
-            thread::Builder::new()
-                .name("generate_sigma".to_string())
-                .spawn(move || {
-                    let mut data = "".to_string();
-                    if j == n_blocks - 1 {
-                        data = generate_sigma(skey, piece, u_copy)
-                    } else {
-                        data = generate_sigma(skey, piece, u_copy)
-                    }
-                    tx.send((data, j)).unwrap();
-                })
-                .unwrap();
-        }
-        let iter = rx.iter().take(max - i);
-        for k in iter {
-            response.phi[k.1] = k.0;
-        }
+            tx.send((data, i)).unwrap();
+        });
     }
+
+    let iter = rx.iter().take(n_blocks);
+    for k in iter {
+        response.phi[k.1] = k.0;
+    }
+
+    // Spawn Threads in batches
+    // for i in (0..n_blocks).step_by(MAX_THREAD) {
+    //     let max = if i + MAX_THREAD > n_blocks {
+    //         n_blocks
+    //     } else {
+    //         i + MAX_THREAD
+    //     };
+
+    //     let (tx, rx) = channel();
+    //     for j in i..max {
+    //         //get piece duplicate
+    //         let mut piece = vec![];
+    //         if j == n_blocks - 1 {
+    //             piece = data[j * block_size..].to_vec().clone();
+    //         } else {
+    //             piece = data[j * block_size..(j + 1) * block_size].to_vec();
+    //         }
+
+    //         //get u duplicate
+    //         let u_copy = u.clone();
+
+    //         //get ssk
+    //         let skey = skey.clone();
+
+    //         let tx = tx.clone();
+    //         thread::Builder::new()
+    //             .name("generate_sigma".to_string())
+    //             .spawn(move || {
+    //                 let mut data = "".to_string();
+    //                 if j == n_blocks - 1 {
+    //                     data = generate_sigma(skey, piece, u_copy)
+    //                 } else {
+    //                     data = generate_sigma(skey, piece, u_copy)
+    //                 }
+    //                 tx.send((data, j)).unwrap();
+    //             })
+    //             .unwrap();
+    //     }
+    //     let iter = rx.iter().take(max - i);
+    //     for k in iter {
+    //         response.phi[k.1] = k.0;
+    //     }
+    // }
     Ok(response)
 }
 
-pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: BigUint) -> String {
+pub fn generate_sigma(ssk: RSAPrivateKey, data: Vec<u8>, u_bigint: Arc<BigUint>) -> String {
     let d_bytes = ssk.clone().d().to_bytes_be();
     let n_bytes = ssk.clone().n().to_bytes_be();
     let d = num_bigint::BigUint::from_bytes_be(&d_bytes);

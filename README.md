@@ -27,7 +27,7 @@ NOTE: Please install sgx-gmp uder default directory i.e. `/usr/local/`
 Download the source code of kaleido, command:
 
 ```shell
-git clone https://github.com/CESSProject/Kaleido.git
+git clone --recurse-submodules https://github.com/CESSProject/Kaleido.git
 ```
 
 ## Install the sgx driver
